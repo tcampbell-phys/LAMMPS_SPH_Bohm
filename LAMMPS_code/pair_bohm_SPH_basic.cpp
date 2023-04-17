@@ -34,8 +34,20 @@ using namespace LAMMPS_NS;
 PairBohmSPHBasic::PairBohmSPHBasic(LAMMPS *lmp) : Pair(lmp) {
   nmax = 0;
 
-  comm_forward = 17;
-  comm_reverse = 17;
+  manybody_flag = 1;
+
+  dx_rho = NULL;
+  dy_rho = NULL;
+  dz_rho = NULL;
+  dxx_rho = NULL;
+  dxy_rho = NULL;
+  dxz_rho = NULL;
+  dyy_rho = NULL;
+  dyz_rho = NULL;
+  dzz_rho = NULL;
+
+  comm_forward = 9;
+  comm_reverse = 9;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -45,9 +57,16 @@ PairBohmSPHBasic::~PairBohmSPHBasic()
   if (allocated) {
     memory->destroy(setflag);
     memory->destroy(cutsq);
-
     memory->destroy(cut);
-
+    memory->destroy(dx_rho);
+    memory->destroy(dy_rho);
+    memory->destroy(dz_rho);
+    memory->destroy(dxx_rho);
+    memory->destroy(dxy_rho);
+    memory->destroy(dxz_rho);
+    memory->destroy(dyy_rho);
+    memory->destroy(dyz_rho);
+    memory->destroy(dzz_rho);
   }
 }
 
@@ -67,7 +86,28 @@ void PairBohmSPHBasic::compute(int eflag, int vflag)
 
   if (atom->nmax > nmax) {
     // delete and create new memory arrays for any per-particle variables that need communicating.
+    memory->destroy(dx_rho);
+    memory->destroy(dy_rho);
+    memory->destroy(dz_rho);
+    memory->destroy(dxx_rho);
+    memory->destroy(dxy_rho);
+    memory->destroy(dxz_rho);
+    memory->destroy(dyy_rho);
+    memory->destroy(dyz_rho);
+    memory->destroy(dzz_rho);
+    
     nmax = atom->nmax;
+
+    memory->create(dx_rho,nmax,"pair:dx_rho");
+    memory->create(dy_rho,nmax,"pair:dy_rho");
+    memory->create(dz_rho,nmax,"pair:dz_rho");
+    memory->create(dxx_rho,nmax,"pair:dxx_rho");
+    memory->create(dxy_rho,nmax,"pair:dxy_rho");
+    memory->create(dxz_rho,nmax,"pair:dxz_rho");
+    memory->create(dyy_rho,nmax,"pair:dyy_rho");
+    memory->create(dyz_rho,nmax,"pair:dyz_rho");
+    memory->create(dzz_rho,nmax,"pair:dzz_rho");
+
   }
 
   double **x = atom->x;
@@ -93,19 +133,39 @@ void PairBohmSPHBasic::compute(int eflag, int vflag)
 
   if (newton_pair) {
     for (i = 0; i < nall; i++){
-      
+      dx_rho[i] = 0.0;
+      dy_rho[i] = 0.0;
+      dz_rho[i] = 0.0;
+      dxx_rho[i] = 0.0;
+      dxy_rho[i] = 0.0;
+      dxz_rho[i] = 0.0;
+      dyy_rho[i] = 0.0;
+      dyz_rho[i] = 0.0;
+      dzz_rho[i] = 0.0;
     }
   } 
   else{
     for (i = 0; i < nlocal; i++){
-
+      dx_rho[i] = 0.0;
+      dy_rho[i] = 0.0;
+      dz_rho[i] = 0.0;
+      dxx_rho[i] = 0.0;
+      dxy_rho[i] = 0.0;
+      dxz_rho[i] = 0.0;
+      dyy_rho[i] = 0.0;
+      dyz_rho[i] = 0.0;
+      dzz_rho[i] = 0.0;
     }
   }
 
   // loop over my atoms
 
+  // 9 per-particle gradients to compute
+
 
   for (ii = 0; ii < inum; ii++) {
+
+    // compute per-particle gradients for pressure tensor
 
     i = ilist[ii];
 
@@ -151,6 +211,8 @@ void PairBohmSPHBasic::compute(int eflag, int vflag)
   comm->forward_comm_pair(this);
 
   for (ii = 0; ii < inum; ii++) {
+
+    // compute force terms from pressure tensor here
     i = ilist[ii];
     f[i][0] += foo
     f[i][1] += foo
@@ -343,7 +405,15 @@ int PairBohmSPHBasic::pack_forward_comm(int n, int *list, double *buf,
   if (commflag == 0){
     for (i = 0; i < n; i++) {
       j = list[i];
-      buf[m++] = foo;
+      buf[m++] = dx_rho[j];
+      buf[m++] = dy_rho[j];
+      buf[m++] = dz_rho[j];
+      buf[m++] = dxx_rho[j];
+      buf[m++] = dxy_rho[j];
+      buf[m++] = dxz_rho[j];
+      buf[m++] = dyy_rho[j];
+      buf[m++] = dyz_rho[j];
+      buf[m++] = dzz_rho[j];
     }
     return m;
   }
@@ -359,8 +429,15 @@ void PairBohmSPHBasic::unpack_forward_comm(int n, int first, double *buf)
   last = first + n;
   if (commflag == 0){
     for (i = first; i < last; i++){
-
-      foo = buf[m++];
+      dx_rho[i] = buf[m++];
+      dy_rho[i] = buf[m++];
+      dz_rho[i] = buf[m++];
+      dxx_rho[i] = buf[m++];
+      dxy_rho[i] = buf[m++];
+      dxz_rho[i] = buf[m++];
+      dyy_rho[i] = buf[m++];
+      dyz_rho[i] = buf[m++];
+      dzz_rho[i] = buf[m++];
     }
   }
 }
@@ -375,7 +452,15 @@ int PairBohmSPHBasic::pack_reverse_comm(int n, int first, double *buf)
   last = first + n;
   if (commflag == 0){
     for (i = first; i < last; i++){
-      buf[m++] = foo;
+      buf[m++] = dx_rho[i];
+      buf[m++] = dy_rho[i];
+      buf[m++] = dz_rho[i];
+      buf[m++] = dxx_rho[i];
+      buf[m++] = dxy_rho[i];
+      buf[m++] = dxz_rho[i];
+      buf[m++] = dyy_rho[i];
+      buf[m++] = dyz_rho[i];
+      buf[m++] = dzz_rho[i];
     }
     return m;
   }
@@ -391,7 +476,15 @@ void PairBohmSPHBasic::unpack_reverse_comm(int n, int *list, double *buf)
   if (commflag == 0){
     for (i = 0; i < n; i++) {
       j = list[i];
-      foo += buf[m++];
+      dx_rho[j] += buf[m++];
+      dy_rho[j] += buf[m++];
+      dz_rho[j] += buf[m++];
+      dxx_rho[j] += buf[m++];
+      dxy_rho[j] += buf[m++];
+      dxz_rho[j] += buf[m++];
+      dyy_rho[j] += buf[m++];
+      dyz_rho[j] += buf[m++];
+      dzz_rho[j] += buf[m++];
     }
   }
 }

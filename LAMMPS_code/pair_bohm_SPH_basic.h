@@ -61,6 +61,17 @@ protected:
 
   // per-atom arrays
 
+  double *dx_rho;
+  double *dy_rho;
+  double *dz_rho;
+  double *dxx_rho;
+  double *dxy_rho;
+  double *dxz_rho;
+  double *dyy_rho;
+  double *dyz_rho;
+  double *dzz_rho;
+
+
   int commflag;
 
 
