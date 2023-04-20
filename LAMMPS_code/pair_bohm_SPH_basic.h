@@ -51,6 +51,7 @@ protected:
   double e_mass = 0.0005485799;
 
   double cut_global;
+  double width_global;
   double gamma_factor;
   double hplanck;
   double hbar;
@@ -61,6 +62,7 @@ protected:
 
   // per-atom arrays
 
+  double *rho;
   double *dx_rho;
   double *dy_rho;
   double *dz_rho;

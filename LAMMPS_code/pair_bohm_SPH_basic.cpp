@@ -46,8 +46,8 @@ PairBohmSPHBasic::PairBohmSPHBasic(LAMMPS *lmp) : Pair(lmp) {
   dyz_rho = NULL;
   dzz_rho = NULL;
 
-  comm_forward = 9;
-  comm_reverse = 9;
+  comm_forward = 10;
+  comm_reverse = 10;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -58,6 +58,7 @@ PairBohmSPHBasic::~PairBohmSPHBasic()
     memory->destroy(setflag);
     memory->destroy(cutsq);
     memory->destroy(cut);
+    memory->destroy(rho);
     memory->destroy(dx_rho);
     memory->destroy(dy_rho);
     memory->destroy(dz_rho);
@@ -77,8 +78,25 @@ void PairBohmSPHBasic::compute(int eflag, int vflag)
   int i,j,ii,jj,inum,jnum,itype,jtype;
   double xtmp,ytmp,ztmp,delx,dely,delz;
   double xtmp2,ytmp2,ztmp2,delx2,dely2,delz2;
-  double delx_2,dely_2,delz_2;
-  double foo;
+  double delx_2,dely_2,delz_2,rsq;
+  double gauss_pre;
+  double h2,hm2,hm4;
+  double imass,jmass,ijmass;
+  double m_gauss_ij,m_gauss_ji;
+  double omega_ij;
+  double Pixx,Pixy,Pixz,Piyy,Piyz,Pizz;
+  double Pjxx,Pjxy,Pjxz,Pjyy,Pjyz,Pjzz;
+  double dx_Wij,dy_Wij,dz_Wij;
+  double rho_i2,rho_j2;
+  double bohm_pot;
+  double cutsquared;
+  
+
+  hplanck  = force->hplanck;
+  hbar = hplanck/(2*M_PI);
+
+  // Bohm pressure prefactor
+  f_prefactor = (hbar*hbar)/(4*e_mass);
 
   int *ilist,*jlist,*numneigh,**firstneigh;
 
@@ -86,6 +104,7 @@ void PairBohmSPHBasic::compute(int eflag, int vflag)
 
   if (atom->nmax > nmax) {
     // delete and create new memory arrays for any per-particle variables that need communicating.
+    memory->destroy(rho);
     memory->destroy(dx_rho);
     memory->destroy(dy_rho);
     memory->destroy(dz_rho);
@@ -98,6 +117,7 @@ void PairBohmSPHBasic::compute(int eflag, int vflag)
     
     nmax = atom->nmax;
 
+    memory->create(rho,nmax,"pair:rho");
     memory->create(dx_rho,nmax,"pair:dx_rho");
     memory->create(dy_rho,nmax,"pair:dy_rho");
     memory->create(dz_rho,nmax,"pair:dz_rho");
@@ -129,10 +149,12 @@ void PairBohmSPHBasic::compute(int eflag, int vflag)
   firstneigh = list->firstneigh;
 
   cutsquared = cut_global*cut_global;
+
   // zero out per-atom arrays
 
   if (newton_pair) {
     for (i = 0; i < nall; i++){
+      rho[i] = 0.0;
       dx_rho[i] = 0.0;
       dy_rho[i] = 0.0;
       dz_rho[i] = 0.0;
@@ -146,6 +168,7 @@ void PairBohmSPHBasic::compute(int eflag, int vflag)
   } 
   else{
     for (i = 0; i < nlocal; i++){
+      rho[i] = 0.0;
       dx_rho[i] = 0.0;
       dy_rho[i] = 0.0;
       dz_rho[i] = 0.0;
@@ -162,6 +185,13 @@ void PairBohmSPHBasic::compute(int eflag, int vflag)
 
   // 9 per-particle gradients to compute
 
+  // 3D Gaussian prefactor
+  gauss_pre = 1/(pow(2*M_PI,1.5)*pow(width_global,3));
+
+  // width terms
+  h2 = width_global*width_global;
+  hm2 = 1/h2;
+  hm4 = hm2*hm2;
 
   for (ii = 0; ii < inum; ii++) {
 
@@ -178,6 +208,14 @@ void PairBohmSPHBasic::compute(int eflag, int vflag)
 
     jnum = numneigh[i];
 
+    imass = mass[itype];
+
+    // self interaction terms
+    rho[i] += imass*gauss_pre;
+    dxx_rho[i] += -hm2*imass*gauss_pre;
+    dyy_rho[i] += -hm2*imass*gauss_pre;
+    dzz_rho[i] += -hm2*imass*gauss_pre;
+
     for (jj = 0; jj < jnum; jj++) {
       j = jlist[jj];
       j &= NEIGHMASK;
@@ -189,16 +227,42 @@ void PairBohmSPHBasic::compute(int eflag, int vflag)
       rsq = delx*delx + dely*dely + delz*delz;
 
       jtype = type[j];
-
+ 
       if (rsq < cutsquared) {
 
-        delx_2 = pow(delx,2);
-        dely_2 = pow(dely,2);
-        delz_2 = pow(delz,2);
+        jmass = mass[jtype];
+
+        delx_2 = delx*delx;
+        dely_2 = dely*dely;
+        delz_2 = delz*delz;
+
+        m_gauss_ij = jmass*gauss_pre*exp(-(rsq)/(2*h2));
+      
+        rho[i] += m_gauss_ij;
+        dx_rho[i] += ((-delx)*hm2)*m_gauss_ij;
+        dy_rho[i] += ((-dely)*hm2)*m_gauss_ij;
+        dz_rho[i] += ((-delz)*hm2)*m_gauss_ij;
+        dxx_rho[i] += hm2*(delx_2*hm2 - 1)*m_gauss_ij;
+        dxy_rho[i] += hm4*(delx*dely)*m_gauss_ij;
+        dxz_rho[i] += hm4*(delx*delz)*m_gauss_ij;
+        dyy_rho[i] += hm2*(dely_2*hm2 - 1)*m_gauss_ij;
+        dyz_rho[i] += hm4*(dely*delz)*m_gauss_ij;
+        dzz_rho[i] += hm2*(delz_2*hm2 - 1)*m_gauss_ij;
 
         if (newton_pair || j < nlocal) {
+        
+          m_gauss_ji = imass*gauss_pre*exp(-(rsq)/(2*h2));
 
-
+          rho[j] += m_gauss_ji;
+          dx_rho[j] += ((delx)*hm2)*m_gauss_ji;
+          dy_rho[j] += ((dely)*hm2)*m_gauss_ji;
+          dz_rho[j] += ((delz)*hm2)*m_gauss_ji;
+          dxx_rho[j] += hm2*(delx_2*hm2 - 1)*m_gauss_ji;
+          dxy_rho[j] += hm4*(delx*dely)*m_gauss_ji;
+          dxz_rho[j] += hm4*(delx*delz)*m_gauss_ji;
+          dyy_rho[j] += hm2*(dely_2*hm2 - 1)*m_gauss_ji;
+          dyz_rho[j] += hm4*(dely*delz)*m_gauss_ji;
+          dzz_rho[j] += hm2*(delz_2*hm2 - 1)*m_gauss_ji;
         }
       }
     }
@@ -212,18 +276,82 @@ void PairBohmSPHBasic::compute(int eflag, int vflag)
 
   for (ii = 0; ii < inum; ii++) {
 
-    // compute force terms from pressure tensor here
+    // compute per-particle gradients for pressure tensor
+
     i = ilist[ii];
-    f[i][0] += foo
-    f[i][1] += foo
-    f[i][2] += foo
 
+    xtmp = x[i][0];
+    ytmp = x[i][1];
+    ztmp = x[i][2];
 
-    bohm_pot = foo
-    if (eflag_global) eng_vdwl += bohm_pot;
-    
+    itype = type[i];
+    jlist = firstneigh[i];
+
+    jnum = numneigh[i];
+
+    imass = mass[itype];
+
+    rho_i2 = rho[i]*rho[i];
+
+    Pixx = gamma_factor*f_prefactor*((dx_rho[i]*dx_rho[i])/rho[i] - dxx_rho[i]);
+    Pixy = gamma_factor*f_prefactor*((dx_rho[i]*dy_rho[i])/rho[i] - dxy_rho[i]);
+    Pixz = gamma_factor*f_prefactor*((dx_rho[i]*dz_rho[i])/rho[i] - dxz_rho[i]);
+    Piyy = gamma_factor*f_prefactor*((dy_rho[i]*dy_rho[i])/rho[i] - dyy_rho[i]);
+    Piyz = gamma_factor*f_prefactor*((dy_rho[i]*dz_rho[i])/rho[i] - dyz_rho[i]);
+    Pizz = gamma_factor*f_prefactor*((dz_rho[i]*dz_rho[i])/rho[i] - dzz_rho[i]);
+
+    // Bohm potential calculation
+    bohm_pot = -gamma_factor*f_prefactor*((dxx_rho[i] + dyy_rho[i]+ dzz_rho[i])/rho[i] - (dx_rho[i]*dx_rho[i] + dy_rho[i]*dy_rho[i] + dz_rho[i]*dz_rho[i])/(2*rho[i]*rho[i]));
+        if (eflag_global) eng_vdwl += bohm_pot;
+
+    for (jj = 0; jj < jnum; jj++) {
+      j = jlist[jj];
+      j &= NEIGHMASK;
+
+      delx = xtmp - x[j][0];
+      dely = ytmp - x[j][1];
+      delz = ztmp - x[j][2];
+
+      rsq = delx*delx + dely*dely + delz*delz;
+
+      jtype = type[j];
+ 
+      if (rsq < cutsquared) {
+
+        omega_ij = exp(-(rsq)/(2*h2));
+
+        Pjxx = gamma_factor*f_prefactor*((dx_rho[j]*dx_rho[j])/rho[i] - dxx_rho[j]);
+        Pjxy = gamma_factor*f_prefactor*((dx_rho[j]*dy_rho[j])/rho[i] - dxy_rho[j]);
+        Pjxz = gamma_factor*f_prefactor*((dx_rho[j]*dz_rho[j])/rho[i] - dxz_rho[j]);
+        Pjyy = gamma_factor*f_prefactor*((dy_rho[j]*dy_rho[j])/rho[i] - dyy_rho[j]);
+        Pjyz = gamma_factor*f_prefactor*((dy_rho[j]*dz_rho[j])/rho[i] - dyz_rho[j]);
+        Pjzz = gamma_factor*f_prefactor*((dz_rho[j]*dz_rho[j])/rho[i] - dzz_rho[j]);
+      
+        dx_Wij = (-delx/h2)*omega_ij;
+        dy_Wij = (-dely/h2)*omega_ij;
+        dz_Wij = (-delz/h2)*omega_ij;
+
+        jmass = mass[jtype];
+
+        ijmass = imass*jmass;
+
+        rho_j2 = rho[j]*rho[j];
+
+        // compute force terms from pressure tensor here
+        
+        f[i][0] += -ijmass*((Pixx*dx_Wij + Pixy*dy_Wij + Pixz*dz_Wij)/rho_i2 + (Pjxx*dx_Wij + Pjxy*dy_Wij + Pjxz*dz_Wij)/rho_j2);
+        f[i][1] += -ijmass*((Pixy*dx_Wij + Piyy*dy_Wij + Piyz*dz_Wij)/rho_i2 + (Pjxy*dx_Wij + Pjyy*dy_Wij + Pjyz*dz_Wij)/rho_j2);
+        f[i][2] += -ijmass*((Pixz*dx_Wij + Piyz*dy_Wij + Pizz*dz_Wij)/rho_i2 + (Pjxz*dx_Wij + Pjyz*dy_Wij + Pjzz*dz_Wij)/rho_j2);
+        
+        if (newton_pair || j < nlocal) {
+          f[j][0] += ijmass*((Pixx*dx_Wij + Pixy*dy_Wij + Pixz*dz_Wij)/rho_i2 + (Pjxx*dx_Wij + Pjxy*dy_Wij + Pjxz*dz_Wij)/rho_j2);
+          f[j][1] += ijmass*((Pixy*dx_Wij + Piyy*dy_Wij + Piyz*dz_Wij)/rho_i2 + (Pjxy*dx_Wij + Pjyy*dy_Wij + Pjyz*dz_Wij)/rho_j2);
+          f[j][2] += ijmass*((Pixz*dx_Wij + Piyz*dy_Wij + Pizz*dz_Wij)/rho_i2 + (Pjxz*dx_Wij + Pjyz*dy_Wij + Pjzz*dz_Wij)/rho_j2);
+          
+        }
+      }
+    }
   }
-
   if (vflag_fdotr) virial_fdotr_compute();
 }
 
@@ -252,14 +380,11 @@ void PairBohmSPHBasic::allocate()
 
 void PairBohmSPHBasic::settings(int narg, char **arg)
 {
-  if (narg != 5) error->all(FLERR,"Illegal pair_style command");
+  if (narg != 3) error->all(FLERR,"Illegal pair_style command. Require 3 input arguments.");
 
   cut_global = force->numeric(FLERR,arg[0]);
-  gamma_factor = foo;
-  hplanck  = force->hplanck;
-
-  hbar = hplanck/(2*M_PI);
-  f_prefactor = (pow(hbar,2)/(4*e_mass));
+  width_global = force->numeric(FLERR,arg[1]);
+  gamma_factor = force->numeric(FLERR,arg[2]);
 
   // reset cutoffs that have been explicitly set
 
@@ -301,7 +426,7 @@ void PairBohmSPHBasic::coeff(int narg, char **arg)
 
 // Specify a different sigma in pair_coeff step:
 
-  double sigma_one = sigma_global;
+  double sigma_one = width_global;
   if (narg == 4) sigma_one = force->numeric(FLERR,arg[3]);
 
   if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients");
@@ -405,6 +530,7 @@ int PairBohmSPHBasic::pack_forward_comm(int n, int *list, double *buf,
   if (commflag == 0){
     for (i = 0; i < n; i++) {
       j = list[i];
+      buf[m++] = rho[j];
       buf[m++] = dx_rho[j];
       buf[m++] = dy_rho[j];
       buf[m++] = dz_rho[j];
@@ -429,6 +555,7 @@ void PairBohmSPHBasic::unpack_forward_comm(int n, int first, double *buf)
   last = first + n;
   if (commflag == 0){
     for (i = first; i < last; i++){
+      rho[i] = buf[m++];
       dx_rho[i] = buf[m++];
       dy_rho[i] = buf[m++];
       dz_rho[i] = buf[m++];
@@ -452,6 +579,7 @@ int PairBohmSPHBasic::pack_reverse_comm(int n, int first, double *buf)
   last = first + n;
   if (commflag == 0){
     for (i = first; i < last; i++){
+      buf[m++] = rho[i];
       buf[m++] = dx_rho[i];
       buf[m++] = dy_rho[i];
       buf[m++] = dz_rho[i];
@@ -476,6 +604,7 @@ void PairBohmSPHBasic::unpack_reverse_comm(int n, int *list, double *buf)
   if (commflag == 0){
     for (i = 0; i < n; i++) {
       j = list[i];
+      rho[j] += buf[m++];
       dx_rho[j] += buf[m++];
       dy_rho[j] += buf[m++];
       dz_rho[j] += buf[m++];
