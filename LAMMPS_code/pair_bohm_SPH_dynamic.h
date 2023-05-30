@@ -1,31 +1,31 @@
 /* -*- c++ -*- ----------------------------------------------------------
 Bespoke pair_style to compute the Bohm force using an SPH-style pressure
-tensor.
+tensor, with dynamic per-particle widths.
 
-pair_bohm_SPH_basic:
+pair_bohm_SPH_dynamic:
 - Electrons as basic fluid element.
-- Static, global, gaussian widths.
+- Dynamic per-particle gaussian widths.
 
 Thomas Campbell
 ------------------------------------------------------------------------- */
 
 #ifdef PAIR_CLASS
 
-PairStyle(bohm_SPH_basic,PairBohmSPHBasic)
+PairStyle(bohm_SPH_dynamic,PairBohmSPHDynamic)
 
 #else
 
-#ifndef LMP_PAIR_BOHM_SPH_BASIC_H
-#define LMP_PAIR_BOHM_SPH_BASIC_H
+#ifndef LMP_PAIR_BOHM_SPH_DYNAMIC_H
+#define LMP_PAIR_BOHM_SPH_DYNAMIC_H
 
 #include "pair.h"
 
 namespace LAMMPS_NS {
 
-class PairBohmSPHBasic : public Pair {
+class PairBohmSPHDynamic : public Pair {
  public:
-  PairBohmSPHBasic(class LAMMPS *);
-  virtual ~PairBohmSPHBasic();
+  PairBohmSPHDynamic(class LAMMPS *);
+  virtual ~PairBohmSPHDynamic();
 
   virtual void compute(int, int);
   virtual void settings(int, char **);
@@ -72,7 +72,9 @@ protected:
   double *dyz_rho;
   double *dzz_rho;
 
+
   int commflag;
+
 
   virtual void allocate();
 };

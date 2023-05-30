@@ -1,0 +1,262 @@
+
+### SYSTEM PARAMETERS:
+
+### physical parameters:
+
+variable temp equal 3.5		                                        # Temperature in eV
+variable al_solid_density equal 0.00899                             # Density in # per bohr^3
+variable compression equal 1.912
+variable ion_density equal ${compression}*${al_solid_density}  		# Density in # per bohr^3
+variable ion_density equal 1.912*${al_solid_density}  		
+variable ion_density equal 1.912*0.00899  		
+variable num_ions equal 1000	                                        # Number of ions
+variable ion_charge equal 3			                                # Average charge/ionization
+variable ion_amu equal 26.982		                                # Atomic mass of ion
+variable electron_amu equal 0.00054857991                           # Atomic mass of electrons
+
+variable sigma equal 2.5                                         # Global packet width of electrons in bohr
+
+variable num_electrons equal ${num_ions}*${ion_charge}
+variable num_electrons equal 1000*${ion_charge}
+variable num_electrons equal 1000*3
+variable half_num_electrons equal ${num_electrons}/2.0
+variable half_num_electrons equal 3000/2.0
+variable temptouse equal 11604*${temp}
+variable temptouse equal 11604*3.5
+variable box_len equal (${num_ions}/${ion_density})^(1/3)
+variable box_len equal (1000/${ion_density})^(1/3)
+variable box_len equal (1000/0.01718888)^(1/3)
+variable half_box_len equal ${box_len}/2.0
+variable half_box_len equal 38.7481352328112/2.0
+
+### simulation parameters:
+
+variable time_step_length equal 1e-4
+variable data_time_steps equal 0
+variable dump_ts_freq equal 1
+variable cutoff equal 12.0                                          # cutoff for pairwise calculations
+
+units electron                                                      # use electron units (Hartree)
+newton on
+boundary p p p
+atom_style charge
+
+variable al_seed equal 910
+variable e_up_seed equal 707
+variable e_down_seed equal 78
+
+# thermostat parameters
+
+variable al_vel_seed equal 7389
+variable e_down_vel_seed equal 83671
+variable e_up_vel_seed equal 76665
+
+variable i_temp_damping equal ${time_step_length}*1000
+variable i_temp_damping equal 0.0001*1000
+
+variable alpha_mass equal 200.0
+variable exp_cutoff equal 20.0
+variable mu equal 0.64125                                           # ensure chemical potential matches with physical parameters
+
+variable vel_t equal 2.4*${temptouse}
+variable vel_t equal 2.4*40614
+
+# rdf calculation
+
+variable rdf_num_bins equal 150
+variable rdf_num_measurements equal 100
+variable rdf_output_time_step equal 5000
+variable rdf_measurement_time_gap equal 10
+
+### Setup simulation
+
+region bounding_region block 0.0 ${box_len} 0.0 ${box_len} 0.0 ${box_len}
+region bounding_region block 0.0 38.7481352328112 0.0 ${box_len} 0.0 ${box_len}
+region bounding_region block 0.0 38.7481352328112 0.0 38.7481352328112 0.0 ${box_len}
+region bounding_region block 0.0 38.7481352328112 0.0 38.7481352328112 0.0 38.7481352328112
+timestep ${time_step_length}
+timestep 0.0001
+
+create_box 2 bounding_region
+Created orthogonal box = (0 0 0) to (38.7481 38.7481 38.7481)
+  3 by 3 by 3 MPI processor grid
+
+create_atoms 1 random ${half_num_electrons} ${e_up_seed} NULL
+create_atoms 1 random 1500 ${e_up_seed} NULL
+create_atoms 1 random 1500 707 NULL
+Created 1500 atoms
+  create_atoms CPU = 0.000621565 secs
+group e_up type 1
+1500 atoms in group e_up
+mass 1 ${electron_amu}
+mass 1 0.00054857991
+set type 1 charge -1.0
+  1500 settings made for charge
+
+create_atoms 2 random ${half_num_electrons} ${e_down_seed} NULL
+create_atoms 2 random 1500 ${e_down_seed} NULL
+create_atoms 2 random 1500 78 NULL
+Created 1500 atoms
+  create_atoms CPU = 0.000184113 secs
+group e_down type 2
+1500 atoms in group e_down
+mass 2 ${electron_amu}
+mass 2 0.00054857991
+set type 2 charge -1.0
+  1500 settings made for charge
+
+variable bitmap_N equal 15
+
+pair_style bohm_SPH_basic ${cutoff} ${sigma} ${gamma_factor}
+pair_style bohm_SPH_basic 12 ${sigma} ${gamma_factor}
+pair_style bohm_SPH_basic 12 2.5 ${gamma_factor}
+pair_style bohm_SPH_basic 12 2.5 1
+
+# Set up each pair with the correct styles:
+
+pair_coeff * *
+
+variable ewalds_parameter equal 4.242640687/${box_len}
+variable ewalds_parameter equal 4.242640687/38.7481352328112
+
+### Thermostatting
+
+fix all_nve all nve
+
+velocity e_down create ${vel_t} ${e_down_vel_seed} rot yes dist gaussian
+velocity e_down create 97473.6 ${e_down_vel_seed} rot yes dist gaussian
+velocity e_down create 97473.6 83671 rot yes dist gaussian
+
+velocity e_up create ${vel_t} ${e_up_vel_seed} rot yes dist gaussian
+velocity e_up create 97473.6 ${e_up_vel_seed} rot yes dist gaussian
+velocity e_up create 97473.6 76665 rot yes dist gaussian
+
+# Randomize the starting positions of all of our particles
+
+displace_atoms all random 0.1 0.1 0.1 42
+
+# Compute group temperatures for output in logfile
+
+compute e_up_temp e_up temp
+
+compute e_down_temp e_down temp
+
+# Compute group KEs for output in logfile
+
+compute e_up_ke e_up ke
+
+compute e_down_ke e_down ke
+
+# Compute pair correlation functions:
+
+# custom logfile output
+
+thermo_style custom step temp c_e_up_temp c_e_down_temp pe ke etotal press
+
+# Minimize energy
+
+min_style cg
+minimize 1.0e-4 1.0e-5 1000 10000
+WARNING: Using 'neigh_modify every 1 delay 0 check yes' setting during minimization (src/min.cpp:190)
+Neighbor list info ...
+  update every 1 steps, delay 0 steps, check yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 14
+  ghost atom cutoff = 14
+  binsize = 7, bins = 6 6 6
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair bohm_SPH_basic, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d/newton
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 4.405 | 4.444 | 4.491 Mbytes
+Step Temp c_e_up_temp c_e_down_temp PotEng KinEng TotEng Press 
+       0    97441.098      97473.6      97473.6    25.918282     1388.138    1414.0563 4.6800218e+11 
+       1    97441.098      97473.6      97473.6    25.918243     1388.138    1414.0562 4.6800218e+11 
+Loop time of 0.0222445 on 27 procs for 1 steps with 3000 atoms
+
+99.4% CPU use with 27 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+         25.9182820201      25.9182820201      25.9182427814
+  Force two-norm initial, final = 6.62038e-05 6.62037e-05
+  Force max component initial, final = 3.02837e-06 3.02836e-06
+  Final line search alpha, max atom move = 1 3.02836e-06
+  Iterations, force evaluations = 1 1
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.015658   | 0.01865    | 0.021649   |   1.1 | 83.84
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0004235  | 0.0034209  | 0.0064138  |   2.7 | 15.38
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.0001734  |            |       |  0.78
+
+Nlocal:    111.111 ave 131 max 84 min
+Histogram: 1 1 4 0 3 4 3 7 2 2
+Nghost:    3442.33 ave 3483 max 3388 min
+Histogram: 3 0 1 4 1 2 8 3 3 2
+Neighs:    32915.8 ave 39030 max 23099 min
+Histogram: 2 1 0 2 4 3 4 2 5 4
+
+Total # of neighbors = 888727
+Ave neighs/atom = 296.242
+Neighbor list builds = 0
+Dangerous builds = 0
+
+reset_timestep 0
+
+# Check forces
+
+variable rhi equal 19.36
+variable rlo equal 1.001e-2
+variable write_N equal 1936
+
+# modify logfile output
+
+thermo_modify lost warn
+thermo 100
+thermo_style custom step temp c_e_up_temp c_e_down_temp pe ke etotal press
+WARNING: New thermo_style command, previous thermo_modify settings will be lost (src/output.cpp:708)
+
+dump all_particles_track_data all custom ${dump_ts_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/all_data.dump id type fx fy fz x y z
+dump all_particles_track_data all custom 1 /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/all_data.dump id type fx fy fz x y z
+dump all_particles_track_data all custom 1 /data/tcampbell/LAMMPS/SPH_Bohm/hedp_SPH_bohm_11/all_data.dump id type fx fy fz x y z
+
+run ${data_time_steps}
+run 0
+Per MPI rank memory allocation (min/avg/max) = 4.538 | 4.577 | 4.624 Mbytes
+Step Temp c_e_up_temp c_e_down_temp PotEng KinEng TotEng Press 
+       0    97441.098      97473.6      97473.6    25.918243     1388.138    1414.0562 4.6800218e+11 
+Loop time of 1.40703e-05 on 27 procs for 0 steps with 3000 atoms
+
+97.1% CPU use with 27 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0          | 0          | 0          |   0.0 |  0.00
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0          | 0          | 0          |   0.0 |  0.00
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 1.407e-05  |            |       |100.00
+
+Nlocal:    111.111 ave 131 max 84 min
+Histogram: 1 1 4 0 3 4 3 7 2 2
+Nghost:    3442.33 ave 3483 max 3388 min
+Histogram: 3 0 1 4 1 2 8 3 3 2
+Neighs:    32915.8 ave 39030 max 23099 min
+Histogram: 2 1 0 2 4 3 4 2 5 4
+
+Total # of neighbors = 888727
+Ave neighs/atom = 296.242
+Neighbor list builds = 0
+Dangerous builds = 0
+
+quit 0
