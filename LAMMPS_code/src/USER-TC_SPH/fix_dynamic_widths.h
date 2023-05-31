@@ -16,15 +16,18 @@ class FixDynamicWidths : public Fix {
   void post_integrate();
 
  protected:
+  class Pair *pair;
+  class PairHybrid;
   double constant;
   double N_iter;
   double mix_fact;
   double start_width;
   double cut_global;
   double cutsquared;
+  char *pair_name;
   double Gauss_Width_Deriv(double pre_fact, double wid, double sep_sq);
  
-}
+};
 
 }
 

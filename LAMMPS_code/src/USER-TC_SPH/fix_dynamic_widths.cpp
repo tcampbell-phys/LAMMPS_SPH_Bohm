@@ -7,6 +7,7 @@ Thomas Campbell
 
 #include "fix_dynamic_widths.h"
 #include <cstring>
+#include <mpi.h>
 #include "group.h"
 #include "modify.h"
 #include "error.h"
@@ -17,29 +18,38 @@ Thomas Campbell
 #include <math.h>
 #include "comm.h"
 #include "neighbor.h"
+#include "neigh_list.h"
+#include "neigh_request.h"
 #include "irregular.h"
-#include "fix_deform.h"
 #include "compute.h"
 #include "domain.h"
+#include "utils.h"
 #include "memory.h"
 
 using namespace LAMMPS_NS;
 using namespace FixConst;
 
 FixDynamicWidths::FixDynamicWidths(LAMMPS *lmp, int narg, char **arg):
-	Fix(lmp, narg, arg), id_temp(NULL)
+	Fix(lmp, narg, arg)
 {
-  if (narg < 5) error->all(FLERR,"Illegal fix Dynamic Widths command");
+  if (narg < 6) error->all(FLERR,"Illegal fix Dynamic Widths command");
 
   constant	= force->numeric(FLERR,arg[3]);
   N_iter = force->numeric(FLERR,arg[4]);
   mix_fact = force->numeric(FLERR,arg[5]);
   start_width = force->numeric(FLERR,arg[6]);
   cut_global = force->numeric(FLERR,arg[7]);
+  pair_name = strdup(arg[8]);
 
   cutsquared = cut_global*cut_global; 
 
-}	
+}
+
+FixDynamicWidths::~FixDynamicWidths()
+{
+  //free pair_name variable
+  free(pair_name);
+}
 
 int FixDynamicWidths::setmask()
 {
@@ -57,6 +67,26 @@ void FixDynamicWidths::init()
   // assign all particles same initial width
   for(int i = 0; i <+ natoms; ++i){
     width_SPH[i] = start_width;
+  }
+  // inherit neighbour lists from pair style
+  pair = lmp->force->pair;
+  // If a hybrid style is used we need to acces the correct sub-style.
+  PairHybrid *hybrid_pair = dynamic_cast<PairHybrid*> (pair);
+
+  if (hybrid_pair) {
+    // The pair style is a hybrid style.
+    if (!pair_name) error->all(FLERR,"When a hybrid pair-style is used, 'pair_name' must be set for the lagrangian solver.");
+    int nstyles = hybrid_pair->nstyles;
+    int found = -1;
+    for (int m = 0; m < nstyles; ++m) {
+      if (strcmp(pair_name, hybrid_pair->keywords[m]) == 0) {
+        if (found != -1) error->all(FLERR,"Multiple pair-styles with the name 'pair_name' found.");
+        found = m;
+      }
+    }
+    if (found == -1) error->all(FLERR,"No pair-style with the name of 'pair_name' found.");
+    // Set the correct pair style.
+    pair = hybrid_pair->styles[found];
   }
 }
 
@@ -87,6 +117,8 @@ void FixDynamicWidths::post_integrate()
   int nlocal = atom->nlocal;
   int nall = nlocal + atom->nghost;
   int newton_pair = force->newton_pair;
+
+  list = pair->list;
 	
   inum = list->inum;
   ilist = list->ilist;
@@ -272,7 +304,7 @@ void FixDynamicWidths::post_integrate()
       if (rsq < cutsquared) {
 
         jmass = mass[jtype];
-        omega_SPH[i] -= dh_drho_SPH_i*jmass*Gauss_Width_Deriv(gauss_pre_i,h_i,rsq)
+        omega_SPH[i] -= dh_drho_SPH_i*jmass*Gauss_Width_Deriv(gauss_pre_i,h_i,rsq);
 
       }
     }
@@ -282,4 +314,16 @@ void FixDynamicWidths::post_integrate()
 double FixDynamicWidths::Gauss_Width_Deriv(double pre_fact, double wid, double sep_sq)
 {
   return pre_fact*exp(-sep_sq/(wid*wid*2))*((sep_sq)/(wid*wid*wid) - 3/wid);
+}
+
+/* ----------------------------------------------------------------------
+   init specific to this fix
+------------------------------------------------------------------------- */
+
+void PairCoulCut::init_style()
+{
+  if (!atom->TC_SPH_flag)
+    error->all(FLERR,"fix_dynamic_widths requires atom attributes rho_SPH, width_SPH");
+
+  neighbor->request(this,instance_me);
 }

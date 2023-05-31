@@ -829,7 +829,7 @@ int AtomVecSPH::pack_data_hybrid(int i, double *buf)
 void AtomVecSPH::write_data(FILE *fp, int n, double **buf)
 {
   for (int i = 0; i < n; i++)
-    fprintf(fp,TAGINT_FORMAT " %d %-1.16e %-1.16e %-1.16e %-1.16e %d %d %d\n",
+    fprintf(fp,TAGINT_FORMAT " %d %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %d %d %d\n",
             (tagint) ubuf(buf[i][0]).i,(int) ubuf(buf[i][1]).i,
             buf[i][2],buf[i][3],buf[i][4],buf[i][5],buf[i][6],buf[i][7],buf[i][8],
             (int) ubuf(buf[i][9]).i,(int) ubuf(buf[i][10]).i,
@@ -842,7 +842,7 @@ void AtomVecSPH::write_data(FILE *fp, int n, double **buf)
 
 int AtomVecSPH::write_data_hybrid(FILE *fp, double *buf)
 {
-  fprintf(fp," %-1.16e",buf[0],buf[1],buf[2],buf[3]);
+  fprintf(fp," %-1.16e %-1.16e %-1.16e %-1.16e",buf[0],buf[1],buf[2],buf[3]);
   return 4;
 }
 
