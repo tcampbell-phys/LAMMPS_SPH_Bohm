@@ -8,6 +8,8 @@
    certain rights in this software.  This software is distributed under
    the GNU General Public License.
 
+   Edited by Thomas Campbell for use with dynamic widths in Bohm SPH scheme. 
+
    See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
 
@@ -74,11 +76,9 @@ Atom::Atom(LAMMPS *lmp) : Pointers(lmp)
   image = NULL;
   x = v = f = NULL;
 
-  // SPH arrays
+  // SPH arrays:
 
-  rho_SPH = NULL;
-  width_SPH = NULL;
-  omega_SPH = NULL;
+  rho_SPH = width_SPH = omega_SPH = NULL;
 
   molecule = NULL;
   molindex = molatom = NULL;
@@ -167,13 +167,14 @@ Atom::Atom(LAMMPS *lmp) : Pointers(lmp)
   sphere_flag = peri_flag = electron_flag = 0;
   wavepacket_flag = sph_flag = 0;
 
+  //SPH flag:
+  TC_SPH_flag = 0;
+
   molecule_flag = 0;
   q_flag = mu_flag = 0;
   omega_flag = torque_flag = angmom_flag = 0;
   radius_flag = rmass_flag = 0;
   ellipsoid_flag = line_flag = tri_flag = body_flag = 0;
-
-  beta_flag = 0;
 
   // magnetic flags
 
@@ -266,9 +267,11 @@ Atom::~Atom()
   memory->destroy(v);
   memory->destroy(f);
 
-  // custom beta_correction array
+  // SPH
 
-  memory->destroy(beta_correction);
+  memory->destroy(rho_SPH);
+  memory->destroy(width_SPH);
+  memory->destroy(omega_SPH);
 
   memory->destroy(molecule);
   memory->destroy(molindex);
@@ -442,7 +445,9 @@ void Atom::create_avec(const char *style, int narg, char **arg, int trysuffix)
   radius_flag = rmass_flag = 0;
   ellipsoid_flag = line_flag = tri_flag = body_flag = 0;
 
-  beta_flag = 0;
+  //SPH
+
+  TC_SPH_flag = 0;
 
   // magnetic flags
 
@@ -2268,9 +2273,11 @@ void *Atom::extract(char *name)
   if (strcmp(name,"line") == 0) return (void *) line;
   if (strcmp(name,"tri") == 0) return (void *) tri;
 
-  //custom beta correction:
+  //SPH:
+  if (strcmp(name,"rho_SPH") == 0) return (void *) rho_SPH;
+  if (strcmp(name,"width_SPH") == 0) return (void *) width_SPH;
+  if (strcmp(name,"omega_SPH") == 0) return (void *) omega_SPH;
 
-  if (strcmp(name,"beta_correction") == 0) return (void *) beta_correction;
 
   if (strcmp(name,"vfrac") == 0) return (void *) vfrac;
   if (strcmp(name,"s0") == 0) return (void *) s0;

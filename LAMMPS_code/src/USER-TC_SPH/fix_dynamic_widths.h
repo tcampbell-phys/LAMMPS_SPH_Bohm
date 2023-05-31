@@ -13,8 +13,7 @@ class FixDynamicWidths : public Fix {
   virtual ~FixDynamicWidths();
   int setmask();
   void init();
-  void min_pre_force();
-  void pre_force();
+  void post_integrate();
 
  protected:
   double constant;
@@ -22,7 +21,8 @@ class FixDynamicWidths : public Fix {
   double mix_fact;
   double start_width;
   double cut_global;
-  double Gauss_Width_deriv(double wid, double sep);
+  double cutsquared;
+  double Gauss_Width_Deriv(double pre_fact, double wid, double sep_sq);
  
 }
 

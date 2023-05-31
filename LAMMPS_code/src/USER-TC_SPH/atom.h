@@ -8,6 +8,8 @@
    certain rights in this software.  This software is distributed under
    the GNU General Public License.
 
+   Edited by Thomas Campbell for use with dynamic widths in Bohm SPH scheme.
+
    See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
 
@@ -57,12 +59,6 @@ class Atom : protected Pointers {
   imageint *image;
   double **x,**v,**f;
 
-  // SPH
-
-  double *rho_SPH;
-  double *width_SPH;
-  double *omega_SPH;
-
   tagint *molecule;
   int *molindex,*molatom;
 
@@ -70,6 +66,9 @@ class Atom : protected Pointers {
   double **omega,**angmom,**torque;
   double *radius,*rmass;
   int *ellipsoid,*line,*tri,*body;
+
+  //Thomas Campbell SPH
+  double *rho_SPH,*width_SPH,*omega_SPH;
 
   // SPIN package
 
@@ -154,9 +153,9 @@ class Atom : protected Pointers {
   int ecp_flag;
   int wavepacket_flag,sph_flag;
 
-  //custom SPH flag:
+  //SPH flag
 
-  int SPH_flag;
+  int TC_SPH_flag;
 
   int molecule_flag,molindex_flag,molatom_flag;
   int q_flag,mu_flag;
