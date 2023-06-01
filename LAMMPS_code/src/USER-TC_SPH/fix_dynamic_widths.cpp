@@ -14,6 +14,8 @@ Thomas Campbell
 #include "atom.h"
 #include "update.h"
 #include "force.h"
+#include "pair.h"
+#include "pair_hybrid.h"
 #include <cmath>
 #include <math.h>
 #include "comm.h"
@@ -69,7 +71,7 @@ void FixDynamicWidths::init()
     width_SPH[i] = start_width;
   }
   // inherit neighbour lists from pair style
-  pair = lmp->force->pair;
+  pair = force->pair;
   // If a hybrid style is used we need to acces the correct sub-style.
   PairHybrid *hybrid_pair = dynamic_cast<PairHybrid*> (pair);
 
@@ -320,10 +322,10 @@ double FixDynamicWidths::Gauss_Width_Deriv(double pre_fact, double wid, double s
    init specific to this fix
 ------------------------------------------------------------------------- */
 
-void PairCoulCut::init_style()
-{
-  if (!atom->TC_SPH_flag)
-    error->all(FLERR,"fix_dynamic_widths requires atom attributes rho_SPH, width_SPH");
+// void PairCoulCut::init_style()
+// {
+//   if (!atom->TC_SPH_flag)
+//     error->all(FLERR,"fix_dynamic_widths requires atom attributes rho_SPH, width_SPH");
 
-  neighbor->request(this,instance_me);
-}
+//   neighbor->request(this,instance_me);
+// }

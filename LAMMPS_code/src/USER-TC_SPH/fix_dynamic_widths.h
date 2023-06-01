@@ -5,6 +5,7 @@ FixStyle(dynamic_widths,FixDynamicWidths)
 #define LMP_FIX_DYNAMIC_WIDTHS_H
 
 #include "fix.h"
+// #include "force.h"
 
 namespace LAMMPS_NS {
 class FixDynamicWidths : public Fix {
@@ -17,7 +18,8 @@ class FixDynamicWidths : public Fix {
 
  protected:
   class Pair *pair;
-  class PairHybrid;
+  class NeighList *list; 
+  // class PairHybrid *hybrid_pair;
   double constant;
   double N_iter;
   double mix_fact;

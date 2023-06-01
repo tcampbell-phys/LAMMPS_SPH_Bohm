@@ -136,9 +136,9 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
   double **f = atom->f;
 
   // call widths and omega values from bespoke atom style.
-  double *omega = atom->omega;
-  double *width = atom->width;
-  double *rho = atom->rho;
+  double *omega_SPH = atom->omega_SPH;
+  double *width_SPH = atom->width_SPH;
+  double *rho_SPH = atom->rho_SPH;
 
   int *tag =atom->tag;
 
@@ -208,7 +208,7 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
 
     imass = mass[itype];
 
-    h_i = width[i];
+    h_i = width_SPH[i];
     h2_i = h_i*h_i;
     hm2_i = 1/h2_i;
     hm4_i = hm2_i*hm2_i;
@@ -237,7 +237,7 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
 
         jmass = mass[jtype];
 
-        h_j = width[j];
+        h_j = width_SPH[j];
         h2_j = h_j*h_j;
         hm2_j = 1/h2_j;
         hm4_j = hm2_j*hm2_j;
@@ -301,19 +301,19 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
 
     imass = mass[itype];
 
-    rho_i2 = rho[i]*rho[i];
+    rho_i2 = rho_SPH[i]*rho_SPH[i];
 
-    omega_i = omega[i];
+    omega_i = omega_SPH[i];
 
     // 3D Gaussian prefactor
     gauss_pre_i = pi_fact*(1/(h_i*h_i*h_i));
 
-    Pixx = gamma_factor*f_prefactor*((dx_rho[i]*dx_rho[i])/rho[i] - dxx_rho[i]);
-    Pixy = gamma_factor*f_prefactor*((dx_rho[i]*dy_rho[i])/rho[i] - dxy_rho[i]);
-    Pixz = gamma_factor*f_prefactor*((dx_rho[i]*dz_rho[i])/rho[i] - dxz_rho[i]);
-    Piyy = gamma_factor*f_prefactor*((dy_rho[i]*dy_rho[i])/rho[i] - dyy_rho[i]);
-    Piyz = gamma_factor*f_prefactor*((dy_rho[i]*dz_rho[i])/rho[i] - dyz_rho[i]);
-    Pizz = gamma_factor*f_prefactor*((dz_rho[i]*dz_rho[i])/rho[i] - dzz_rho[i]);
+    Pixx = gamma_factor*f_prefactor*((dx_rho[i]*dx_rho[i])/rho_SPH[i] - dxx_rho[i]);
+    Pixy = gamma_factor*f_prefactor*((dx_rho[i]*dy_rho[i])/rho_SPH[i] - dxy_rho[i]);
+    Pixz = gamma_factor*f_prefactor*((dx_rho[i]*dz_rho[i])/rho_SPH[i] - dxz_rho[i]);
+    Piyy = gamma_factor*f_prefactor*((dy_rho[i]*dy_rho[i])/rho_SPH[i] - dyy_rho[i]);
+    Piyz = gamma_factor*f_prefactor*((dy_rho[i]*dz_rho[i])/rho_SPH[i] - dyz_rho[i]);
+    Pizz = gamma_factor*f_prefactor*((dz_rho[i]*dz_rho[i])/rho_SPH[i] - dzz_rho[i]);
 
     // Bohm potential calculation
     bohm_pot = -gamma_factor*f_prefactor*((dxx_rho[i] + dyy_rho[i]+ dzz_rho[i])/rho[i] - (dx_rho[i]*dx_rho[i] + dy_rho[i]*dy_rho[i] + dz_rho[i]*dz_rho[i])/(2*rho_i2));
@@ -336,16 +336,16 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
         exp_ij = exp(-(rsq)*hm2_i/2);
         exp_ji = exp(-(rsq)*hm2_j/2);
 
-        omega_j = omega[j];
+        omega_j = omega_SPH[j];
 
         gauss_pre_j = pi_fact*(1/(h_j*h_j*h_j));
 
-        Pjxx = gamma_factor*f_prefactor*((dx_rho[j]*dx_rho[j])/rho[j] - dxx_rho[j]);
-        Pjxy = gamma_factor*f_prefactor*((dx_rho[j]*dy_rho[j])/rho[j] - dxy_rho[j]);
-        Pjxz = gamma_factor*f_prefactor*((dx_rho[j]*dz_rho[j])/rho[j] - dxz_rho[j]);
-        Pjyy = gamma_factor*f_prefactor*((dy_rho[j]*dy_rho[j])/rho[j] - dyy_rho[j]);
-        Pjyz = gamma_factor*f_prefactor*((dy_rho[j]*dz_rho[j])/rho[j] - dyz_rho[j]);
-        Pjzz = gamma_factor*f_prefactor*((dz_rho[j]*dz_rho[j])/rho[j] - dzz_rho[j]);
+        Pjxx = gamma_factor*f_prefactor*((dx_rho[j]*dx_rho[j])/rho_SPH[j] - dxx_rho[j]);
+        Pjxy = gamma_factor*f_prefactor*((dx_rho[j]*dy_rho[j])/rho_SPH[j] - dxy_rho[j]);
+        Pjxz = gamma_factor*f_prefactor*((dx_rho[j]*dz_rho[j])/rho_SPH[j] - dxz_rho[j]);
+        Pjyy = gamma_factor*f_prefactor*((dy_rho[j]*dy_rho[j])/rho_SPH[j] - dyy_rho[j]);
+        Pjyz = gamma_factor*f_prefactor*((dy_rho[j]*dz_rho[j])/rho_SPH[j] - dyz_rho[j]);
+        Pjzz = gamma_factor*f_prefactor*((dz_rho[j]*dz_rho[j])/rho_SPH[j] - dzz_rho[j]);
       
         dx_Wij = gauss_pre_i*(-delx*hm2_i)*exp_ij;
         dy_Wij = gauss_pre_i*(-dely*hm2_i)*exp_ij;
@@ -359,7 +359,7 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
 
         ijmass = imass*jmass;
 
-        rho_j2 = rho[j]*rho[j];
+        rho_j2 = rho_SPH[j]*rho_SPH[j];
 
         // compute force terms from pressure tensor here
         
