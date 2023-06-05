@@ -45,7 +45,10 @@ FixDynamicWidths::FixDynamicWidths(LAMMPS *lmp, int narg, char **arg):
 
   cutsquared = cut_global*cut_global;
 
-  comm_forward = 1; 
+  comm_forward = 1;
+  comm_reverse = 1; 
+
+  commflag = 0;
 
 }
 
@@ -200,8 +203,7 @@ void FixDynamicWidths::setup_pre_force(int)
           m_gauss_ij = jmass*gauss_pre_i*exp(-(rsq)*hm2_i/2);
           rho_SPH[i] += m_gauss_ij;
 
-          if (newton_pair || j < nlocal) {
-
+          if (j < nlocal) {
 
             h_j = width_SPH[j];
             hm2_j = 1/(h_j*h_j);
@@ -210,9 +212,24 @@ void FixDynamicWidths::setup_pre_force(int)
             rho_SPH[j] += m_gauss_ji;
 
           }
+
+          if (j >= nlocal){
+            if (newton_pair) {
+              h_j = width_SPH[j];
+              hm2_j = 1/(h_j*h_j);
+              gauss_pre_j = pi_fact*(1/(h_j*h_j*h_j));
+              m_gauss_ji = imass*gauss_pre_j*exp(-(rsq)*hm2_j/2);
+              rho_SPH[j] += m_gauss_ji;
+            }
+          }
         }
       }
     }
+    commflag = 0;
+    // if (newton_pair){
+    //   comm->reverse_comm_fix(this);
+    // }
+    // comm->forward_comm_fix(this);
 
     for (ii = 0; ii < inum; ii++) {
       i = ilist[ii];
@@ -220,20 +237,22 @@ void FixDynamicWidths::setup_pre_force(int)
       imass = mass[itype];
       // mixing factor applied
 
-      fprintf(screen,"imass =  %f\n", imass);
-      fprintf(screen,"rho_SPH[i] =  %f\n", rho_SPH[i]);
-      fprintf(screen,"pow(imass/rho_SPH[i],(1./3.)) =  %f\n", pow(imass/rho_SPH[i],(1./3.)));
+      // fprintf(screen,"imass =  %f\n", imass);
+      // fprintf(screen,"rho_SPH[i] =  %f\n", rho_SPH[i]);
+      // fprintf(screen,"pow(imass/rho_SPH[i],(1./3.)) =  %f\n", pow(imass/rho_SPH[i],(1./3.)));
       
       width_SPH[i] = mix_fact*constant*(pow(imass/rho_SPH[i],(1./3.))) + (1-mix_fact)*(width_SPH[i]);
-      fprintf(screen,"width_SPH[i] =  %f\n", width_SPH[i]);
+      // fprintf(screen,"width_SPH[i] =  %f\n", width_SPH[i]);
     }
+    commflag = 1;
+    comm->forward_comm_fix(this);
   }
 
-  // clear density (again) and omega_SPH values
+  // clear density (again) and assign omega_SPH values
 
   for(int i = 0; i <+ natoms; ++i){
       rho_SPH[i] = 0.;
-      omega_SPH[i] = 0.;
+      omega_SPH[i] = 1.;
     }
 
   // final loop to compute density values with mix factor widths
@@ -257,7 +276,7 @@ void FixDynamicWidths::setup_pre_force(int)
     // 3D Gaussian prefactor
     gauss_pre_i = pi_fact*(1/(h_i*h_i*h_i));
 
-    // self interaction term
+    // // self interaction term
     rho_SPH[i] += imass*gauss_pre_i;
 
     for (jj = 0; jj < jnum; jj++) {
@@ -278,7 +297,18 @@ void FixDynamicWidths::setup_pre_force(int)
         m_gauss_ij = jmass*gauss_pre_i*exp(-(rsq)*hm2_i/2);
         rho_SPH[i] += m_gauss_ij;
 
-        if (newton_pair || j < nlocal) {
+        if (j < nlocal) {
+
+          h_j = width_SPH[j];
+          hm2_j = 1/(h_j*h_j);
+          gauss_pre_j = pi_fact*(1/(h_j*h_j*h_j));
+          m_gauss_ji = imass*gauss_pre_j*exp(-(rsq)*hm2_j/2);
+          rho_SPH[j] += m_gauss_ji;
+          // // self interaction term
+          // rho_SPH[j] += jmass*gauss_pre_j;
+
+        }
+        if (newton_pair && j >= nlocal) {
 
           h_j = width_SPH[j];
           hm2_j = 1/(h_j*h_j);
@@ -290,6 +320,12 @@ void FixDynamicWidths::setup_pre_force(int)
       }
     }
   }
+  commflag = 0;
+  if (newton_pair){
+    comm->reverse_comm_fix(this);
+  }
+  comm->forward_comm_fix(this);
+
   // loop to compute omega_SPH values after assignment of density and width values
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
@@ -309,14 +345,16 @@ void FixDynamicWidths::setup_pre_force(int)
 
     // 3D Gaussian prefactor
     gauss_pre_i = pi_fact*(1/(h_i*h_i*h_i));
-    // fprintf(screen,"i =  %d\n", i);
-    // fprintf(screen,"rho_SPH[i] =  %f\n", rho_SPH[i]);
+
+    // self interaction term
+    // rho_SPH[i] += imass*gauss_pre_i;
+
+    // dh_drho_SPH_i = -width_SPH[i]/(3*(rho_SPH[i] + imass*gauss_pre_i));
+    dh_drho_SPH_i = -width_SPH[i]/(3*(rho_SPH[i]));
 
 
-    dh_drho_SPH_i = -width_SPH[i]/(3*rho_SPH[i]);
-
-    // 1 and self interaction term
-    omega_SPH[i] = 1 - dh_drho_SPH_i*imass*(-3*gauss_pre_i/h_i);
+    // self interaction term
+    omega_SPH[i] += -dh_drho_SPH_i*imass*(-3*gauss_pre_i/h_i);
 
     for (jj = 0; jj < jnum; jj++) {
       j = jlist[jj];
@@ -331,11 +369,6 @@ void FixDynamicWidths::setup_pre_force(int)
       jtype = type[j];
 
       if (rsq < cutsquared) {
-        fprintf(screen,"gauss_pre_i =  %.11f\n", gauss_pre_i);
-        fprintf(screen,"h_i =  %.11f\n", h_i);
-        fprintf(screen,"rsq =  %.11f\n", rsq);
-        fprintf(screen,"Gauss_Width_Deriv(gauss_pre_i,h_i,rsq) =  %.11f\n", Gauss_Width_Deriv(gauss_pre_i,h_i,rsq));
-
 
         jmass = mass[jtype];
         omega_SPH[i] -= dh_drho_SPH_i*jmass*Gauss_Width_Deriv(gauss_pre_i,h_i,rsq);
@@ -344,15 +377,29 @@ void FixDynamicWidths::setup_pre_force(int)
 
           h_j = width_SPH[j];
           gauss_pre_j = pi_fact*(1/(h_j*h_j*h_j));
-          dh_drho_SPH_j = -width_SPH[j]/(3*rho_SPH[j]);
+          // dh_drho_SPH_j = -width_SPH[j]/(3*(rho_SPH[j] + jmass*gauss_pre_j));
+          dh_drho_SPH_j = -width_SPH[j]/(3*(rho_SPH[j]));
           omega_SPH[j] -= dh_drho_SPH_j*imass*Gauss_Width_Deriv(gauss_pre_j,h_j,rsq);
-
         }
       }
     }
   }
-}
+  // for (ii = 0; ii < inum; ii++) {
+  //   i = ilist[ii];
 
+  //   itype = type[i];
+
+  //   imass = mass[itype];
+
+  //   h_i = width_SPH[i];
+
+  //   // 3D Gaussian prefactor
+  //   gauss_pre_i = pi_fact*(1/(h_i*h_i*h_i));
+
+  //   // self interaction term
+  //   rho_SPH[i] += imass*gauss_pre_i;
+  // }
+}
 void FixDynamicWidths::pre_force(int)
 {
   return;
@@ -410,7 +457,7 @@ void FixDynamicWidths::post_integrate()
 
     // clear all density values
 
-    for(int i = 0; i <+ natoms; ++i){
+    for(int i = 0; i < natoms; ++i){
       rho_SPH[i] = 0.;
     }
 
@@ -456,19 +503,32 @@ void FixDynamicWidths::post_integrate()
           m_gauss_ij = jmass*gauss_pre_i*exp(-(rsq)*hm2_i/2);
           rho_SPH[i] += m_gauss_ij;
 
-          if (newton_pair || j < nlocal) {
-
-
+          if (j < nlocal) {
             h_j = width_SPH[j];
             hm2_j = 1/(h_j*h_j);
             gauss_pre_j = pi_fact*(1/(h_j*h_j*h_j));
             m_gauss_ji = imass*gauss_pre_j*exp(-(rsq)*hm2_j/2);
             rho_SPH[j] += m_gauss_ji;
+          }
 
+          if (j >= nlocal){
+            if (newton_pair) {
+              h_j = width_SPH[j];
+              hm2_j = 1/(h_j*h_j);
+              gauss_pre_j = pi_fact*(1/(h_j*h_j*h_j));
+              m_gauss_ji = imass*gauss_pre_j*exp(-(rsq)*hm2_j/2);
+              rho_SPH[j] += m_gauss_ji;
+            }
           }
         }
       }
     }
+
+    commflag = 0;
+    if (newton_pair){
+      comm->reverse_comm_fix(this);
+    }
+    comm->forward_comm_fix(this);
 
     for (ii = 0; ii < inum; ii++) {
       i = ilist[ii];
@@ -483,13 +543,15 @@ void FixDynamicWidths::post_integrate()
       width_SPH[i] = mix_fact*constant*(pow(imass/rho_SPH[i],(1./3.))) + (1-mix_fact)*(width_SPH[i]);
       // fprintf(screen,"width_SPH[i] =  %f\n", width_SPH[i]);
     }
+    commflag = 1;
+    comm->forward_comm_fix(this);
   }
 
   // clear density (again) and omega_SPH values
 
-  for(int i = 0; i <+ natoms; ++i){
+  for(int i = 0; i < natoms; ++i){
       rho_SPH[i] = 0.;
-      omega_SPH[i] = 0.;
+      omega_SPH[i] = 1.;
     }
 
   // final loop to compute density values with mix factor widths
@@ -534,7 +596,7 @@ void FixDynamicWidths::post_integrate()
         m_gauss_ij = jmass*gauss_pre_i*exp(-(rsq)*hm2_i/2);
         rho_SPH[i] += m_gauss_ij;
 
-        if (newton_pair || j < nlocal) {
+        if (j < nlocal) {
 
           h_j = width_SPH[j];
           hm2_j = 1/(h_j*h_j);
@@ -543,10 +605,25 @@ void FixDynamicWidths::post_integrate()
           rho_SPH[j] += m_gauss_ji;
 
         }
+
+        if (j >= nlocal){
+          if (newton_pair) {
+            h_j = width_SPH[j];
+            hm2_j = 1/(h_j*h_j);
+            gauss_pre_j = pi_fact*(1/(h_j*h_j*h_j));
+            m_gauss_ji = imass*gauss_pre_j*exp(-(rsq)*hm2_j/2);
+            rho_SPH[j] += m_gauss_ji;
+          }
+        }
       }
     }
+  }  
+  commflag = 0;
+  if (newton_pair){
+    comm->reverse_comm_fix(this);
   }
-  comm->forward_comm_pair(this);
+  comm->forward_comm_fix(this);
+
   // loop to compute omega_SPH values after assignment of density and width values
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
@@ -571,8 +648,8 @@ void FixDynamicWidths::post_integrate()
 
     dh_drho_SPH_i = -width_SPH[i]/(3*rho_SPH[i]);
 
-    // 1 and self interaction term
-    omega_SPH[i] = 1 - dh_drho_SPH_i*imass*(-3*gauss_pre_i/h_i);
+    // self interaction term
+    omega_SPH[i] += -dh_drho_SPH_i*imass*(-3*gauss_pre_i/h_i);
 
     for (jj = 0; jj < jnum; jj++) {
       j = jlist[jj];
@@ -620,12 +697,26 @@ int FixDynamicWidths::pack_forward_comm(int n, int *list, double *buf,
 {
   int i,j,m;
 
+  
+
+  fprintf(screen,"In forward comm loop... \n");
+
   m = 0;
-  for (i = 0; i < n; i++) {
-    j = list[i];
-    buf[m++] = rho_SPH[j];
+  if (commflag == 0){
+    double *rho_SPH = atom->rho_SPH;
+    for (i = 0; i < n; i++) {
+      j = list[i];
+      buf[m++] = rho_SPH[j];
+    }
   }
-    return m;
+  if (commflag == 1){
+    double *width_SPH = atom->width_SPH;
+    for (i = 0; i < n; i++) {
+      j = list[i];
+      buf[m++] = width_SPH[j];
+    }
+  }
+  return m;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -634,12 +725,71 @@ void FixDynamicWidths::unpack_forward_comm(int n, int first, double *buf)
 {
   int i,m,last;
 
+  fprintf(screen,"In unpack forward comm loop... \n");
+
   m = 0;
   last = first + n;
-  for (i = first; i < last; i++){
-    rho_SPH[i] = buf[m++];
+  if (commflag == 0){
+    double *rho_SPH = atom->rho_SPH;
+    for (i = first; i < last; i++){
+      rho_SPH[i] = buf[m++];
+    }
+  }
+  if (commflag == 1){
+    double *width_SPH = atom->width_SPH;
+    for (i = first; i < last; i++){
+      width_SPH[i] = buf[m++];
+    }
   }
   
+}
+
+int FixDynamicWidths::pack_reverse_comm(int n, int first, double *buf)
+{
+  int i,m,last;
+
+  fprintf(screen,"In reverse comm loop... \n");
+
+  m = 0;
+  last = first + n;
+  if (commflag == 0){
+    double *rho_SPH = atom->rho_SPH;
+    for (i = first; i < last; i++){
+      buf[m++] = rho_SPH[i];
+    }
+  }
+  if (commflag == 1){
+    double *width_SPH = atom->width_SPH;
+    for (i = first; i < last; i++){
+      buf[m++] = width_SPH[i];
+    }
+  }
+  return m;
+}
+
+/* ---------------------------------------------------------------------- */
+
+void FixDynamicWidths::unpack_reverse_comm(int n, int *list, double *buf)
+{
+  int i,j,m;
+
+  fprintf(screen,"In unpack reverse comm loop... \n");
+
+  m = 0;
+  if (commflag == 0){
+    double *rho_SPH = atom->rho_SPH;
+    for (i = 0; i < n; i++) {
+      j = list[i];
+      rho_SPH[j] += buf[m++];
+    }
+  }
+  if (commflag == 1){
+    double *width_SPH = atom->width_SPH;
+    for (i = 0; i < n; i++) {
+      j = list[i];
+      width_SPH[j] += buf[m++];
+    }
+  }
 }
 
 /* ----------------------------------------------------------------------

@@ -21,6 +21,8 @@ class FixDynamicWidths : public Fix {
   virtual void post_integrate();
   virtual int pack_forward_comm(int, int *, double *, int, int *);
   virtual void unpack_forward_comm(int, int, double *);
+  virtual int pack_reverse_comm(int, int, double *);
+  virtual void unpack_reverse_comm(int, int *, double *);
 
  protected:
   class Pair *pair;
@@ -32,6 +34,7 @@ class FixDynamicWidths : public Fix {
   double start_width;
   double cut_global;
   double cutsquared;
+  double commflag;
   char *pair_name;
   double Gauss_Width_Deriv(double pre_fact, double wid, double sep_sq);
  
