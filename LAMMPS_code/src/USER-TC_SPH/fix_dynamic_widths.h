@@ -13,8 +13,14 @@ class FixDynamicWidths : public Fix {
   FixDynamicWidths(class LAMMPS *, int, char **);
   virtual ~FixDynamicWidths();
   int setmask();
-  void init();
-  void post_integrate();
+  virtual void init();
+  virtual void setup_post_neighbor();
+  virtual void setup_pre_force(int);
+  virtual void pre_force(int);
+  virtual void post_neighbor();
+  virtual void post_integrate();
+  virtual int pack_forward_comm(int, int *, double *, int, int *);
+  virtual void unpack_forward_comm(int, int, double *);
 
  protected:
   class Pair *pair;

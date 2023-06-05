@@ -1307,7 +1307,7 @@ int DumpCustom::parse_fields(int narg, char **arg)
     } else if (strcmp(arg[iarg],"omega_SPH") == 0) {
       if (!atom->TC_SPH_flag)
         error->all(FLERR,"Dumping an atom property that isn't allocated");
-      pack_choice[i] = &DumpCustom::pack_width_SPH;
+      pack_choice[i] = &DumpCustom::pack_omega_SPH;
       vtype[i] = Dump::DOUBLE;
     } else if (strcmp(arg[iarg],"mux") == 0) {
       if (!atom->mu_flag)

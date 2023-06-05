@@ -94,7 +94,6 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
   double bohm_pot;
   double cutsquared;
   
-
   hplanck  = force->hplanck;
   hbar = hplanck/(2*M_PI);
 
@@ -134,6 +133,8 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
   double **x = atom->x;
   double **v = atom->v;
   double **f = atom->f;
+
+  // return;
 
   // call widths and omega values from bespoke atom style.
   double *omega_SPH = atom->omega_SPH;
@@ -208,6 +209,12 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
 
     imass = mass[itype];
 
+    // fprintf(screen,"break_statement A\n");
+
+    // fprintf(screen,"rho_SPH[i] = %.9f \n",rho_SPH[i]);
+    // fprintf(screen,"width_SPH[i] = %.9f \n",width_SPH[i]);
+    // fprintf(screen,"omega_SPH[i] = %.9f \n",omega_SPH[i]);
+
     h_i = width_SPH[i];
     h2_i = h_i*h_i;
     hm2_i = 1/h2_i;
@@ -222,6 +229,7 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
     dzz_rho[i] += -hm2_i*imass*gauss_pre_i;
 
     for (jj = 0; jj < jnum; jj++) {
+      // fprintf(screen,"break_statement B\n");
       j = jlist[jj];
       j &= NEIGHMASK;
 
@@ -234,6 +242,7 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
       jtype = type[j];
  
       if (rsq < cutsquared) {
+        // fprintf(screen,"break_statement C\n");
 
         jmass = mass[jtype];
 
@@ -261,6 +270,7 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
         dzz_rho[i] += hm2_i*(delz_2*hm2_i - 1)*m_gauss_ij;
 
         if (newton_pair || j < nlocal) {
+          // fprintf(screen,"break_statement D\n");
         
           m_gauss_ji = imass*gauss_pre_j*exp(-(rsq)*hm2_j/2);
 
@@ -285,6 +295,7 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
   comm->forward_comm_pair(this);
 
   for (ii = 0; ii < inum; ii++) {
+    // fprintf(screen,"break_statement E\n");
 
     // compute per-particle gradients for pressure tensor
 
@@ -315,11 +326,21 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
     Piyz = gamma_factor*f_prefactor*((dy_rho[i]*dz_rho[i])/rho_SPH[i] - dyz_rho[i]);
     Pizz = gamma_factor*f_prefactor*((dz_rho[i]*dz_rho[i])/rho_SPH[i] - dzz_rho[i]);
 
+    // fprintf(screen,"Pixx =  %.9f\n", Pixx);
+    // fprintf(screen,"Pixy =  %.9f\n", Pixy);
+    // fprintf(screen,"Pixz =  %.9f\n", Pixz);
+    // fprintf(screen,"Piyy =  %.9f\n", Piyy);
+    // fprintf(screen,"Piyz =  %.9f\n", Piyz);
+    // fprintf(screen,"Pizz =  %.9f\n", Pizz);
+    // fprintf(screen,"rho_i2 =  %.9f\n", rho_i2);
+    // fprintf(screen,"omega_i =  %.9f\n", omega_i);
+
     // Bohm potential calculation
-    bohm_pot = -gamma_factor*f_prefactor*((dxx_rho[i] + dyy_rho[i]+ dzz_rho[i])/rho[i] - (dx_rho[i]*dx_rho[i] + dy_rho[i]*dy_rho[i] + dz_rho[i]*dz_rho[i])/(2*rho_i2));
+    bohm_pot = -gamma_factor*f_prefactor*((dxx_rho[i] + dyy_rho[i]+ dzz_rho[i])/rho_SPH[i] - (dx_rho[i]*dx_rho[i] + dy_rho[i]*dy_rho[i] + dz_rho[i]*dz_rho[i])/(2*rho_i2));
     if (eflag_global) eng_vdwl += bohm_pot;
 
     for (jj = 0; jj < jnum; jj++) {
+      // fprintf(screen,"break_statement F\n");
       j = jlist[jj];
       j &= NEIGHMASK;
 
@@ -332,6 +353,7 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
       jtype = type[j];
  
       if (rsq < cutsquared) {
+        // fprintf(screen,"break_statement G\n");
 
         exp_ij = exp(-(rsq)*hm2_i/2);
         exp_ji = exp(-(rsq)*hm2_j/2);
@@ -366,8 +388,37 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
         f[i][0] += -ijmass*((Pixx*dx_Wij + Pixy*dy_Wij + Pixz*dz_Wij)/(rho_i2*omega_i) + (Pjxx*dx_Wji + Pjxy*dy_Wji + Pjxz*dz_Wji)/(rho_j2*omega_j));
         f[i][1] += -ijmass*((Pixy*dx_Wij + Piyy*dy_Wij + Piyz*dz_Wij)/(rho_i2*omega_i) + (Pjxy*dx_Wji + Pjyy*dy_Wji + Pjyz*dz_Wji)/(rho_j2*omega_j));
         f[i][2] += -ijmass*((Pixz*dx_Wij + Piyz*dy_Wij + Pizz*dz_Wij)/(rho_i2*omega_i) + (Pjxz*dx_Wji + Pjyz*dy_Wji + Pjzz*dz_Wji)/(rho_j2*omega_j));
+
+        // fprintf(screen,"ijmass =  %.9f\n", ijmass);
+        // fprintf(screen,"rho_j2 =  %.9f\n", rho_j2);
+        // fprintf(screen,"omega_j =  %.9f\n", omega_j);
+        
+        // fprintf(screen,"dx_rho[j] =  %.9f\n", dx_rho[j]);
+        // fprintf(screen,"dy_rho[j] =  %.9f\n", dy_rho[j]);
+        // fprintf(screen,"dz_rho[j] =  %.9f\n", dz_rho[j]);
+        // fprintf(screen,"dxx_rho[j] =  %.9f\n", dxx_rho[j]);
+        // fprintf(screen,"dxy_rho[j] =  %.9f\n", dxy_rho[j]);
+        // fprintf(screen,"dxz_rho[j] =  %.9f\n", dxz_rho[j]);
+        // fprintf(screen,"dyz_rho[j] =  %.9f\n", dyz_rho[j]);
+        // fprintf(screen,"dzz_rho[j] =  %.9f\n", dzz_rho[j]);
+
+        // fprintf(screen,"Pjxx =  %.9f\n", Pjxx);
+        // fprintf(screen,"Pjxy =  %.9f\n", Pjxy);
+        // fprintf(screen,"Pjxz =  %.9f\n", Pjxz);
+        // fprintf(screen,"Pjyy =  %.9f\n", Pjyy);
+        // fprintf(screen,"Pjyz =  %.9f\n", Pjyz);
+        // fprintf(screen,"Pjzz =  %.9f\n", Pjzz);
+
+        // fprintf(screen,"dx_Wij =  %.9f\n", dx_Wij);
+        // fprintf(screen,"dy_Wij =  %.9f\n", dy_Wij);
+        // fprintf(screen,"dz_Wij =  %.9f\n", dz_Wij);
+
+        // fprintf(screen,"dx_Wji =  %.9f\n", dx_Wji);
+        // fprintf(screen,"dy_Wji =  %.9f\n", dy_Wji);
+        // fprintf(screen,"dz_Wji =  %.9f\n", dz_Wji);
         
         if (newton_pair || j < nlocal) {
+          // fprintf(screen,"break_statement H\n");
           f[j][0] += ijmass*((Pixx*dx_Wij + Pixy*dy_Wij + Pixz*dz_Wij)/(rho_i2*omega_i) + (Pjxx*dx_Wji + Pjxy*dy_Wji + Pjxz*dz_Wji)/(rho_j2*omega_j));
           f[j][1] += ijmass*((Pixy*dx_Wij + Piyy*dy_Wij + Piyz*dz_Wij)/(rho_i2*omega_i) + (Pjxy*dx_Wji + Pjyy*dy_Wji + Pjyz*dz_Wji)/(rho_j2*omega_j));
           f[j][2] += ijmass*((Pixz*dx_Wij + Piyz*dy_Wij + Pizz*dz_Wij)/(rho_i2*omega_i) + (Pjxz*dx_Wji + Pjyz*dy_Wji + Pjzz*dz_Wji)/(rho_j2*omega_j));
@@ -377,6 +428,7 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
     }
   }
   if (vflag_fdotr) virial_fdotr_compute();
+  // fprintf(screen,"break_statement I\n");
 }
 
 /* ----------------------------------------------------------------------
