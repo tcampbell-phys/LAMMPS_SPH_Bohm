@@ -15,7 +15,7 @@ class FixDynamicWidths : public Fix {
   int setmask();
   virtual void init();
   virtual void setup_post_neighbor();
-  virtual void setup_pre_force(int);
+  // virtual void setup_pre_force(int);
   virtual void pre_force(int);
   virtual void post_neighbor();
   virtual void post_integrate();
