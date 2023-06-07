@@ -61,9 +61,8 @@ FixDynamicWidths::~FixDynamicWidths()
 int FixDynamicWidths::setmask()
 {
   int mask = 0;
-  mask |= FixConst::POST_INTEGRATE;
   mask |= FixConst::POST_NEIGHBOR;
-  // mask |= FixConst::PRE_FORCE;
+  mask |= FixConst::PRE_FORCE;
   return mask;
 }
 
@@ -75,9 +74,6 @@ void FixDynamicWidths::init()
   int nlocal = atom->nlocal;
   int nall = nlocal + atom->nghost;
 
-  // fprintf(screen,"FixDynamicWidths::init() being called... \n");
-  // fprintf(screen,"start_width =  %f\n", start_width);
-
   // assign all particles same initial width
   for(int i = 0; i < nall; ++i){
     width_SPH[i] = start_width;
@@ -86,8 +82,6 @@ void FixDynamicWidths::init()
 
 void FixDynamicWidths::setup_post_neighbor()
 {
-  // fprintf(screen,"FixDynamicWidths::setup_post_neighbor() being called... \n");
-
   // inherit neighbour lists from pair style
   pair = force->pair;
   // If a hybrid style is used we need to acces the correct sub-style.
@@ -134,8 +128,6 @@ void FixDynamicWidths::setup_post_neighbor()
   int nlocal = atom->nlocal;
   int nall = nlocal + atom->nghost;
   int newton_pair = force->newton_pair;
-
-  // fprintf(screen,"FixDynamicWidths::setup_pre_force() being called... \n");
 
   list = pair->list;
 	
@@ -352,17 +344,12 @@ void FixDynamicWidths::setup_post_neighbor()
   comm->forward_comm_fix(this);
 }
 
-void FixDynamicWidths::pre_force(int)
-{
-  return;
-}
-
 void FixDynamicWidths::post_neighbor()
 {
   return;
 }
 
-void FixDynamicWidths::post_integrate()
+void FixDynamicWidths::pre_force(int)
 {
   int a,i,j,ii,jj,inum,jnum,itype,jtype;
   int *ilist,*jlist,*numneigh,**firstneigh;
@@ -389,8 +376,6 @@ void FixDynamicWidths::post_integrate()
   int nlocal = atom->nlocal;
   int nall = nlocal + atom->nghost;
   int newton_pair = force->newton_pair;
-
-  // fprintf(screen,"FixDynamicWidths::post_integrate() being called... \n");
 
   list = pair->list;
 	
@@ -482,7 +467,7 @@ void FixDynamicWidths::post_integrate()
     comm->forward_comm_fix(this);
   }
 
-  // clear density (again) and assign omega_SPH values
+  // clear density (again) and omega_SPH values
 
   for(int i = 0; i < nall; i++){
       rho_SPH[i] = 0.;
@@ -616,10 +601,6 @@ int FixDynamicWidths::pack_forward_comm(int n, int *list, double *buf,
 {
   int i,j,m;
 
-  
-
-  fprintf(screen,"In forward comm loop... \n");
-
   m = 0;
   if (commflag == 0){
     double *rho_SPH = atom->rho_SPH;
@@ -651,8 +632,6 @@ void FixDynamicWidths::unpack_forward_comm(int n, int first, double *buf)
 {
   int i,m,last;
 
-  fprintf(screen,"In unpack forward comm loop... \n");
-
   m = 0;
   last = first + n;
   if (commflag == 0){
@@ -679,8 +658,6 @@ void FixDynamicWidths::unpack_forward_comm(int n, int first, double *buf)
 int FixDynamicWidths::pack_reverse_comm(int n, int first, double *buf)
 {
   int i,m,last;
-
-  fprintf(screen,"In reverse comm loop... \n");
 
   m = 0;
   last = first + n;
@@ -711,8 +688,6 @@ void FixDynamicWidths::unpack_reverse_comm(int n, int *list, double *buf)
 {
   int i,j,m;
 
-  fprintf(screen,"In unpack reverse comm loop... \n");
-
   m = 0;
   if (commflag == 0){
     double *rho_SPH = atom->rho_SPH;
@@ -736,15 +711,3 @@ void FixDynamicWidths::unpack_reverse_comm(int n, int *list, double *buf)
     }
   }
 }
-
-/* ----------------------------------------------------------------------
-   init specific to this fix
-------------------------------------------------------------------------- */
-
-// void PairCoulCut::init_style()
-// {
-//   if (!atom->TC_SPH_flag)
-//     error->all(FLERR,"fix_dynamic_widths requires atom attributes rho_SPH, width_SPH");
-
-//   neighbor->request(this,instance_me);
-// }
