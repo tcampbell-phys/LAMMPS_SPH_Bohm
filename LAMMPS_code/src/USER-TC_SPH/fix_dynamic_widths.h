@@ -29,6 +29,7 @@ class FixDynamicWidths : public Fix {
   double mix_fact;
   double start_width;
   double cut_global;
+  int type_avoid;
   double cutsquared;
   double commflag;
   char *pair_name;

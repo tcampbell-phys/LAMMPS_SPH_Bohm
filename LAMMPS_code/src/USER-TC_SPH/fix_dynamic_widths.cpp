@@ -34,14 +34,17 @@ using namespace FixConst;
 FixDynamicWidths::FixDynamicWidths(LAMMPS *lmp, int narg, char **arg):
 	Fix(lmp, narg, arg)
 {
-  if (narg < 6) error->all(FLERR,"Illegal fix Dynamic Widths command");
+  if (narg < 9) error->all(FLERR,"Illegal fix Dynamic Widths command");
 
   constant	= force->numeric(FLERR,arg[3]);
   N_iter = force->numeric(FLERR,arg[4]);
   mix_fact = force->numeric(FLERR,arg[5]);
   start_width = force->numeric(FLERR,arg[6]);
   cut_global = force->numeric(FLERR,arg[7]);
-  pair_name = strdup(arg[8]);
+  // type not involved in SPH loop
+  type_avoid = force->numeric(FLERR,arg[8]);
+  fprintf(screen,"type_avoid = %d\n",type_avoid);
+  pair_name = strdup(arg[9]);
 
   cutsquared = cut_global*cut_global;
 
@@ -71,12 +74,21 @@ void FixDynamicWidths::init()
   double *width_SPH = atom->width_SPH;
   double *rho_SPH = atom->rho_SPH;
   double *omega_SPH = atom->omega_SPH;
+  double *u_SPH = atom->u_SPH;
+  int *type = atom->type;
   int nlocal = atom->nlocal;
   int nall = nlocal + atom->nghost;
 
   // assign all particles same initial width
   for(int i = 0; i < nall; ++i){
+    
+    if (type[i] == type_avoid){
+      // fprintf(screen,"In continue condition...\n");
+      // fprintf(screen,"type[i] = %d\n",type[i]);
+      continue;
+    }
     width_SPH[i] = start_width;
+    u_SPH[i] = 0.0;
   }
 }
 
@@ -88,6 +100,7 @@ void FixDynamicWidths::setup_post_neighbor()
   PairHybrid *hybrid_pair = dynamic_cast<PairHybrid*> (pair);
 
   if (hybrid_pair) {
+    // fprintf(screen,"hybrid_pair neighbour list on...\n");
     // The pair style is a hybrid style.
     if (!pair_name) error->all(FLERR,"When a hybrid pair-style is used, 'pair_name' must be set for the lagrangian solver.");
     int nstyles = hybrid_pair->nstyles;
@@ -145,6 +158,9 @@ void FixDynamicWidths::setup_post_neighbor()
     // clear all density values
 
     for(int i = 0; i < nall; i++){
+      if (type[i] == type_avoid){
+        continue;
+      }
       rho_SPH[i] = 0.;
     }
 
@@ -159,6 +175,12 @@ void FixDynamicWidths::setup_post_neighbor()
       ztmp = x[i][2];
 
       itype = type[i];
+      // fprintf(screen,"itype = %d\n",itype);
+      // if (type[i] == type_avoid){
+      //   fprintf(screen,"In continue condition...\n");
+      //   fprintf(screen,"itype = %d\n",itype);
+      //   continue;
+      // }
       jlist = firstneigh[i];
 
       jnum = numneigh[i];
@@ -176,13 +198,15 @@ void FixDynamicWidths::setup_post_neighbor()
         j = jlist[jj];
         j &= NEIGHMASK;
 
+        jtype = type[j];
+
+        
+
         delx = xtmp - x[j][0];
         dely = ytmp - x[j][1];
         delz = ztmp - x[j][2];
 
         rsq = delx*delx + dely*dely + delz*delz;
-
-        jtype = type[j];
   
         if (rsq < cutsquared) {
 
@@ -211,6 +235,7 @@ void FixDynamicWidths::setup_post_neighbor()
     for (ii = 0; ii < inum; ii++) {
       i = ilist[ii];
       itype = type[i];
+      
       imass = mass[itype];
       // mixing factor applied
       width_SPH[i] = mix_fact*constant*(pow(imass/rho_SPH[i],(1./3.))) + (1-mix_fact)*(width_SPH[i]);
@@ -222,6 +247,7 @@ void FixDynamicWidths::setup_post_neighbor()
   // clear density (again) and assign omega_SPH values
 
   for(int i = 0; i < nall; i++){
+      
       rho_SPH[i] = 0.;
       omega_SPH[i] = 0.;
     }
@@ -237,6 +263,7 @@ void FixDynamicWidths::setup_post_neighbor()
     ztmp = x[i][2];
 
     itype = type[i];
+    
     jlist = firstneigh[i];
     jnum = numneigh[i];
     imass = mass[itype];
@@ -254,13 +281,15 @@ void FixDynamicWidths::setup_post_neighbor()
       j = jlist[jj];
       j &= NEIGHMASK;
 
+      jtype = type[j];
+
+      
+
       delx = xtmp - x[j][0];
       dely = ytmp - x[j][1];
       delz = ztmp - x[j][2];
 
       rsq = delx*delx + dely*dely + delz*delz;
-
-      jtype = type[j];
 
       if (rsq < cutsquared) {
 
@@ -294,6 +323,7 @@ void FixDynamicWidths::setup_post_neighbor()
     ztmp = x[i][2];
 
     itype = type[i];
+    
     jlist = firstneigh[i];
 
     jnum = numneigh[i];
@@ -314,13 +344,15 @@ void FixDynamicWidths::setup_post_neighbor()
       j = jlist[jj];
       j &= NEIGHMASK;
 
+      jtype = type[j];
+
+      
+
       delx = xtmp - x[j][0];
       dely = ytmp - x[j][1];
       delz = ztmp - x[j][2];
 
       rsq = delx*delx + dely*dely + delz*delz;
-
-      jtype = type[j];
 
       if (rsq < cutsquared) {
 
@@ -393,6 +425,9 @@ void FixDynamicWidths::pre_force(int)
     // clear all density values
 
     for(int i = 0; i < nall; i++){
+      if (type[i] == type_avoid){
+        continue;
+      }
       rho_SPH[i] = 0.;
     }
 
@@ -407,6 +442,7 @@ void FixDynamicWidths::pre_force(int)
       ztmp = x[i][2];
 
       itype = type[i];
+      
       jlist = firstneigh[i];
 
       jnum = numneigh[i];
@@ -424,13 +460,15 @@ void FixDynamicWidths::pre_force(int)
         j = jlist[jj];
         j &= NEIGHMASK;
 
+        jtype = type[j];
+
+        
+
         delx = xtmp - x[j][0];
         dely = ytmp - x[j][1];
         delz = ztmp - x[j][2];
 
         rsq = delx*delx + dely*dely + delz*delz;
-
-        jtype = type[j];
   
         if (rsq < cutsquared) {
 
@@ -459,6 +497,7 @@ void FixDynamicWidths::pre_force(int)
     for (ii = 0; ii < inum; ii++) {
       i = ilist[ii];
       itype = type[i];
+      
       imass = mass[itype];
       // mixing factor applied
       width_SPH[i] = mix_fact*constant*(pow(imass/rho_SPH[i],(1./3.))) + (1-mix_fact)*(width_SPH[i]);
@@ -467,9 +506,10 @@ void FixDynamicWidths::pre_force(int)
     comm->forward_comm_fix(this);
   }
 
-  // clear density (again) and omega_SPH values
+  // clear density (again) and assign omega_SPH values
 
   for(int i = 0; i < nall; i++){
+      
       rho_SPH[i] = 0.;
       omega_SPH[i] = 0.;
     }
@@ -485,6 +525,7 @@ void FixDynamicWidths::pre_force(int)
     ztmp = x[i][2];
 
     itype = type[i];
+    
     jlist = firstneigh[i];
     jnum = numneigh[i];
     imass = mass[itype];
@@ -502,13 +543,15 @@ void FixDynamicWidths::pre_force(int)
       j = jlist[jj];
       j &= NEIGHMASK;
 
+      jtype = type[j];
+
+      
+
       delx = xtmp - x[j][0];
       dely = ytmp - x[j][1];
       delz = ztmp - x[j][2];
 
       rsq = delx*delx + dely*dely + delz*delz;
-
-      jtype = type[j];
 
       if (rsq < cutsquared) {
 
@@ -542,6 +585,7 @@ void FixDynamicWidths::pre_force(int)
     ztmp = x[i][2];
 
     itype = type[i];
+    
     jlist = firstneigh[i];
 
     jnum = numneigh[i];
@@ -562,13 +606,15 @@ void FixDynamicWidths::pre_force(int)
       j = jlist[jj];
       j &= NEIGHMASK;
 
+      jtype = type[j];
+
+      
+
       delx = xtmp - x[j][0];
       dely = ytmp - x[j][1];
       delz = ztmp - x[j][2];
 
       rsq = delx*delx + dely*dely + delz*delz;
-
-      jtype = type[j];
 
       if (rsq < cutsquared) {
 

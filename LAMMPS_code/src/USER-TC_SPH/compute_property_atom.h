@@ -83,6 +83,7 @@ class ComputePropertyAtom : public Compute {
   void pack_rho_SPH(int);
   void pack_width_SPH(int);
   void pack_omega_SPH(int);
+  void pack_u_SPH(int);
   
   void pack_mux(int);
   void pack_muy(int);

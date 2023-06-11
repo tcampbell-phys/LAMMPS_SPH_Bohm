@@ -44,7 +44,7 @@ enum{ID,MOL,PROC,PROCP1,TYPE,ELEMENT,MASS,
      Q,MUX,MUY,MUZ,MU,RADIUS,DIAMETER,
      OMEGAX,OMEGAY,OMEGAZ,ANGMOMX,ANGMOMY,ANGMOMZ,
      TQX,TQY,TQZ,
-     COMPUTE,FIX,VARIABLE,INAME,DNAME,RHO_SPH,WIDTH_SPH,OMEGA_SPH};
+     COMPUTE,FIX,VARIABLE,INAME,DNAME,RHO_SPH,WIDTH_SPH,OMEGA_SPH,U_SPH};
 enum{LT,LE,GT,GE,EQ,NEQ,XOR};
 
 #define INVOKED_PERATOM 8
@@ -848,6 +848,12 @@ int DumpCustom::count()
                      "Threshold for an atom property that isn't allocated");
         ptr = atom->omega_SPH;
         nstride = 1;
+      } else if (thresh_array[ithresh] == U_SPH) {
+        if (!atom->TC_SPH_flag)
+          error->all(FLERR,
+                     "Threshold for an atom property that isn't allocated");
+        ptr = atom->u_SPH;
+        nstride = 1;
       } else if (thresh_array[ithresh] == MUX) {
         if (!atom->mu_flag)
           error->all(FLERR,
@@ -1308,6 +1314,11 @@ int DumpCustom::parse_fields(int narg, char **arg)
       if (!atom->TC_SPH_flag)
         error->all(FLERR,"Dumping an atom property that isn't allocated");
       pack_choice[i] = &DumpCustom::pack_omega_SPH;
+      vtype[i] = Dump::DOUBLE;
+    } else if (strcmp(arg[iarg],"u_SPH") == 0) {
+      if (!atom->TC_SPH_flag)
+        error->all(FLERR,"Dumping an atom property that isn't allocated");
+      pack_choice[i] = &DumpCustom::pack_u_SPH;
       vtype[i] = Dump::DOUBLE;
     } else if (strcmp(arg[iarg],"mux") == 0) {
       if (!atom->mu_flag)
@@ -1832,6 +1843,7 @@ int DumpCustom::modify_param(int narg, char **arg)
     else if (strcmp(arg[1],"rho_SPH") == 0) thresh_array[nthresh] = RHO_SPH;
     else if (strcmp(arg[1],"width_SPH") == 0) thresh_array[nthresh] = WIDTH_SPH;
     else if (strcmp(arg[1],"omega_SPH") == 0) thresh_array[nthresh] = OMEGA_SPH;
+    else if (strcmp(arg[1],"u_SPH") == 0) thresh_array[nthresh] = U_SPH;
 
     else if (strcmp(arg[1],"mux") == 0) thresh_array[nthresh] = MUX;
     else if (strcmp(arg[1],"muy") == 0) thresh_array[nthresh] = MUY;
@@ -2735,6 +2747,18 @@ void DumpCustom::pack_omega_SPH(int n)
 
   for (int i = 0; i < nchoose; i++) {
     buf[n] = omega_SPH[clist[i]];
+    n += size_one;
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+
+void DumpCustom::pack_u_SPH(int n)
+{
+  double *u_SPH = atom->u_SPH;
+
+  for (int i = 0; i < nchoose; i++) {
+    buf[n] = u_SPH[clist[i]];
     n += size_one;
   }
 }

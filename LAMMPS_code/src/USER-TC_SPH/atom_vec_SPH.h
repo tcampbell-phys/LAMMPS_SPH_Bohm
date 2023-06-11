@@ -69,6 +69,7 @@ class AtomVecSPH : public AtomVec {
   double *rho_SPH;
   double *width_SPH;
   double *omega_SPH;
+  double *u_SPH; //internal Bohm energy per-particle
 };
 
 }

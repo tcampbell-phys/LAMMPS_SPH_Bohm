@@ -76,6 +76,7 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
 {
   int i,j,ii,jj,inum,jnum,itype,jtype;
   double xtmp,ytmp,ztmp,delx,dely,delz;
+  double vxtmp,vytmp,vztmp,delvx,delvy,delvz;
   double xtmp2,ytmp2,ztmp2,delx2,dely2,delz2;
   double delx_2,dely_2,delz_2,rsq;
   double pi_fact;
@@ -96,6 +97,7 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
   double rho_i,rho_j;
   double bohm_pot;
   double cutsquared;
+  double u_prefact_i,u_prefact_j;
   
   hplanck  = force->hplanck;
   hbar = hplanck/(2*M_PI);
@@ -141,6 +143,9 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
   double *omega_SPH = atom->omega_SPH;
   double *width_SPH = atom->width_SPH;
   double *rho_SPH = atom->rho_SPH;
+  double *u_SPH = atom->u_SPH;
+
+  double dt = update->dt;
 
   int *tag =atom->tag;
 
@@ -242,6 +247,7 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
       jtype = type[j];
  
       if (rsq < cutsquared) {
+
         // fprintf(screen,"break_statement C\n");
 
         // fprintf(screen,"Neighbour at...\n");
@@ -316,6 +322,10 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
     ytmp = x[i][1];
     ztmp = x[i][2];
 
+    vxtmp = v[i][0];
+    vytmp = v[i][1];
+    vztmp = v[i][2];
+
     // fprintf(screen,"\nParticle at...\n");
     // fprintf(screen,"x =  %.12f\n", xtmp);
     // fprintf(screen,"y =  %.12f\n", ytmp);
@@ -355,11 +365,11 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
     // fprintf(screen,"width[i] =  %.12f\n", width_SPH[i]);
     // fprintf(screen,"omega_i =  %.12f\n", omega_i);
     // fprintf(screen,"rho[i] =  %.12f\n", rho_SPH[i]);
-    
 
-    // Bohm potential calculation
-    bohm_pot = -gamma_factor*f_prefactor*((dxx_rho[i] + dyy_rho[i]+ dzz_rho[i])/rho_SPH[i] - (dx_rho[i]*dx_rho[i] + dy_rho[i]*dy_rho[i] + dz_rho[i]*dz_rho[i])/(2*rho_i2));
-    if (eflag_global) eng_vdwl += bohm_pot;
+    u_prefact_i = (dt/(rho_i2*omega_i));
+
+    // fprintf(screen,"u_prefact_i =  %16.16f\n", u_prefact_i);
+
 
     for (jj = 0; jj < jnum; jj++) {
       // fprintf(screen,"break_statement F\n");
@@ -375,6 +385,10 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
       jtype = type[j];
  
       if (rsq < cutsquared) {
+
+        delvx = vxtmp - v[j][0];
+        delvy = vytmp - v[j][1];
+        delvz = vztmp - v[j][2];
         // fprintf(screen,"break_statement G\n");
 
         // fprintf(screen,"neighbour at...\n");
@@ -382,9 +396,16 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
         // fprintf(screen,"y =  %.12f\n", x[j][1]);
         // fprintf(screen,"z =  %.12f\n", x[j][2]);
 
+        // fprintf(screen,"delvx =  %.12f\n", delvx);
+        // fprintf(screen,"delvy =  %.12f\n", delvy);
+        // fprintf(screen,"delvz =  %.12f\n", delvz);
+
         h_j = width_SPH[j];
         h2_j = h_j*h_j;
         hm2_j = 1./h2_j;
+
+        jmass = mass[jtype];
+        ijmass = imass*jmass;
 
         exp_ij = exp(-(rsq)*hm2_i/2.);
         exp_ji = exp(-(rsq)*hm2_j/2.);
@@ -404,10 +425,18 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
         dy_Wij = gauss_pre_i*(-dely*hm2_i)*exp_ij;
         dz_Wij = gauss_pre_i*(-delz*hm2_i)*exp_ij;
 
+        u_SPH[i] += u_prefact_i*ijmass*((Pixx*delvx + Pixy*delvy + Pixz*delvz)*dx_Wij + (Pixy*delvx + Piyy*delvy + Piyz*delvz)*dy_Wij + (Pixz*delvx + Piyz*delvy + Pizz*delvz)*dz_Wij);
+
+        // fprintf(screen,"change u_SPH[i] =  %.16f\n", u_prefact_i*ijmass*((Pixx*delvx + Pixy*delvy + Pixz*delvz)*dx_Wij + (Pixy*delvx + Piyy*delvy + Piyz*delvz)*dy_Wij + (Pixz*delvx + Piyz*delvy + Pizz*delvz)*dz_Wij));
+
         dx_Wji = gauss_pre_j*(-delx*hm2_j)*exp_ji;
         dy_Wji = gauss_pre_j*(-dely*hm2_j)*exp_ji;
         dz_Wji = gauss_pre_j*(-delz*hm2_j)*exp_ji;
 
+        rho_j2 = rho_SPH[j]*rho_SPH[j];
+
+        u_prefact_j = (dt/(rho_j2*omega_j));
+        
         // fprintf(screen,"Pjxx =  %.12f\n", Pjxx);
         // fprintf(screen,"Pjxy =  %.12f\n", Pjxy);
         // fprintf(screen,"Pjxz =  %.12f\n", Pjxz);
@@ -423,13 +452,6 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
         // fprintf(screen,"dx_Wji =  %.12f\n", dx_Wji);
         // fprintf(screen,"dy_Wji =  %.12f\n", dy_Wji);
         // fprintf(screen,"dz_Wji =  %.12f\n", dz_Wji);
-
-
-        jmass = mass[jtype];
-
-        ijmass = imass*jmass;
-
-        rho_j2 = rho_SPH[j]*rho_SPH[j];
 
         // compute force terms from pressure tensor here
         
@@ -473,11 +495,25 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
           f[j][0] += ijmass*((Pixx*dx_Wij + Pixy*dy_Wij + Pixz*dz_Wij)/(rho_i2*omega_i) + (Pjxx*dx_Wji + Pjxy*dy_Wji + Pjxz*dz_Wji)/(rho_j2*omega_j));
           f[j][1] += ijmass*((Pixy*dx_Wij + Piyy*dy_Wij + Piyz*dz_Wij)/(rho_i2*omega_i) + (Pjxy*dx_Wji + Pjyy*dy_Wji + Pjyz*dz_Wji)/(rho_j2*omega_j));
           f[j][2] += ijmass*((Pixz*dx_Wij + Piyz*dy_Wij + Pizz*dz_Wij)/(rho_i2*omega_i) + (Pjxz*dx_Wji + Pjyz*dy_Wji + Pjzz*dz_Wji)/(rho_j2*omega_j));
-        
+          // fprintf(screen,"u_prefact_j =  %16.16f\n", u_prefact_j);
+
+          u_SPH[j] += u_prefact_j*ijmass*((-Pjxx*delvx - Pjxy*delvy - Pjxz*delvz)*dx_Wji + (-Pjxy*delvx - Pjyy*delvy - Pjyz*delvz)*dy_Wji + (-Pjxz*delvx - Pjyz*delvy - Pjzz*delvz)*dz_Wji);
+          // fprintf(screen,"change u_SPH[j] =  %.16f\n",u_prefact_j*ijmass*((-Pjxx*delvx - Pjxy*delvy - Pjxz*delvz)*dx_Wji + (-Pjxy*delvx - Pjyy*delvy - Pjyz*delvz)*dy_Wji + (-Pjxz*delvx - Pjyz*delvy - Pjzz*delvz)*dz_Wji));
         }
       }
     }
   }
+
+  commflag = 1;
+  if (newton_pair) comm->reverse_comm_pair(this);
+  comm->forward_comm_pair(this);
+
+  for (ii = 0; ii < inum; ii++) {
+    i = ilist[ii];
+    bohm_pot = u_SPH[i];
+    if (eflag_global) eng_vdwl += bohm_pot;
+  }
+
   if (vflag_fdotr) virial_fdotr_compute();
   // fprintf(screen,"break_statement I\n");
 }
@@ -663,6 +699,14 @@ int PairBohmSPHDynamicMocz::pack_forward_comm(int n, int *list, double *buf,
     }
     return m;
   }
+  if (commflag == 1){
+    double *u_SPH = atom->u_SPH;
+    for (i = 0; i < n; i++) {
+      j = list[i];
+      buf[m++] = u_SPH[j];
+    }
+    return m;
+  }
 }
 
 /* ---------------------------------------------------------------------- */
@@ -686,6 +730,13 @@ void PairBohmSPHDynamicMocz::unpack_forward_comm(int n, int first, double *buf)
       dzz_rho[i] = buf[m++];
     }
   }
+  if (commflag == 1){
+    double *u_SPH = atom->u_SPH;
+    for (i = first; i < last; i++){
+      u_SPH[i] = buf[m++];
+    }
+  }
+  
 }
 
 /* ---------------------------------------------------------------------- */
@@ -710,6 +761,13 @@ int PairBohmSPHDynamicMocz::pack_reverse_comm(int n, int first, double *buf)
     }
     return m;
   }
+  if (commflag == 1){
+    double *u_SPH = atom->u_SPH; 
+    for (i = first; i < last; i++){
+      buf[m++] = u_SPH[i];
+    }
+    return m;
+  }
 }
 
 /* ---------------------------------------------------------------------- */
@@ -731,6 +789,13 @@ void PairBohmSPHDynamicMocz::unpack_reverse_comm(int n, int *list, double *buf)
       dyy_rho[j] += buf[m++];
       dyz_rho[j] += buf[m++];
       dzz_rho[j] += buf[m++];
+    }
+  }
+  if (commflag == 1){
+    double *u_SPH = atom->u_SPH;
+    for (i = 0; i < n; i++) {
+      j = list[i];
+      u_SPH[j] += buf[m++];
     }
   }
 }

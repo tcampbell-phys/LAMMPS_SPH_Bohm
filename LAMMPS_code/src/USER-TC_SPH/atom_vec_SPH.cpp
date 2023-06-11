@@ -34,13 +34,13 @@ AtomVecSPH::AtomVecSPH(LAMMPS *lmp) : AtomVec(lmp)
 
   comm_x_only = 0;
   comm_f_only = 1;
-  size_forward = 6;
+  size_forward = 7;
   size_reverse = 3;
-  size_border = 10;
+  size_border = 11;
   size_velocity = 3;
-  size_data_atom = 9;
+  size_data_atom = 10;
   size_data_vel = 4;
-  xcol_data = 7;
+  xcol_data = 8;
 
   atom->q_flag = 1;
   atom->TC_SPH_flag = 1;
@@ -72,6 +72,7 @@ void AtomVecSPH::grow(int n)
   rho_SPH = memory->grow(atom->rho_SPH,nmax,"atom:rho_SPH");
   width_SPH = memory->grow(atom->width_SPH,nmax,"atom:width_SPH");
   omega_SPH = memory->grow(atom->omega_SPH,nmax,"atom:omega_SPH");
+  u_SPH = memory->grow(atom->u_SPH,nmax,"atom:u_SPH");
 
   q = memory->grow(atom->q,nmax,"atom:q");
 
@@ -91,7 +92,7 @@ void AtomVecSPH::grow_reset()
   x = atom->x; v = atom->v; f = atom->f;
   q = atom->q;
   //SPH density, width_SPH and omega_SPH terms:
-  rho_SPH = atom->rho_SPH; width_SPH = atom->width_SPH; omega_SPH = atom->omega_SPH;
+  rho_SPH = atom->rho_SPH; width_SPH = atom->width_SPH; omega_SPH = atom->omega_SPH; u_SPH = atom->u_SPH;
 }
 
 /* ----------------------------------------------------------------------
@@ -117,6 +118,7 @@ void AtomVecSPH::copy(int i, int j, int delflag)
   rho_SPH[j] = rho_SPH[i];
   width_SPH[j] = width_SPH[i];
   omega_SPH[j] = omega_SPH[i];
+  u_SPH[j] = u_SPH[i];
 
   if (atom->nextra_grow)
     for (int iextra = 0; iextra < atom->nextra_grow; iextra++)
@@ -141,6 +143,7 @@ int AtomVecSPH::pack_comm(int n, int *list, double *buf,
       buf[m++] = rho_SPH[j];
       buf[m++] = width_SPH[j];
       buf[m++] = omega_SPH[j];
+      buf[m++] = u_SPH[j];
     }
   } else {
     if (domain->triclinic == 0) {
@@ -160,6 +163,7 @@ int AtomVecSPH::pack_comm(int n, int *list, double *buf,
       buf[m++] = rho_SPH[j];
       buf[m++] = width_SPH[j];
       buf[m++] = omega_SPH[j];
+      buf[m++] = u_SPH[j];
     }
   }
   return m;
@@ -183,6 +187,7 @@ int AtomVecSPH::pack_comm_vel(int n, int *list, double *buf,
       buf[m++] = rho_SPH[j];
       buf[m++] = width_SPH[j];
       buf[m++] = omega_SPH[j];
+      buf[m++] = u_SPH[j];
       buf[m++] = v[j][0];
       buf[m++] = v[j][1];
       buf[m++] = v[j][2];
@@ -206,6 +211,7 @@ int AtomVecSPH::pack_comm_vel(int n, int *list, double *buf,
         buf[m++] = rho_SPH[j];
         buf[m++] = width_SPH[j];
         buf[m++] = omega_SPH[j];
+        buf[m++] = u_SPH[j];
         buf[m++] = v[j][0];
         buf[m++] = v[j][1];
         buf[m++] = v[j][2];
@@ -222,6 +228,7 @@ int AtomVecSPH::pack_comm_vel(int n, int *list, double *buf,
         buf[m++] = rho_SPH[j];
         buf[m++] = width_SPH[j];
         buf[m++] = omega_SPH[j];
+        buf[m++] = u_SPH[j];
         if (mask[i] & deform_groupbit) {
           buf[m++] = v[j][0] + dvx;
           buf[m++] = v[j][1] + dvy;
@@ -252,6 +259,7 @@ void AtomVecSPH::unpack_comm(int n, int first, double *buf)
     rho_SPH[i] = buf[m++];
     width_SPH[i] = buf[m++];
     omega_SPH[i] = buf[m++];
+    u_SPH[i] = buf[m++];
   }
 }
 
@@ -270,6 +278,7 @@ void AtomVecSPH::unpack_comm_vel(int n, int first, double *buf)
     rho_SPH[i] = buf[m++];
     width_SPH[i] = buf[m++];
     omega_SPH[i] = buf[m++];
+    u_SPH[i] = buf[m++];
     v[i][0] = buf[m++];
     v[i][1] = buf[m++];
     v[i][2] = buf[m++];
@@ -325,6 +334,7 @@ int AtomVecSPH::pack_border(int n, int *list, double *buf,
       buf[m++] = rho_SPH[j];
       buf[m++] = width_SPH[j];
       buf[m++] = omega_SPH[j];
+      buf[m++] = u_SPH[j];
       buf[m++] = ubuf(tag[j]).d;
       buf[m++] = ubuf(type[j]).d;
       buf[m++] = ubuf(mask[j]).d;
@@ -348,6 +358,7 @@ int AtomVecSPH::pack_border(int n, int *list, double *buf,
       buf[m++] = rho_SPH[j];
       buf[m++] = width_SPH[j];
       buf[m++] = omega_SPH[j];
+      buf[m++] = u_SPH[j];
       buf[m++] = ubuf(tag[j]).d;
       buf[m++] = ubuf(type[j]).d;
       buf[m++] = ubuf(mask[j]).d;
@@ -380,6 +391,7 @@ int AtomVecSPH::pack_border_vel(int n, int *list, double *buf,
       buf[m++] = rho_SPH[j];
       buf[m++] = width_SPH[j];
       buf[m++] = omega_SPH[j];
+      buf[m++] = u_SPH[j];
       buf[m++] = ubuf(tag[j]).d;
       buf[m++] = ubuf(type[j]).d;
       buf[m++] = ubuf(mask[j]).d;
@@ -407,6 +419,7 @@ int AtomVecSPH::pack_border_vel(int n, int *list, double *buf,
         buf[m++] = rho_SPH[j];
         buf[m++] = width_SPH[j];
         buf[m++] = omega_SPH[j];
+        buf[m++] = u_SPH[j];
         buf[m++] = ubuf(tag[j]).d;
         buf[m++] = ubuf(type[j]).d;
         buf[m++] = ubuf(mask[j]).d;
@@ -427,6 +440,7 @@ int AtomVecSPH::pack_border_vel(int n, int *list, double *buf,
         buf[m++] = rho_SPH[j];
         buf[m++] = width_SPH[j];
         buf[m++] = omega_SPH[j];
+        buf[m++] = u_SPH[j];
         buf[m++] = ubuf(tag[j]).d;
         buf[m++] = ubuf(type[j]).d;
         buf[m++] = ubuf(mask[j]).d;
@@ -464,6 +478,7 @@ int AtomVecSPH::pack_border_hybrid(int n, int *list, double *buf)
     buf[m++] = rho_SPH[j];
     buf[m++] = width_SPH[j];
     buf[m++] = omega_SPH[j];
+    buf[m++] = u_SPH[j];
   }
   return m;
 }
@@ -484,6 +499,7 @@ void AtomVecSPH::unpack_border(int n, int first, double *buf)
     rho_SPH[i] = buf[m++];
     width_SPH[i] = buf[m++];
     omega_SPH[i] = buf[m++];
+    u_SPH[i] = buf[m++];
     tag[i] = (tagint) ubuf(buf[m++]).i;
     type[i] = (int) ubuf(buf[m++]).i;
     mask[i] = (int) ubuf(buf[m++]).i;
@@ -512,6 +528,7 @@ void AtomVecSPH::unpack_border_vel(int n, int first, double *buf)
     rho_SPH[i] = buf[m++];
     width_SPH[i] = buf[m++];
     omega_SPH[i] = buf[m++];
+    u_SPH[i] = buf[m++];
     tag[i] = (tagint) ubuf(buf[m++]).i;
     type[i] = (int) ubuf(buf[m++]).i;
     mask[i] = (int) ubuf(buf[m++]).i;
@@ -540,6 +557,7 @@ int AtomVecSPH::unpack_border_hybrid(int n, int first, double *buf)
     rho_SPH[i] = buf[m++];
     width_SPH[i] = buf[m++];
     omega_SPH[i] = buf[m++];
+    u_SPH[i] = buf[m++];
   return m;
 }
 
@@ -566,6 +584,7 @@ int AtomVecSPH::pack_exchange(int i, double *buf)
   buf[m++] = rho_SPH[i];
   buf[m++] = width_SPH[i];
   buf[m++] = omega_SPH[i];
+  buf[m++] = u_SPH[i];
 
   if (atom->nextra_grow)
     for (int iextra = 0; iextra < atom->nextra_grow; iextra++)
@@ -598,6 +617,7 @@ int AtomVecSPH::unpack_exchange(double *buf)
   rho_SPH[nlocal] = buf[m++];
   width_SPH[nlocal] = buf[m++];
   omega_SPH[nlocal] = buf[m++];
+  u_SPH[nlocal] = buf[m++];
 
   if (atom->nextra_grow)
     for (int iextra = 0; iextra < atom->nextra_grow; iextra++)
@@ -619,7 +639,7 @@ int AtomVecSPH::size_restart()
 
   int nlocal = atom->nlocal;
 
-  int n = 13 * nlocal;
+  int n = 16 * nlocal;
 
   if (atom->nextra_restart)
     for (int iextra = 0; iextra < atom->nextra_restart; iextra++)
@@ -644,6 +664,7 @@ int AtomVecSPH::pack_restart(int i, double *buf)
   buf[m++] = rho_SPH[i];
   buf[m++] = width_SPH[i];
   buf[m++] = omega_SPH[i];
+  buf[m++] = u_SPH[i];
   buf[m++] = ubuf(tag[i]).d;
   buf[m++] = ubuf(type[i]).d;
   buf[m++] = ubuf(mask[i]).d;
@@ -653,8 +674,6 @@ int AtomVecSPH::pack_restart(int i, double *buf)
   buf[m++] = v[i][2];
 
   buf[m++] = q[i];
-
-  //custom force terms:
 
   if (atom->nextra_restart)
     for (int iextra = 0; iextra < atom->nextra_restart; iextra++)
@@ -684,6 +703,7 @@ int AtomVecSPH::unpack_restart(double *buf)
   rho_SPH[nlocal] = buf[m++];
   width_SPH[nlocal] = buf[m++];
   omega_SPH[nlocal] = buf[m++];
+  u_SPH[nlocal] = buf[m++];
   tag[nlocal] = (tagint) ubuf(buf[m++]).i;
   type[nlocal] = (int) ubuf(buf[m++]).i;
   mask[nlocal] = (int) ubuf(buf[m++]).i;
@@ -724,6 +744,7 @@ void AtomVecSPH::create_atom(int itype, double *coord)
   rho_SPH[nlocal] = 0.0;
   width_SPH[nlocal] = 0.0;
   omega_SPH[nlocal] = 0.0;
+  u_SPH[nlocal] = 0.0;
 
   mask[nlocal] = 1;
   image[nlocal] = ((imageint) IMGMAX << IMG2BITS) |
@@ -756,6 +777,8 @@ void AtomVecSPH::data_atom(double *coord, imageint imagetmp, char **values)
   rho_SPH[nlocal] = utils::numeric(FLERR,values[3],true,lmp);
   width_SPH[nlocal] = utils::numeric(FLERR,values[4],true,lmp);
   omega_SPH[nlocal] = utils::numeric(FLERR,values[5],true,lmp);
+  u_SPH[nlocal] = utils::numeric(FLERR,values[6],true,lmp);
+
 
   x[nlocal][0] = coord[0];
   x[nlocal][1] = coord[1];
@@ -782,8 +805,9 @@ int AtomVecSPH::data_atom_hybrid(int nlocal, char **values)
   rho_SPH[nlocal] = 0.0;
   width_SPH[nlocal] = 0.0;
   omega_SPH[nlocal] = 0.0;
+  u_SPH[nlocal] = 0.0;
 
-  return 4;
+  return 5;
 }
 
 /* ----------------------------------------------------------------------
@@ -800,12 +824,13 @@ void AtomVecSPH::pack_data(double **buf)
     buf[i][3] = rho_SPH[i];
     buf[i][4] = width_SPH[i];
     buf[i][5] = omega_SPH[i];
-    buf[i][6] = x[i][0];
-    buf[i][7] = x[i][1];
-    buf[i][8] = x[i][2];
-    buf[i][9] = ubuf((image[i] & IMGMASK) - IMGMAX).d;
-    buf[i][10] = ubuf((image[i] >> IMGBITS & IMGMASK) - IMGMAX).d;
-    buf[i][11] = ubuf((image[i] >> IMG2BITS) - IMGMAX).d;
+    buf[i][6] = u_SPH[i];
+    buf[i][7] = x[i][0];
+    buf[i][8] = x[i][1];
+    buf[i][9] = x[i][2];
+    buf[i][10] = ubuf((image[i] & IMGMASK) - IMGMAX).d;
+    buf[i][11] = ubuf((image[i] >> IMGBITS & IMGMASK) - IMGMAX).d;
+    buf[i][12] = ubuf((image[i] >> IMG2BITS) - IMGMAX).d;
   }
 }
 
@@ -819,7 +844,8 @@ int AtomVecSPH::pack_data_hybrid(int i, double *buf)
   buf[1] = rho_SPH[i];
   buf[2] = width_SPH[i];
   buf[3] = omega_SPH[i];
-  return 4;
+  buf[4] = u_SPH[i];
+  return 5;
 }
 
 /* ----------------------------------------------------------------------
@@ -829,11 +855,11 @@ int AtomVecSPH::pack_data_hybrid(int i, double *buf)
 void AtomVecSPH::write_data(FILE *fp, int n, double **buf)
 {
   for (int i = 0; i < n; i++)
-    fprintf(fp,TAGINT_FORMAT " %d %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %d %d %d\n",
+    fprintf(fp,TAGINT_FORMAT " %d %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %d %d %d\n",
             (tagint) ubuf(buf[i][0]).i,(int) ubuf(buf[i][1]).i,
-            buf[i][2],buf[i][3],buf[i][4],buf[i][5],buf[i][6],buf[i][7],buf[i][8],
-            (int) ubuf(buf[i][9]).i,(int) ubuf(buf[i][10]).i,
-            (int) ubuf(buf[i][11]).i);
+            buf[i][2],buf[i][3],buf[i][4],buf[i][5],buf[i][6],buf[i][7],buf[i][8],buf[i][9],
+            (int) ubuf(buf[i][10]).i,(int) ubuf(buf[i][11]).i,
+            (int) ubuf(buf[i][12]).i);
 }
 
 /* ----------------------------------------------------------------------
@@ -842,8 +868,8 @@ void AtomVecSPH::write_data(FILE *fp, int n, double **buf)
 
 int AtomVecSPH::write_data_hybrid(FILE *fp, double *buf)
 {
-  fprintf(fp," %-1.16e %-1.16e %-1.16e %-1.16e",buf[0],buf[1],buf[2],buf[3]);
-  return 4;
+  fprintf(fp," %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e",buf[0],buf[1],buf[2],buf[3],buf[4]);
+  return 5;
 }
 
 /* ----------------------------------------------------------------------
@@ -866,6 +892,7 @@ bigint AtomVecSPH::memory_usage()
   if (atom->memcheck("rho_SPH")) bytes += memory->usage(rho_SPH,nmax);
   if (atom->memcheck("width_SPH")) bytes += memory->usage(width_SPH,nmax);
   if (atom->memcheck("omega_SPH")) bytes += memory->usage(omega_SPH,nmax);
-  
+  if (atom->memcheck("u_SPH")) bytes += memory->usage(u_SPH,nmax);
+
   return bytes;
 }

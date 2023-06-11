@@ -68,7 +68,7 @@ class Atom : protected Pointers {
   int *ellipsoid,*line,*tri,*body;
 
   //Thomas Campbell SPH
-  double *rho_SPH,*width_SPH,*omega_SPH;
+  double *rho_SPH,*width_SPH,*omega_SPH,*u_SPH;
 
   // SPIN package
 

@@ -139,6 +139,11 @@ ComputePropertyAtom::ComputePropertyAtom(LAMMPS *lmp, int narg, char **arg) :
         error->all(FLERR,"Compute property/atom for "
                    "atom property that isn't allocated");
       pack_choice[i] = &ComputePropertyAtom::pack_omega_SPH;
+    } else if (strcmp(arg[iarg],"u_SPH") == 0) {
+      if (!atom->TC_SPH_flag)
+        error->all(FLERR,"Compute property/atom for "
+                   "atom property that isn't allocated");
+      pack_choice[i] = &ComputePropertyAtom::pack_u_SPH;
     } else if (strcmp(arg[iarg],"mux") == 0) {
       if (!atom->mu_flag)
         error->all(FLERR,"Compute property/atom for "
@@ -1029,6 +1034,21 @@ void ComputePropertyAtom::pack_omega_SPH(int n)
 
   for (int i = 0; i < nlocal; i++) {
     if (mask[i] & groupbit) buf[n] = omega_SPH[i];
+    else buf[n] = 0.0;
+    n += nvalues;
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+
+void ComputePropertyAtom::pack_u_SPH(int n)
+{
+  double *u_SPH = atom->u_SPH;
+  int *mask = atom->mask;
+  int nlocal = atom->nlocal;
+
+  for (int i = 0; i < nlocal; i++) {
+    if (mask[i] & groupbit) buf[n] = u_SPH[i];
     else buf[n] = 0.0;
     n += nvalues;
   }
