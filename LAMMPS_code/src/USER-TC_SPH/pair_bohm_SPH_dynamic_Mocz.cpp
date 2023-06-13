@@ -98,6 +98,8 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
   double bohm_pot;
   double cutsquared;
   double u_prefact_i,u_prefact_j;
+
+  ev_init(eflag,vflag);
   
   hplanck  = force->hplanck;
   hbar = hplanck/(2*M_PI);
@@ -106,8 +108,6 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
   f_prefactor = (hbar*hbar)/(4*e_mass);
 
   int *ilist,*jlist,*numneigh,**firstneigh;
-
-  ev_init(eflag,vflag);
 
   if (atom->nmax > nmax) {
     // delete and create new memory arrays for any per-particle variables that need communicating.
@@ -144,6 +144,9 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
   double *width_SPH = atom->width_SPH;
   double *rho_SPH = atom->rho_SPH;
   double *u_SPH = atom->u_SPH;
+
+  double eBohm_change;
+  double fx,fy,fz;
 
   double dt = update->dt;
 
@@ -191,6 +194,8 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
       dzz_rho[i] = 0.0;
     }
   }
+
+  if (newton_pair)
 
   // loop over my atoms
 
@@ -425,10 +430,6 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
         dy_Wij = gauss_pre_i*(-dely*hm2_i)*exp_ij;
         dz_Wij = gauss_pre_i*(-delz*hm2_i)*exp_ij;
 
-        u_SPH[i] += u_prefact_i*ijmass*((Pixx*delvx + Pixy*delvy + Pixz*delvz)*dx_Wij + (Pixy*delvx + Piyy*delvy + Piyz*delvz)*dy_Wij + (Pixz*delvx + Piyz*delvy + Pizz*delvz)*dz_Wij);
-
-        // fprintf(screen,"change u_SPH[i] =  %.16f\n", u_prefact_i*ijmass*((Pixx*delvx + Pixy*delvy + Pixz*delvz)*dx_Wij + (Pixy*delvx + Piyy*delvy + Piyz*delvz)*dy_Wij + (Pixz*delvx + Piyz*delvy + Pizz*delvz)*dz_Wij));
-
         dx_Wji = gauss_pre_j*(-delx*hm2_j)*exp_ji;
         dy_Wji = gauss_pre_j*(-dely*hm2_j)*exp_ji;
         dz_Wji = gauss_pre_j*(-delz*hm2_j)*exp_ji;
@@ -436,6 +437,15 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
         rho_j2 = rho_SPH[j]*rho_SPH[j];
 
         u_prefact_j = (dt/(rho_j2*omega_j));
+
+        eBohm_change = 0.5*u_prefact_i*ijmass*((Pixx*delvx + Pixy*delvy + Pixz*delvz)*dx_Wij + (Pixy*delvx + Piyy*delvy + Piyz*delvz)*dy_Wij + (Pixz*delvx + Piyz*delvy + Pizz*delvz)*dz_Wij) + 0.5*u_prefact_j*ijmass*((-Pjxx*delvx - Pjxy*delvy - Pjxz*delvz)*dx_Wji + (-Pjxy*delvx - Pjyy*delvy - Pjyz*delvz)*dy_Wji + (-Pjxz*delvx - Pjyz*delvy - Pjzz*delvz)*dz_Wji);
+
+        u_SPH[i] += u_prefact_i*ijmass*((Pixx*delvx + Pixy*delvy + Pixz*delvz)*dx_Wij + (Pixy*delvx + Piyy*delvy + Piyz*delvz)*dy_Wij + (Pixz*delvx + Piyz*delvy + Pizz*delvz)*dz_Wij);
+        // u_SPH[i] += eBohm_change;
+    
+        // fprintf(screen,"change u_SPH[i] =  %.16f\n", u_prefact_i*ijmass*((Pixx*delvx + Pixy*delvy + Pixz*delvz)*dx_Wij + (Pixy*delvx + Piyy*delvy + Piyz*delvz)*dy_Wij + (Pixz*delvx + Piyz*delvy + Pizz*delvz)*dz_Wij));
+
+        // u_prefact_j*ijmass*((-Pjxx*delvx - Pjxy*delvy - Pjxz*delvz)*dx_Wji + (-Pjxy*delvx - Pjyy*delvy - Pjyz*delvz)*dy_Wji + (-Pjxz*delvx - Pjyz*delvy - Pjzz*delvz)*dz_Wji);
         
         // fprintf(screen,"Pjxx =  %.12f\n", Pjxx);
         // fprintf(screen,"Pjxy =  %.12f\n", Pjxy);
@@ -454,13 +464,21 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
         // fprintf(screen,"dz_Wji =  %.12f\n", dz_Wji);
 
         // compute force terms from pressure tensor here
+
+        fx = -ijmass*((Pixx*dx_Wij + Pixy*dy_Wij + Pixz*dz_Wij)/(rho_i2*omega_i) + (Pjxx*dx_Wji + Pjxy*dy_Wji + Pjxz*dz_Wji)/(rho_j2*omega_j));
+        fy = -ijmass*((Pixy*dx_Wij + Piyy*dy_Wij + Piyz*dz_Wij)/(rho_i2*omega_i) + (Pjxy*dx_Wji + Pjyy*dy_Wji + Pjyz*dz_Wji)/(rho_j2*omega_j));
+        fz = -ijmass*((Pixz*dx_Wij + Piyz*dy_Wij + Pizz*dz_Wij)/(rho_i2*omega_i) + (Pjxz*dx_Wji + Pjyz*dy_Wji + Pjzz*dz_Wji)/(rho_j2*omega_j));
         
-        f[i][0] += -ijmass*((Pixx*dx_Wij + Pixy*dy_Wij + Pixz*dz_Wij)/(rho_i2*omega_i) + (Pjxx*dx_Wji + Pjxy*dy_Wji + Pjxz*dz_Wji)/(rho_j2*omega_j));
-        // fprintf(screen,"fx =  %.12f\n", -ijmass*((Pixx*dx_Wij + Pixy*dy_Wij + Pixz*dz_Wij)/(rho_i2*omega_i) + (Pjxx*dx_Wji + Pjxy*dy_Wji + Pjxz*dz_Wji)/(rho_j2*omega_j)));
-        f[i][1] += -ijmass*((Pixy*dx_Wij + Piyy*dy_Wij + Piyz*dz_Wij)/(rho_i2*omega_i) + (Pjxy*dx_Wji + Pjyy*dy_Wji + Pjyz*dz_Wji)/(rho_j2*omega_j));
-        // fprintf(screen,"fy =  %.12f\n", -ijmass*((Pixy*dx_Wij + Piyy*dy_Wij + Piyz*dz_Wij)/(rho_i2*omega_i) + (Pjxy*dx_Wji + Pjyy*dy_Wji + Pjyz*dz_Wji)/(rho_j2*omega_j)));
-        f[i][2] += -ijmass*((Pixz*dx_Wij + Piyz*dy_Wij + Pizz*dz_Wij)/(rho_i2*omega_i) + (Pjxz*dx_Wji + Pjyz*dy_Wji + Pjzz*dz_Wji)/(rho_j2*omega_j));
-        // fprintf(screen,"fz =  %.12f\n", -ijmass*((Pixz*dx_Wij + Piyz*dy_Wij + Pizz*dz_Wij)/(rho_i2*omega_i) + (Pjxz*dx_Wji + Pjyz*dy_Wji + Pjzz*dz_Wji)/(rho_j2*omega_j)));
+        f[i][0] += fx;
+        f[i][1] += fy;
+        f[i][2] += fz;
+        
+        // f[i][0] += -ijmass*((Pixx*dx_Wij + Pixy*dy_Wij + Pixz*dz_Wij)/(rho_i2*omega_i) + (Pjxx*dx_Wji + Pjxy*dy_Wji + Pjxz*dz_Wji)/(rho_j2*omega_j));
+        // // fprintf(screen,"fx =  %.12f\n", -ijmass*((Pixx*dx_Wij + Pixy*dy_Wij + Pixz*dz_Wij)/(rho_i2*omega_i) + (Pjxx*dx_Wji + Pjxy*dy_Wji + Pjxz*dz_Wji)/(rho_j2*omega_j)));
+        // f[i][1] += -ijmass*((Pixy*dx_Wij + Piyy*dy_Wij + Piyz*dz_Wij)/(rho_i2*omega_i) + (Pjxy*dx_Wji + Pjyy*dy_Wji + Pjyz*dz_Wji)/(rho_j2*omega_j));
+        // // fprintf(screen,"fy =  %.12f\n", -ijmass*((Pixy*dx_Wij + Piyy*dy_Wij + Piyz*dz_Wij)/(rho_i2*omega_i) + (Pjxy*dx_Wji + Pjyy*dy_Wji + Pjyz*dz_Wji)/(rho_j2*omega_j)));
+        // f[i][2] += -ijmass*((Pixz*dx_Wij + Piyz*dy_Wij + Pizz*dz_Wij)/(rho_i2*omega_i) + (Pjxz*dx_Wji + Pjyz*dy_Wji + Pjzz*dz_Wji)/(rho_j2*omega_j));
+        // // fprintf(screen,"fz =  %.12f\n", -ijmass*((Pixz*dx_Wij + Piyz*dy_Wij + Pizz*dz_Wij)/(rho_i2*omega_i) + (Pjxz*dx_Wji + Pjyz*dy_Wji + Pjzz*dz_Wji)/(rho_j2*omega_j)));
         
         // fprintf(screen,"ijmass =  %.9f\n", ijmass);
         // fprintf(screen,"rho_j2 =  %.9f\n", rho_j2);
@@ -491,15 +509,26 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
         // fprintf(screen,"dz_Wji =  %.9f\n", dz_Wji);
         
         if (newton_pair || j < nlocal) {
+          f[j][0] -= fx;
+          f[j][1] -= fy;
+          f[j][2] -= fz;
           // fprintf(screen,"break_statement H\n");
-          f[j][0] += ijmass*((Pixx*dx_Wij + Pixy*dy_Wij + Pixz*dz_Wij)/(rho_i2*omega_i) + (Pjxx*dx_Wji + Pjxy*dy_Wji + Pjxz*dz_Wji)/(rho_j2*omega_j));
-          f[j][1] += ijmass*((Pixy*dx_Wij + Piyy*dy_Wij + Piyz*dz_Wij)/(rho_i2*omega_i) + (Pjxy*dx_Wji + Pjyy*dy_Wji + Pjyz*dz_Wji)/(rho_j2*omega_j));
-          f[j][2] += ijmass*((Pixz*dx_Wij + Piyz*dy_Wij + Pizz*dz_Wij)/(rho_i2*omega_i) + (Pjxz*dx_Wji + Pjyz*dy_Wji + Pjzz*dz_Wji)/(rho_j2*omega_j));
+          // f[j][0] += ijmass*((Pixx*dx_Wij + Pixy*dy_Wij + Pixz*dz_Wij)/(rho_i2*omega_i) + (Pjxx*dx_Wji + Pjxy*dy_Wji + Pjxz*dz_Wji)/(rho_j2*omega_j));
+          // f[j][1] += ijmass*((Pixy*dx_Wij + Piyy*dy_Wij + Piyz*dz_Wij)/(rho_i2*omega_i) + (Pjxy*dx_Wji + Pjyy*dy_Wji + Pjyz*dz_Wji)/(rho_j2*omega_j));
+          // f[j][2] += ijmass*((Pixz*dx_Wij + Piyz*dy_Wij + Pizz*dz_Wij)/(rho_i2*omega_i) + (Pjxz*dx_Wji + Pjyz*dy_Wji + Pjzz*dz_Wji)/(rho_j2*omega_j));
           // fprintf(screen,"u_prefact_j =  %16.16f\n", u_prefact_j);
 
-          u_SPH[j] += u_prefact_j*ijmass*((-Pjxx*delvx - Pjxy*delvy - Pjxz*delvz)*dx_Wji + (-Pjxy*delvx - Pjyy*delvy - Pjyz*delvz)*dy_Wji + (-Pjxz*delvx - Pjyz*delvy - Pjzz*delvz)*dz_Wji);
-          // fprintf(screen,"change u_SPH[j] =  %.16f\n",u_prefact_j*ijmass*((-Pjxx*delvx - Pjxy*delvy - Pjxz*delvz)*dx_Wji + (-Pjxy*delvx - Pjyy*delvy - Pjyz*delvz)*dy_Wji + (-Pjxz*delvx - Pjyz*delvy - Pjzz*delvz)*dz_Wji));
+          u_SPH[j] -= u_prefact_j*ijmass*((-Pjxx*delvx - Pjxy*delvy - Pjxz*delvz)*dx_Wji + (-Pjxy*delvx - Pjyy*delvy - Pjyz*delvz)*dy_Wji + (-Pjxz*delvx - Pjyz*delvy - Pjzz*delvz)*dz_Wji);
+          // u_SPH[j] += eBohm_change;
+          // fprintf(screen,"change u_SPH[j] =  %.16f\n",-u_prefact_j*ijmass*((-Pjxx*delvx - Pjxy*delvy - Pjxz*delvz)*dx_Wji + (-Pjxy*delvx - Pjyy*delvy - Pjyz*delvz)*dy_Wji + (-Pjxz*delvx - Pjyz*delvy - Pjzz*delvz)*dz_Wji));
         }
+
+        // if (eflag) evdwl = u_SPH[i];
+        // if (eflag) evdwl = eBohm_change;
+
+        eflag_either = 0;
+        if (evflag) ev_tally_xyz(i,j,nlocal,newton_pair,0.0,0.0,
+                        fx,fy,fz,delx,dely,delz);
       }
     }
   }
@@ -508,10 +537,12 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
   if (newton_pair) comm->reverse_comm_pair(this);
   comm->forward_comm_pair(this);
 
+  eflag_either = 1;
+
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
-    bohm_pot = u_SPH[i];
-    if (eflag_global) eng_vdwl += bohm_pot;
+    if (eflag_global) eng_vdwl +=  u_SPH[i];
+    if (eflag_atom) eatom[i] += u_SPH[i];
   }
 
   if (vflag_fdotr) virial_fdotr_compute();
@@ -701,6 +732,7 @@ int PairBohmSPHDynamicMocz::pack_forward_comm(int n, int *list, double *buf,
   }
   if (commflag == 1){
     double *u_SPH = atom->u_SPH;
+    // fprintf(screen,"In u_SPH pack forward comm loop...");
     for (i = 0; i < n; i++) {
       j = list[i];
       buf[m++] = u_SPH[j];
@@ -732,6 +764,7 @@ void PairBohmSPHDynamicMocz::unpack_forward_comm(int n, int first, double *buf)
   }
   if (commflag == 1){
     double *u_SPH = atom->u_SPH;
+    // fprintf(screen,"In u_SPH unpack forward comm loop...");
     for (i = first; i < last; i++){
       u_SPH[i] = buf[m++];
     }

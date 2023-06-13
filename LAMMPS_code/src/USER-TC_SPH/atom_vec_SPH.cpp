@@ -143,7 +143,9 @@ int AtomVecSPH::pack_comm(int n, int *list, double *buf,
       buf[m++] = rho_SPH[j];
       buf[m++] = width_SPH[j];
       buf[m++] = omega_SPH[j];
-      buf[m++] = u_SPH[j];
+      // set u_SPH to 0 on ghost processors to ensure consistency with
+      // newton on
+      buf[m++] = 0.0;
     }
   } else {
     if (domain->triclinic == 0) {
@@ -163,7 +165,9 @@ int AtomVecSPH::pack_comm(int n, int *list, double *buf,
       buf[m++] = rho_SPH[j];
       buf[m++] = width_SPH[j];
       buf[m++] = omega_SPH[j];
-      buf[m++] = u_SPH[j];
+      // set u_SPH to 0 on ghost processors to ensure consistency with
+      // newton on
+      buf[m++] = 0.0;
     }
   }
   return m;
@@ -187,7 +191,9 @@ int AtomVecSPH::pack_comm_vel(int n, int *list, double *buf,
       buf[m++] = rho_SPH[j];
       buf[m++] = width_SPH[j];
       buf[m++] = omega_SPH[j];
-      buf[m++] = u_SPH[j];
+      // set u_SPH to 0 on ghost processors to ensure consistency with
+      // newton on
+      buf[m++] = 0.0;
       buf[m++] = v[j][0];
       buf[m++] = v[j][1];
       buf[m++] = v[j][2];
@@ -211,7 +217,9 @@ int AtomVecSPH::pack_comm_vel(int n, int *list, double *buf,
         buf[m++] = rho_SPH[j];
         buf[m++] = width_SPH[j];
         buf[m++] = omega_SPH[j];
-        buf[m++] = u_SPH[j];
+        // set u_SPH to 0 on ghost processors to ensure consistency with
+        // newton on
+        buf[m++] = 0.0;
         buf[m++] = v[j][0];
         buf[m++] = v[j][1];
         buf[m++] = v[j][2];
@@ -228,7 +236,9 @@ int AtomVecSPH::pack_comm_vel(int n, int *list, double *buf,
         buf[m++] = rho_SPH[j];
         buf[m++] = width_SPH[j];
         buf[m++] = omega_SPH[j];
-        buf[m++] = u_SPH[j];
+        // set u_SPH to 0 on ghost processors to ensure consistency with
+        // newton on
+        buf[m++] = 0.0;
         if (mask[i] & deform_groupbit) {
           buf[m++] = v[j][0] + dvx;
           buf[m++] = v[j][1] + dvy;
