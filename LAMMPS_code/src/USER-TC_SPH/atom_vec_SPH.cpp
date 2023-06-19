@@ -344,7 +344,9 @@ int AtomVecSPH::pack_border(int n, int *list, double *buf,
       buf[m++] = rho_SPH[j];
       buf[m++] = width_SPH[j];
       buf[m++] = omega_SPH[j];
-      buf[m++] = u_SPH[j];
+      // set u_SPH to 0 on ghost processors to ensure consistency with
+      // newton on
+      buf[m++] = 0.0;
       buf[m++] = ubuf(tag[j]).d;
       buf[m++] = ubuf(type[j]).d;
       buf[m++] = ubuf(mask[j]).d;
@@ -368,7 +370,9 @@ int AtomVecSPH::pack_border(int n, int *list, double *buf,
       buf[m++] = rho_SPH[j];
       buf[m++] = width_SPH[j];
       buf[m++] = omega_SPH[j];
-      buf[m++] = u_SPH[j];
+      // set u_SPH to 0 on ghost processors to ensure consistency with
+      // newton on
+      buf[m++] = 0.0;
       buf[m++] = ubuf(tag[j]).d;
       buf[m++] = ubuf(type[j]).d;
       buf[m++] = ubuf(mask[j]).d;
@@ -401,7 +405,9 @@ int AtomVecSPH::pack_border_vel(int n, int *list, double *buf,
       buf[m++] = rho_SPH[j];
       buf[m++] = width_SPH[j];
       buf[m++] = omega_SPH[j];
-      buf[m++] = u_SPH[j];
+      // set u_SPH to 0 on ghost processors to ensure consistency with
+      // newton on
+      buf[m++] = 0.0;
       buf[m++] = ubuf(tag[j]).d;
       buf[m++] = ubuf(type[j]).d;
       buf[m++] = ubuf(mask[j]).d;
@@ -429,7 +435,9 @@ int AtomVecSPH::pack_border_vel(int n, int *list, double *buf,
         buf[m++] = rho_SPH[j];
         buf[m++] = width_SPH[j];
         buf[m++] = omega_SPH[j];
-        buf[m++] = u_SPH[j];
+        // set u_SPH to 0 on ghost processors to ensure consistency with
+        // newton on
+        buf[m++] = 0.0;
         buf[m++] = ubuf(tag[j]).d;
         buf[m++] = ubuf(type[j]).d;
         buf[m++] = ubuf(mask[j]).d;
@@ -450,7 +458,9 @@ int AtomVecSPH::pack_border_vel(int n, int *list, double *buf,
         buf[m++] = rho_SPH[j];
         buf[m++] = width_SPH[j];
         buf[m++] = omega_SPH[j];
-        buf[m++] = u_SPH[j];
+        // set u_SPH to 0 on ghost processors to ensure consistency with
+        // newton on
+        buf[m++] = 0.0;
         buf[m++] = ubuf(tag[j]).d;
         buf[m++] = ubuf(type[j]).d;
         buf[m++] = ubuf(mask[j]).d;
@@ -488,7 +498,9 @@ int AtomVecSPH::pack_border_hybrid(int n, int *list, double *buf)
     buf[m++] = rho_SPH[j];
     buf[m++] = width_SPH[j];
     buf[m++] = omega_SPH[j];
-    buf[m++] = u_SPH[j];
+    // set u_SPH to 0 on ghost processors to ensure consistency with
+    // newton on
+    buf[m++] = 0.0;
   }
   return m;
 }

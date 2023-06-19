@@ -142,6 +142,8 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
   double *rho_SPH = atom->rho_SPH;
   double *u_SPH = atom->u_SPH;
 
+  double fx,fy,fz;
+
   double dt = update->dt;
 
   int *tag =atom->tag;
@@ -212,12 +214,6 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
 
     imass = mass[itype];
 
-    // fprintf(screen,"break_statement A\n");
-
-    // fprintf(screen,"rho_SPH[i] = %.9f \n",rho_SPH[i]);
-    // fprintf(screen,"width_SPH[i] = %.9f \n",width_SPH[i]);
-    // fprintf(screen,"omega_SPH[i] = %.9f \n",omega_SPH[i]);
-
     h_i = width_SPH[i];
     h2_i = h_i*h_i;
     hm2_i = 1./h2_i;
@@ -232,7 +228,6 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
     dzz_rho[i] += -hm2_i*imass*gauss_pre_i;
 
     for (jj = 0; jj < jnum; jj++) {
-      // fprintf(screen,"break_statement B\n");
       j = jlist[jj];
       j &= NEIGHMASK;
 
@@ -245,7 +240,6 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
       jtype = type[j];
  
       if (rsq < cutsquared) {
-        // fprintf(screen,"break_statement C\n");
 
         jmass = mass[jtype];
 
@@ -266,7 +260,6 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
         dzz_rho[i] += hm2_i*(delz_2*hm2_i - 1.)*m_gauss_ij;
 
         if (newton_pair || j < nlocal) {
-          // fprintf(screen,"break_statement D\n");
 
           h_j = width_SPH[j];
           h2_j = h_j*h_j;
@@ -298,7 +291,6 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
   comm->forward_comm_pair(this);
 
   for (ii = 0; ii < inum; ii++) {
-    // fprintf(screen,"break_statement E\n");
 
     // compute per-particle gradients for pressure tensor
 
@@ -308,10 +300,9 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
     ytmp = x[i][1];
     ztmp = x[i][2];
 
-    // fprintf(screen,"\nParticle at...\n");
-    // fprintf(screen,"x =  %.12f\n", xtmp);
-    // fprintf(screen,"y =  %.12f\n", ytmp);
-    // fprintf(screen,"z =  %.12f\n", ztmp);
+    vxtmp = v[i][0];
+    vytmp = v[i][1];
+    vztmp = v[i][2];
 
     itype = type[i];
     jlist = firstneigh[i];
@@ -337,22 +328,10 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
     Piyy = gamma_factor*f_prefactor*((dy_rho[i]*dy_rho[i])/rho_SPH[i] - dyy_rho[i]);
     Piyz = gamma_factor*f_prefactor*((dy_rho[i]*dz_rho[i])/rho_SPH[i] - dyz_rho[i]);
     Pizz = gamma_factor*f_prefactor*((dz_rho[i]*dz_rho[i])/rho_SPH[i] - dzz_rho[i]);
-
-    // fprintf(screen,"Pixx =  %.12f\n", Pixx);
-    // fprintf(screen,"Pixy =  %.12f\n", Pixy);
-    // fprintf(screen,"Pixz =  %.12f\n", Pixz);
-    // fprintf(screen,"Piyy =  %.12f\n", Piyy);
-    // fprintf(screen,"Piyz =  %.12f\n", Piyz);
-    // fprintf(screen,"Pizz =  %.12f\n", Pizz);
-    // fprintf(screen,"width[i] =  %.12f\n", width_SPH[i]);
-    // fprintf(screen,"omega_i =  %.12f\n", omega_i);
-    // fprintf(screen,"rho[i] =  %.12f\n", rho_SPH[i]);
     
-
-    u_prefact_i = (dt*gamma_factor*f_prefactor/(rho_i2*omega_i));
+    u_prefact_i = (dt/(rho_i2*omega_i));
 
     for (jj = 0; jj < jnum; jj++) {
-      // fprintf(screen,"break_statement F\n");
       j = jlist[jj];
       j &= NEIGHMASK;
 
@@ -369,16 +348,13 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
         delvx = vxtmp - v[j][0];
         delvy = vytmp - v[j][1];
         delvz = vztmp - v[j][2];
-        // fprintf(screen,"break_statement G\n");
-
-        // fprintf(screen,"neighbour at...\n");
-        // fprintf(screen,"x =  %.12f\n", x[j][0]);
-        // fprintf(screen,"y =  %.12f\n", x[j][1]);
-        // fprintf(screen,"z =  %.12f\n", x[j][2]);
 
         h_j = width_SPH[j];
         h2_j = h_j*h_j;
         hm2_j = 1./h2_j;
+
+        jmass = mass[jtype];
+        ijmass = imass*jmass;
 
         exp_ij = exp(-(rsq)*hm2_i/2.);
         exp_ji = exp(-(rsq)*hm2_j/2.);
@@ -398,81 +374,37 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
         dy_Wij = gauss_pre_i*(-dely*hm2_i)*exp_ij;
         dz_Wij = gauss_pre_i*(-delz*hm2_i)*exp_ij;
 
-        jmass = mass[jtype];
-        ijmass = imass*jmass;
-
-        u_SPH[i] += u_prefact_i*ijmass*((Pixx*delvx + Pixy*delvy + Pixz*delvz)*dx_Wij + (Pixy*delvx + Piyy*delvy + Piyz*delvz)*dy_Wij + (Pixz*delvx + Piyz*delvy + Pizz*delvz)*dz_Wij);
-
         dx_Wji = gauss_pre_j*(-delx*hm2_j)*exp_ji;
         dy_Wji = gauss_pre_j*(-dely*hm2_j)*exp_ji;
         dz_Wji = gauss_pre_j*(-delz*hm2_j)*exp_ji;
 
-        // fprintf(screen,"Pjxx =  %.12f\n", Pjxx);
-        // fprintf(screen,"Pjxy =  %.12f\n", Pjxy);
-        // fprintf(screen,"Pjxz =  %.12f\n", Pjxz);
-        // fprintf(screen,"Pjyy =  %.12f\n", Pjyy);
-        // fprintf(screen,"Pjyz =  %.12f\n", Pjyz);
-        // fprintf(screen,"Pjzz =  %.12f\n", Pjzz);
-        // fprintf(screen,"width[j] =  %.12f\n", width_SPH[j]);
-        // fprintf(screen,"omega_j =  %.12f\n", omega_j);
-        // fprintf(screen,"rho[j] =  %.12f\n", rho_SPH[j]);
-        // fprintf(screen,"dx_Wij =  %.12f\n", dx_Wij);
-        // fprintf(screen,"dy_Wij =  %.12f\n", dy_Wij);
-        // fprintf(screen,"dz_Wij =  %.12f\n", dz_Wij);
-        // fprintf(screen,"dx_Wji =  %.12f\n", dx_Wji);
-        // fprintf(screen,"dy_Wji =  %.12f\n", dy_Wji);
-        // fprintf(screen,"dz_Wji =  %.12f\n", dz_Wji);
-
         rho_j2 = rho_SPH[j]*rho_SPH[j];
 
-        u_prefact_j = (dt*gamma_factor*f_prefactor/(rho_j2*omega_j));
+        u_prefact_j = (dt/(rho_j2*omega_j));
+
+        u_SPH[i] += u_prefact_i*ijmass*((Pixx*delvx + Pixy*delvy + Pixz*delvz)*dx_Wij + (Pixy*delvx + Piyy*delvy + Piyz*delvz)*dy_Wij + (Pixz*delvx + Piyz*delvy + Pizz*delvz)*dz_Wij);
 
         // compute force terms from pressure tensor here
         
-        f[i][0] += -ijmass*((Pixx*dx_Wij + Pixy*dy_Wij + Pixz*dz_Wij)/(rho_i2*omega_i) + (Pjxx*dx_Wji + Pjxy*dy_Wji + Pjxz*dz_Wji)/(rho_j2*omega_j));
-        // fprintf(screen,"fx =  %.12f\n", -ijmass*((Pixx*dx_Wij + Pixy*dy_Wij + Pixz*dz_Wij)/(rho_i2*omega_i) + (Pjxx*dx_Wji + Pjxy*dy_Wji + Pjxz*dz_Wji)/(rho_j2*omega_j)));
-        f[i][1] += -ijmass*((Pixy*dx_Wij + Piyy*dy_Wij + Piyz*dz_Wij)/(rho_i2*omega_i) + (Pjxy*dx_Wji + Pjyy*dy_Wji + Pjyz*dz_Wji)/(rho_j2*omega_j));
-        // fprintf(screen,"fy =  %.12f\n", -ijmass*((Pixy*dx_Wij + Piyy*dy_Wij + Piyz*dz_Wij)/(rho_i2*omega_i) + (Pjxy*dx_Wji + Pjyy*dy_Wji + Pjyz*dz_Wji)/(rho_j2*omega_j)));
-        f[i][2] += -ijmass*((Pixz*dx_Wij + Piyz*dy_Wij + Pizz*dz_Wij)/(rho_i2*omega_i) + (Pjxz*dx_Wji + Pjyz*dy_Wji + Pjzz*dz_Wji)/(rho_j2*omega_j));
-        // fprintf(screen,"fz =  %.12f\n", -ijmass*((Pixz*dx_Wij + Piyz*dy_Wij + Pizz*dz_Wij)/(rho_i2*omega_i) + (Pjxz*dx_Wji + Pjyz*dy_Wji + Pjzz*dz_Wji)/(rho_j2*omega_j)));
+        fx = -ijmass*((Pixx*dx_Wij + Pixy*dy_Wij + Pixz*dz_Wij)/(rho_i2*omega_i) + (Pjxx*dx_Wji + Pjxy*dy_Wji + Pjxz*dz_Wji)/(rho_j2*omega_j));
+        fy = -ijmass*((Pixy*dx_Wij + Piyy*dy_Wij + Piyz*dz_Wij)/(rho_i2*omega_i) + (Pjxy*dx_Wji + Pjyy*dy_Wji + Pjyz*dz_Wji)/(rho_j2*omega_j));
+        fz = -ijmass*((Pixz*dx_Wij + Piyz*dy_Wij + Pizz*dz_Wij)/(rho_i2*omega_i) + (Pjxz*dx_Wji + Pjyz*dy_Wji + Pjzz*dz_Wji)/(rho_j2*omega_j));
         
-        // fprintf(screen,"ijmass =  %.9f\n", ijmass);
-        // fprintf(screen,"rho_j2 =  %.9f\n", rho_j2);
-        // fprintf(screen,"omega_j =  %.9f\n", omega_j);
-        
-        // fprintf(screen,"dx_rho[j] =  %.9f\n", dx_rho[j]);
-        // fprintf(screen,"dy_rho[j] =  %.9f\n", dy_rho[j]);
-        // fprintf(screen,"dz_rho[j] =  %.9f\n", dz_rho[j]);
-        // fprintf(screen,"dxx_rho[j] =  %.9f\n", dxx_rho[j]);
-        // fprintf(screen,"dxy_rho[j] =  %.9f\n", dxy_rho[j]);
-        // fprintf(screen,"dxz_rho[j] =  %.9f\n", dxz_rho[j]);
-        // fprintf(screen,"dyz_rho[j] =  %.9f\n", dyz_rho[j]);
-        // fprintf(screen,"dzz_rho[j] =  %.9f\n", dzz_rho[j]);
-
-        // fprintf(screen,"Pjxx =  %.9f\n", Pjxx);
-        // fprintf(screen,"Pjxy =  %.9f\n", Pjxy);
-        // fprintf(screen,"Pjxz =  %.9f\n", Pjxz);
-        // fprintf(screen,"Pjyy =  %.9f\n", Pjyy);
-        // fprintf(screen,"Pjyz =  %.9f\n", Pjyz);
-        // fprintf(screen,"Pjzz =  %.9f\n", Pjzz);
-
-        // fprintf(screen,"dx_Wij =  %.9f\n", dx_Wij);
-        // fprintf(screen,"dy_Wij =  %.9f\n", dy_Wij);
-        // fprintf(screen,"dz_Wij =  %.9f\n", dz_Wij);
-
-        // fprintf(screen,"dx_Wji =  %.9f\n", dx_Wji);
-        // fprintf(screen,"dy_Wji =  %.9f\n", dy_Wji);
-        // fprintf(screen,"dz_Wji =  %.9f\n", dz_Wji);
+        f[i][0] += fx;
+        f[i][1] += fy;
+        f[i][2] += fz;
         
         if (newton_pair || j < nlocal) {
-          // fprintf(screen,"break_statement H\n");
-          f[j][0] += ijmass*((Pixx*dx_Wij + Pixy*dy_Wij + Pixz*dz_Wij)/(rho_i2*omega_i) + (Pjxx*dx_Wji + Pjxy*dy_Wji + Pjxz*dz_Wji)/(rho_j2*omega_j));
-          f[j][1] += ijmass*((Pixy*dx_Wij + Piyy*dy_Wij + Piyz*dz_Wij)/(rho_i2*omega_i) + (Pjxy*dx_Wji + Pjyy*dy_Wji + Pjyz*dz_Wji)/(rho_j2*omega_j));
-          f[j][2] += ijmass*((Pixz*dx_Wij + Piyz*dy_Wij + Pizz*dz_Wij)/(rho_i2*omega_i) + (Pjxz*dx_Wji + Pjyz*dy_Wji + Pjzz*dz_Wji)/(rho_j2*omega_j));
-        
-          u_SPH[j] += u_prefact_j*imass*((-Pjxx*delvx - Pjxy*delvy - Pjxz*delvz)*dx_Wji + (-Pjxy*delvx - Pjyy*delvy - Pjyz*delvz)*dy_Wji + (-Pjxz*delvx - Pjyz*delvy - Pjzz*delvz)*dz_Wji);
+          f[j][0] -= fx;
+          f[j][1] -= fy;
+          f[j][2] -= fz;
 
+          u_SPH[j] -= u_prefact_j*ijmass*((-Pjxx*delvx - Pjxy*delvy - Pjxz*delvz)*dx_Wji + (-Pjxy*delvx - Pjyy*delvy - Pjyz*delvz)*dy_Wji + (-Pjxz*delvx - Pjyz*delvy - Pjzz*delvz)*dz_Wji);
         }
+
+        eflag_either = 0;
+        if (evflag) ev_tally_xyz(i,j,nlocal,newton_pair,0.0,0.0,
+                        fx,fy,fz,delx,dely,delz);
       }
     }
   }
@@ -481,15 +413,15 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
   if (newton_pair) comm->reverse_comm_pair(this);
   comm->forward_comm_pair(this);
 
+  eflag_either = 1;
 
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
-    bohm_pot = u_SPH[i];
-    if (eflag_global) eng_vdwl += bohm_pot;
+    if (eflag_global) eng_vdwl +=  u_SPH[i];
+    if (eflag_atom) eatom[i] += u_SPH[i];
   }
 
   if (vflag_fdotr) virial_fdotr_compute();
-  // fprintf(screen,"break_statement I\n");
 }
 
 /* ----------------------------------------------------------------------
