@@ -15,42 +15,39 @@
 
 #ifdef PAIR_CLASS
 
-PairStyle(coul/long/SPH,PairCoulLongSPH)
+PairStyle(coul/cut/SPH,PairCoulCutSPH)
 
 #else
 
-#ifndef LMP_PAIR_COUL_LONG_SPH_H
-#define LMP_PAIR_COUL_LONG_SPH_H
+#ifndef LMP_PAIR_COUL_CUT_SPH_H
+#define LMP_PAIR_COUL_CUT_SPH_H
 
 #include "pair.h"
 
 namespace LAMMPS_NS {
 
-class PairCoulLongSPH : public Pair {
+class PairCoulCutSPH : public Pair {
  public:
-  PairCoulLongSPH(class LAMMPS *);
-  ~PairCoulLongSPH();
+  PairCoulCutSPH(class LAMMPS *);
+  virtual ~PairCoulCutSPH();
   virtual void compute(int, int);
   virtual void settings(int, char **);
   void coeff(int, char **);
-  virtual void init_style();
-  virtual double init_one(int, int);
+  void init_style();
+  double init_one(int, int);
   void write_restart(FILE *);
   void read_restart(FILE *);
   virtual void write_restart_settings(FILE *);
   virtual void read_restart_settings(FILE *);
   virtual double single(int, int, int, int, double, double, double, double &);
-  virtual void *extract(const char *, int &);
+  void *extract(const char *, int &);
 
  protected:
-  int nmax; // allocated size of per-atom arrays
+  int nmax;
+  double cut_global;
+  double **cut,**scale;
 
-  double cut_coul,cut_coulsq,qdist;
-  double *cut_respa;
-  double g_ewald;
-  double **scale;
-
-  // per-atom arrays
+  //per-atom arrays
 
   double *dx_rho_coul;
   double *dy_rho_coul;
@@ -78,12 +75,8 @@ E: Incorrect args for pair coefficients
 
 Self-explanatory.  Check the input script or data file.
 
-E: Pair style lj/cut/coul/long requires atom attribute q
+E: Pair style coul/cut requires atom attribute q
 
-The atom style defined does not have this attribute.
-
-E: Pair style requires a KSpace style
-
-No kspace style is defined.
+The atom style defined does not have these attributes.
 
 */

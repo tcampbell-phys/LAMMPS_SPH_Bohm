@@ -281,8 +281,6 @@ void FixDynamicWidths::setup_post_neighbor()
 
       jtype = type[j];
 
-      
-
       delx = xtmp - x[j][0];
       dely = ytmp - x[j][1];
       delz = ztmp - x[j][2];
@@ -343,8 +341,6 @@ void FixDynamicWidths::setup_post_neighbor()
       j &= NEIGHMASK;
 
       jtype = type[j];
-
-      
 
       delx = xtmp - x[j][0];
       dely = ytmp - x[j][1];

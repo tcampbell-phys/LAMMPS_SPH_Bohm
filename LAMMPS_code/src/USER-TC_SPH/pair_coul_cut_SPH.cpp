@@ -9,22 +9,17 @@
    the GNU General Public License.
 
    See the README file in the top-level LAMMPS directory.
-------------------------------------------------------------------------- */
 
-/* ----------------------------------------------------------------------
-   Contributing author: Paul Crozier (SNL)
    Edited by Thomas Campbell (Oxford)
-   - for use with dynamic per-particle SPH kernel widths
 ------------------------------------------------------------------------- */
 
-#include "pair_coul_long_sph.h"
+#include "pair_coul_cut_sph.h"
 #include <mpi.h>
 #include <cmath>
 #include <cstring>
 #include "atom.h"
 #include "comm.h"
 #include "force.h"
-#include "kspace.h"
 #include "neighbor.h"
 #include "neigh_list.h"
 #include "memory.h"
@@ -33,25 +28,13 @@
 
 using namespace LAMMPS_NS;
 
-#define EWALD_F   1.12837917
-#define EWALD_P   0.3275911
-#define A1        0.254829592
-#define A2       -0.284496736
-#define A3        1.421413741
-#define A4       -1.453152027
-#define A5        1.061405429
-
 /* ---------------------------------------------------------------------- */
 
-PairCoulLongSPH::PairCoulLongSPH(LAMMPS *lmp) : Pair(lmp)
-{
-  ewaldflag = pppmflag = 1;
-  ftable = NULL;
-  qdist = 0.0;
-  cut_respa = NULL;
-  manybody_flag = 1;
-
+PairCoulCutSPH::PairCoulCutSPH(LAMMPS *lmp) : Pair(lmp) {
   nmax = 0;
+
+  centroidstressflag = 1;
+  manybody_flag = 1;
 
   dx_rho_coul = NULL;
   dy_rho_coul = NULL;
@@ -65,40 +48,31 @@ PairCoulLongSPH::PairCoulLongSPH(LAMMPS *lmp) : Pair(lmp)
 
 /* ---------------------------------------------------------------------- */
 
-PairCoulLongSPH::~PairCoulLongSPH()
+PairCoulCutSPH::~PairCoulCutSPH()
 {
-  if (copymode) return;
-
   if (allocated) {
     memory->destroy(setflag);
     memory->destroy(cutsq);
+
+    memory->destroy(cut);
+    memory->destroy(scale);
 
     memory->destroy(dx_rho_coul);
     memory->destroy(dy_rho_coul);
     memory->destroy(dz_rho_coul);
 
     memory->destroy(theta_coul);
-
-    memory->destroy(scale);
   }
-  if (ftable) free_tables();
 }
 
 /* ---------------------------------------------------------------------- */
 
-void PairCoulLongSPH::compute(int eflag, int vflag)
+void PairCoulCutSPH::compute(int eflag, int vflag)
 {
-  int i,j,ii,jj,inum,jnum,itable,itype,jtype;
+  int i,j,ii,jj,inum,jnum,itype,jtype;
   double qtmp,xtmp,ytmp,ztmp,delx,dely,delz,ecoul,fpair;
-  double fraction,table;
-  double r,r2inv,forcecoul,factor_coul;
-  double grij,expm2,prefactor,t,erfc;
+  double rsq,r2inv,rinv,forcecoul,factor_coul;
   int *ilist,*jlist,*numneigh,**firstneigh;
-  double rsq;
-
-  double *omega_SPH = atom->omega_SPH;
-  double *width_SPH = atom->width_SPH;
-  double *rho_SPH = atom->rho_SPH;
 
   ecoul = 0.0;
   ev_init(eflag,vflag);
@@ -113,12 +87,18 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
   int newton_pair = force->newton_pair;
   double qqrd2e = force->qqrd2e;
 
+
+  double h_i,h2_i,hm2_i,hm4_i;
+  double h_j,h2_j,hm2_j,hm4_j;
+  double imass,jmass,ijmass;
+  double m_gauss_ij,m_gauss_ji;
+
   inum = list->inum;
   ilist = list->ilist;
   numneigh = list->numneigh;
   firstneigh = list->firstneigh;
 
-  if (atom->nmax > nmax) {
+    if (atom->nmax > nmax) {
     // delete and create new memory arrays for any per-particle variables that need communicating.
     memory->destroy(dx_rho_coul);
     memory->destroy(dy_rho_coul);
@@ -132,15 +112,17 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
     memory->create(dy_rho_coul,nmax,"pair:dy_rho_coul");
     memory->create(dz_rho_coul,nmax,"pair:dz_rho_coul");
     memory->create(theta_coul,nmax,"pair:theta_coul");
+
   }
-  // zero out per-atom arrays
+
+  // zero oout per-atom arrays
 
   if (newton_pair) {
     for (i = 0; i < nall; i++){
       dx_rho_coul[i] = 0.0;
       dy_rho_coul[i] = 0.0;
       dz_rho_coul[i] = 0.0;
-      theta_coul[i] = 0.0
+      theta_coul[i] = 0.0;
     }
   } 
   else{
@@ -149,6 +131,45 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
       dy_rho_coul[i] = 0.0;
       dz_rho_coul[i] = 0.0;
       theta_coul[i] = 0.0;
+    }
+  }
+  // compute communicated properties
+
+  for (ii = 0; ii < inum; ii++) {
+    i = ilist[ii];
+    qtmp = q[i];
+    xtmp = x[i][0];
+    ytmp = x[i][1];
+    ztmp = x[i][2];
+    itype = type[i];
+    jlist = firstneigh[i];
+    jnum = numneigh[i];
+
+    imass = mass[itype];
+
+    h_i = width_SPH[i];
+    h2_i = h_i*h_i;
+    hm2_i = 1./h2_i;
+    hm4_i = hm2_i*hm2_i;
+
+    for (jj = 0; jj < jnum; jj++) {
+      j = jlist[jj];
+      factor_coul = special_coul[sbmask(j)];
+      //fprintf(screen,"factor_coul = %f \n",factor_coul);
+      j &= NEIGHMASK;
+
+      delx = xtmp - x[j][0];
+      dely = ytmp - x[j][1];
+      delz = ztmp - x[j][2];
+      rsq = delx*delx + dely*dely + delz*delz;
+      jtype = type[j];
+
+      if (rsq < cutsq[itype][jtype]) {
+        r2inv = 1.0/rsq;
+        rinv = sqrt(r2inv);
+
+
+      }
     }
   }
 
@@ -167,6 +188,7 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
     for (jj = 0; jj < jnum; jj++) {
       j = jlist[jj];
       factor_coul = special_coul[sbmask(j)];
+      //fprintf(screen,"factor_coul = %f \n",factor_coul);
       j &= NEIGHMASK;
 
       delx = xtmp - x[j][0];
@@ -175,33 +197,12 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
       rsq = delx*delx + dely*dely + delz*delz;
       jtype = type[j];
 
-      if (rsq < cut_coulsq) {
+      if (rsq < cutsq[itype][jtype]) {
         r2inv = 1.0/rsq;
-        if (!ncoultablebits || rsq <= tabinnersq) {
-          r = sqrt(rsq);
-          grij = g_ewald * r;
-          expm2 = exp(-grij*grij);
-          t = 1.0 / (1.0 + EWALD_P*grij);
-          erfc = t * (A1+t*(A2+t*(A3+t*(A4+t*A5)))) * expm2;
-          prefactor = qqrd2e * scale[itype][jtype] * qtmp*q[j]/r;
-          forcecoul = prefactor * (erfc + EWALD_F*grij*expm2);
-          if (factor_coul < 1.0) forcecoul -= (1.0-factor_coul)*prefactor;
-        } else {
-          union_int_float_t rsq_lookup;
-          rsq_lookup.f = rsq;
-          itable = rsq_lookup.i & ncoulmask;
-          itable >>= ncoulshiftbits;
-          fraction = (rsq_lookup.f - rtable[itable]) * drtable[itable];
-          table = ftable[itable] + fraction*dftable[itable];
-          forcecoul = scale[itype][jtype] * qtmp*q[j] * table;
-          if (factor_coul < 1.0) {
-            table = ctable[itable] + fraction*dctable[itable];
-            prefactor = scale[itype][jtype] * qtmp*q[j] * table;
-            forcecoul -= (1.0-factor_coul)*prefactor;
-          }
-        }
-
-        fpair = forcecoul * r2inv;
+        rinv = sqrt(r2inv);
+        forcecoul = qqrd2e * scale[itype][jtype] * qtmp*q[j]*rinv;
+        //fprintf(screen,"scale[itype][jtype] = %f \n",scale[itype][jtype]);
+        fpair = factor_coul*forcecoul * r2inv;
 
         f[i][0] += delx*fpair;
         f[i][1] += dely*fpair;
@@ -212,15 +213,8 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
           f[j][2] -= delz*fpair;
         }
 
-        if (eflag) {
-          if (!ncoultablebits || rsq <= tabinnersq)
-            ecoul = prefactor*erfc;
-          else {
-            table = etable[itable] + fraction*detable[itable];
-            ecoul = scale[itype][jtype] * qtmp*q[j] * table;
-          }
-          if (factor_coul < 1.0) ecoul -= (1.0-factor_coul)*prefactor;
-        }
+        if (eflag)
+          ecoul = factor_coul * qqrd2e * scale[itype][jtype] * qtmp*q[j]*rinv;
 
         if (evflag) ev_tally(i,j,nlocal,newton_pair,
                              0.0,ecoul,fpair,delx,dely,delz);
@@ -235,7 +229,7 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
    allocate all arrays
 ------------------------------------------------------------------------- */
 
-void PairCoulLongSPH::allocate()
+void PairCoulCutSPH::allocate()
 {
   allocated = 1;
   int n = atom->ntypes;
@@ -247,6 +241,7 @@ void PairCoulLongSPH::allocate()
 
   memory->create(cutsq,n+1,n+1,"pair:cutsq");
 
+  memory->create(cut,n+1,n+1,"pair:cut");
   memory->create(scale,n+1,n+1,"pair:scale");
 }
 
@@ -254,29 +249,43 @@ void PairCoulLongSPH::allocate()
    global settings
 ------------------------------------------------------------------------- */
 
-void PairCoulLongSPH::settings(int narg, char **arg)
+void PairCoulCutSPH::settings(int narg, char **arg)
 {
   if (narg != 1) error->all(FLERR,"Illegal pair_style command");
 
-  cut_coul = force->numeric(FLERR,arg[0]);
+  cut_global = force->numeric(FLERR,arg[0]);
+
+  // reset cutoffs that have been explicitly set
+
+  if (allocated) {
+    int i,j;
+    for (i = 1; i <= atom->ntypes; i++)
+      for (j = i; j <= atom->ntypes; j++)
+        if (setflag[i][j]) cut[i][j] = cut_global;
+  }
 }
 
 /* ----------------------------------------------------------------------
    set coeffs for one or more type pairs
 ------------------------------------------------------------------------- */
 
-void PairCoulLongSPH::coeff(int narg, char **arg)
+void PairCoulCutSPH::coeff(int narg, char **arg)
 {
-  if (narg != 2) error->all(FLERR,"Incorrect args for pair coefficients");
+  if (narg < 2 || narg > 3)
+    error->all(FLERR,"Incorrect args for pair coefficients");
   if (!allocated) allocate();
 
   int ilo,ihi,jlo,jhi;
   force->bounds(FLERR,arg[0],atom->ntypes,ilo,ihi);
   force->bounds(FLERR,arg[1],atom->ntypes,jlo,jhi);
 
+  double cut_one = cut_global;
+  if (narg == 3) cut_one = force->numeric(FLERR,arg[2]);
+
   int count = 0;
   for (int i = ilo; i <= ihi; i++) {
     for (int j = MAX(jlo,i); j <= jhi; j++) {
+      cut[i][j] = cut_one;
       scale[i][j] = 1.0;
       setflag[i][j] = 1;
       count++;
@@ -286,53 +295,46 @@ void PairCoulLongSPH::coeff(int narg, char **arg)
   if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients");
 }
 
+
 /* ----------------------------------------------------------------------
    init specific to this pair style
 ------------------------------------------------------------------------- */
 
-void PairCoulLongSPH::init_style()
+void PairCoulCutSPH::init_style()
 {
   if (!atom->q_flag)
-    error->all(FLERR,"Pair style lj/cut/coul/long requires atom attribute q");
+    error->all(FLERR,"Pair style coul/cut requires atom attribute q");
 
   neighbor->request(this,instance_me);
-
-  cut_coulsq = cut_coul * cut_coul;
-
-  // insure use of KSpace long-range solver, set g_ewald
-
- if (force->kspace == NULL)
-    error->all(FLERR,"Pair style requires a KSpace style");
-  g_ewald = force->kspace->g_ewald;
-
-  // setup force tables
-
-  if (ncoultablebits) init_tables(cut_coul,NULL);
 }
 
 /* ----------------------------------------------------------------------
    init for one type pair i,j and corresponding j,i
 ------------------------------------------------------------------------- */
 
-double PairCoulLongSPH::init_one(int i, int j)
+double PairCoulCutSPH::init_one(int i, int j)
 {
+  if (setflag[i][j] == 0)
+    cut[i][j] = mix_distance(cut[i][i],cut[j][j]);
+
   scale[j][i] = scale[i][j];
-  return cut_coul+2.0*qdist;
+
+  return cut[i][j];
 }
 
 /* ----------------------------------------------------------------------
   proc 0 writes to restart file
 ------------------------------------------------------------------------- */
 
-void PairCoulLongSPH::write_restart(FILE *fp)
+void PairCoulCutSPH::write_restart(FILE *fp)
 {
   write_restart_settings(fp);
 
-  for (int i = 1; i <= atom->ntypes; i++)
-    for (int j = i; j <= atom->ntypes; j++) {
+  int i,j;
+  for (i = 1; i <= atom->ntypes; i++)
+    for (j = i; j <= atom->ntypes; j++) {
       fwrite(&setflag[i][j],sizeof(int),1,fp);
-      if (setflag[i][j])
-        fwrite(&scale[i][j],sizeof(double),1,fp);
+      if (setflag[i][j]) fwrite(&cut[i][j],sizeof(double),1,fp);
     }
 }
 
@@ -340,10 +342,9 @@ void PairCoulLongSPH::write_restart(FILE *fp)
   proc 0 reads from restart file, bcasts
 ------------------------------------------------------------------------- */
 
-void PairCoulLongSPH::read_restart(FILE *fp)
+void PairCoulCutSPH::read_restart(FILE *fp)
 {
   read_restart_settings(fp);
-
   allocate();
 
   int i,j;
@@ -353,8 +354,8 @@ void PairCoulLongSPH::read_restart(FILE *fp)
       if (me == 0) utils::sfread(FLERR,&setflag[i][j],sizeof(int),1,fp,NULL,error);
       MPI_Bcast(&setflag[i][j],1,MPI_INT,0,world);
       if (setflag[i][j]) {
-        if (me == 0) utils::sfread(FLERR,&scale[i][j],sizeof(double),1,fp,NULL,error);
-        MPI_Bcast(&scale[i][j],1,MPI_DOUBLE,0,world);
+        if (me == 0) utils::sfread(FLERR,&cut[i][j],sizeof(double),1,fp,NULL,error);
+        MPI_Bcast(&cut[i][j],1,MPI_DOUBLE,0,world);
       }
     }
 }
@@ -363,94 +364,52 @@ void PairCoulLongSPH::read_restart(FILE *fp)
   proc 0 writes to restart file
 ------------------------------------------------------------------------- */
 
-void PairCoulLongSPH::write_restart_settings(FILE *fp)
+void PairCoulCutSPH::write_restart_settings(FILE *fp)
 {
-  fwrite(&cut_coul,sizeof(double),1,fp);
+  fwrite(&cut_global,sizeof(double),1,fp);
   fwrite(&offset_flag,sizeof(int),1,fp);
   fwrite(&mix_flag,sizeof(int),1,fp);
-  fwrite(&ncoultablebits,sizeof(int),1,fp);
-  fwrite(&tabinner,sizeof(double),1,fp);
 }
 
 /* ----------------------------------------------------------------------
   proc 0 reads from restart file, bcasts
 ------------------------------------------------------------------------- */
 
-void PairCoulLongSPH::read_restart_settings(FILE *fp)
+void PairCoulCutSPH::read_restart_settings(FILE *fp)
 {
   if (comm->me == 0) {
-    utils::sfread(FLERR,&cut_coul,sizeof(double),1,fp,NULL,error);
+    utils::sfread(FLERR,&cut_global,sizeof(double),1,fp,NULL,error);
     utils::sfread(FLERR,&offset_flag,sizeof(int),1,fp,NULL,error);
     utils::sfread(FLERR,&mix_flag,sizeof(int),1,fp,NULL,error);
-    utils::sfread(FLERR,&ncoultablebits,sizeof(int),1,fp,NULL,error);
-    utils::sfread(FLERR,&tabinner,sizeof(double),1,fp,NULL,error);
   }
-  MPI_Bcast(&cut_coul,1,MPI_DOUBLE,0,world);
+  MPI_Bcast(&cut_global,1,MPI_DOUBLE,0,world);
   MPI_Bcast(&offset_flag,1,MPI_INT,0,world);
   MPI_Bcast(&mix_flag,1,MPI_INT,0,world);
-  MPI_Bcast(&ncoultablebits,1,MPI_INT,0,world);
-  MPI_Bcast(&tabinner,1,MPI_DOUBLE,0,world);
 }
 
 /* ---------------------------------------------------------------------- */
 
-double PairCoulLongSPH::single(int i, int j, int /*itype*/, int /*jtype*/,
-                            double rsq,
-                            double factor_coul, double /*factor_lj*/,
-                            double &fforce)
+double PairCoulCutSPH::single(int i, int j, int /*itype*/, int /*jtype*/,
+                           double rsq, double factor_coul, double /*factor_lj*/,
+                           double &fforce)
 {
-  double r2inv,r,grij,expm2,t,erfc,prefactor;
-  double fraction,table,forcecoul,phicoul;
-  int itable;
+  double r2inv,rinv,forcecoul,phicoul;
 
   r2inv = 1.0/rsq;
-  if (!ncoultablebits || rsq <= tabinnersq) {
-    r = sqrt(rsq);
-    grij = g_ewald * r;
-    expm2 = exp(-grij*grij);
-    t = 1.0 / (1.0 + EWALD_P*grij);
-    erfc = t * (A1+t*(A2+t*(A3+t*(A4+t*A5)))) * expm2;
-    prefactor = force->qqrd2e * atom->q[i]*atom->q[j]/r;
-    forcecoul = prefactor * (erfc + EWALD_F*grij*expm2);
-    if (factor_coul < 1.0) forcecoul -= (1.0-factor_coul)*prefactor;
-  } else {
-    union_int_float_t rsq_lookup;
-    rsq_lookup.f = rsq;
-    itable = rsq_lookup.i & ncoulmask;
-    itable >>= ncoulshiftbits;
-    fraction = (rsq_lookup.f - rtable[itable]) * drtable[itable];
-    table = ftable[itable] + fraction*dftable[itable];
-    forcecoul = atom->q[i]*atom->q[j] * table;
-    if (factor_coul < 1.0) {
-      table = ctable[itable] + fraction*dctable[itable];
-      prefactor = atom->q[i]*atom->q[j] * table;
-      forcecoul -= (1.0-factor_coul)*prefactor;
-    }
-  }
-  fforce = forcecoul * r2inv;
+  rinv = sqrt(r2inv);
+  forcecoul = force->qqrd2e * atom->q[i]*atom->q[j]*rinv;
+  fforce = factor_coul*forcecoul * r2inv;
 
-  if (!ncoultablebits || rsq <= tabinnersq)
-    phicoul = prefactor*erfc;
-  else {
-    table = etable[itable] + fraction*detable[itable];
-    phicoul = atom->q[i]*atom->q[j] * table;
-  }
-  if (factor_coul < 1.0) phicoul -= (1.0-factor_coul)*prefactor;
-
-  return phicoul;
+  phicoul = force->qqrd2e * atom->q[i]*atom->q[j]*rinv;
+  return factor_coul*phicoul;
 }
 
 /* ---------------------------------------------------------------------- */
 
-void *PairCoulLongSPH::extract(const char *str, int &dim)
+void *PairCoulCutSPH::extract(const char *str, int &dim)
 {
-  if (strcmp(str,"cut_coul") == 0) {
-    dim = 0;
-    return (void *) &cut_coul;
-  }
-  if (strcmp(str,"scale") == 0) {
-    dim = 2;
-    return (void *) scale;
-  }
+  dim = 2;
+  if (strcmp(str,"cut_coul") == 0) return (void *) &cut;
+  if (strcmp(str,"scale") == 0) return (void *) scale;
   return NULL;
 }
