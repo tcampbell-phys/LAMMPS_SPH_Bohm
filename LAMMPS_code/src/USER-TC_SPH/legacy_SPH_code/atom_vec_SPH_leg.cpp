@@ -13,7 +13,7 @@
    See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
 
-#include "atom_vec_coul_SPH.h"
+#include "atom_vec_SPH_leg.h"
 #include "atom.h"
 #include "comm.h"
 #include "domain.h"
@@ -27,20 +27,20 @@ using namespace LAMMPS_NS;
 
 /* ---------------------------------------------------------------------- */
 
-AtomVecCoulSPH::AtomVecCoulSPH(LAMMPS *lmp) : AtomVec(lmp)
+AtomVecSPH_leg::AtomVecSPH_leg(LAMMPS *lmp) : AtomVec(lmp)
 {
   molecular = 0;
   mass_type = 1;
 
   comm_x_only = 0;
   comm_f_only = 1;
-  size_forward = 10;
+  size_forward = 7;
   size_reverse = 3;
-  size_border = 14;
+  size_border = 11;
   size_velocity = 3;
-  size_data_atom = 13;
+  size_data_atom = 10;
   size_data_vel = 4;
-  xcol_data = 11;
+  xcol_data = 8;
 
   atom->q_flag = 1;
   atom->TC_SPH_flag = 1;
@@ -52,7 +52,7 @@ AtomVecCoulSPH::AtomVecCoulSPH(LAMMPS *lmp) : AtomVec(lmp)
    n > 0 allocates arrays to size n
 ------------------------------------------------------------------------- */
 
-void AtomVecCoulSPH::grow(int n)
+void AtomVecSPH_leg::grow(int n)
 {
   if (n == 0) grow_nmax();
   else nmax = n;
@@ -70,9 +70,6 @@ void AtomVecCoulSPH::grow(int n)
 
   //SPH density, width_SPH and omega_SPH terms:
   rho_SPH = memory->grow(atom->rho_SPH,nmax,"atom:rho_SPH");
-  dx_rho_SPH = memory->grow(atom->dx_rho_SPH,nmax,"atom:dx_rho_SPH");
-  dy_rho_SPH = memory->grow(atom->dy_rho_SPH,nmax,"atom:dy_rho_SPH");
-  dz_rho_SPH = memory->grow(atom->dz_rho_SPH,nmax,"atom:dz_rho_SPH");
   width_SPH = memory->grow(atom->width_SPH,nmax,"atom:width_SPH");
   omega_SPH = memory->grow(atom->omega_SPH,nmax,"atom:omega_SPH");
   u_SPH = memory->grow(atom->u_SPH,nmax,"atom:u_SPH");
@@ -88,7 +85,7 @@ void AtomVecCoulSPH::grow(int n)
    reset local array ptrs
 ------------------------------------------------------------------------- */
 
-void AtomVecCoulSPH::grow_reset()
+void AtomVecSPH_leg::grow_reset()
 {
   tag = atom->tag; type = atom->type;
   mask = atom->mask; image = atom->image;
@@ -96,14 +93,13 @@ void AtomVecCoulSPH::grow_reset()
   q = atom->q;
   //SPH density, width_SPH and omega_SPH terms:
   rho_SPH = atom->rho_SPH; width_SPH = atom->width_SPH; omega_SPH = atom->omega_SPH; u_SPH = atom->u_SPH;
-  dx_rho_SPH = atom->dx_rho_SPH; dy_rho_SPH = atom->dy_rho_SPH; dz_rho_SPH = atom->dz_rho_SPH;
 }
 
 /* ----------------------------------------------------------------------
    copy atom I info to atom J
 ------------------------------------------------------------------------- */
 
-void AtomVecCoulSPH::copy(int i, int j, int delflag)
+void AtomVecSPH_leg::copy(int i, int j, int delflag)
 {
   tag[j] = tag[i];
   type[j] = type[i];
@@ -120,9 +116,6 @@ void AtomVecCoulSPH::copy(int i, int j, int delflag)
 
   //SPH density, width_SPH and omega_SPH terms:
   rho_SPH[j] = rho_SPH[i];
-  dx_rho_SPH[j] = dx_rho_SPH[i];
-  dy_rho_SPH[j] = dy_rho_SPH[i];
-  dz_rho_SPH[j] = dz_rho_SPH[i];
   width_SPH[j] = width_SPH[i];
   omega_SPH[j] = omega_SPH[i];
   u_SPH[j] = u_SPH[i];
@@ -134,7 +127,7 @@ void AtomVecCoulSPH::copy(int i, int j, int delflag)
 
 /* ---------------------------------------------------------------------- */
 
-int AtomVecCoulSPH::pack_comm(int n, int *list, double *buf,
+int AtomVecSPH_leg::pack_comm(int n, int *list, double *buf,
                              int pbc_flag, int *pbc)
 {
   int i,j,m;
@@ -148,9 +141,6 @@ int AtomVecCoulSPH::pack_comm(int n, int *list, double *buf,
       buf[m++] = x[j][1];
       buf[m++] = x[j][2];
       buf[m++] = rho_SPH[j];
-      buf[m++] = dx_rho_SPH[j];
-      buf[m++] = dy_rho_SPH[j];
-      buf[m++] = dz_rho_SPH[j];
       buf[m++] = width_SPH[j];
       buf[m++] = omega_SPH[j];
       // set u_SPH to 0 on ghost processors to ensure consistency with
@@ -173,9 +163,6 @@ int AtomVecCoulSPH::pack_comm(int n, int *list, double *buf,
       buf[m++] = x[j][1] + dy;
       buf[m++] = x[j][2] + dz;
       buf[m++] = rho_SPH[j];
-      buf[m++] = dx_rho_SPH[j];
-      buf[m++] = dy_rho_SPH[j];
-      buf[m++] = dz_rho_SPH[j];
       buf[m++] = width_SPH[j];
       buf[m++] = omega_SPH[j];
       // set u_SPH to 0 on ghost processors to ensure consistency with
@@ -188,7 +175,7 @@ int AtomVecCoulSPH::pack_comm(int n, int *list, double *buf,
 
 /* ---------------------------------------------------------------------- */
 
-int AtomVecCoulSPH::pack_comm_vel(int n, int *list, double *buf,
+int AtomVecSPH_leg::pack_comm_vel(int n, int *list, double *buf,
                                  int pbc_flag, int *pbc)
 {
   int i,j,m;
@@ -202,9 +189,6 @@ int AtomVecCoulSPH::pack_comm_vel(int n, int *list, double *buf,
       buf[m++] = x[j][1];
       buf[m++] = x[j][2];
       buf[m++] = rho_SPH[j];
-      buf[m++] = dx_rho_SPH[j];
-      buf[m++] = dy_rho_SPH[j];
-      buf[m++] = dz_rho_SPH[j];
       buf[m++] = width_SPH[j];
       buf[m++] = omega_SPH[j];
       // set u_SPH to 0 on ghost processors to ensure consistency with
@@ -231,9 +215,6 @@ int AtomVecCoulSPH::pack_comm_vel(int n, int *list, double *buf,
         buf[m++] = x[j][1] + dy;
         buf[m++] = x[j][2] + dz;
         buf[m++] = rho_SPH[j];
-        buf[m++] = dx_rho_SPH[j];
-        buf[m++] = dy_rho_SPH[j];
-        buf[m++] = dz_rho_SPH[j];
         buf[m++] = width_SPH[j];
         buf[m++] = omega_SPH[j];
         // set u_SPH to 0 on ghost processors to ensure consistency with
@@ -253,9 +234,6 @@ int AtomVecCoulSPH::pack_comm_vel(int n, int *list, double *buf,
         buf[m++] = x[j][1] + dy;
         buf[m++] = x[j][2] + dz;
         buf[m++] = rho_SPH[j];
-        buf[m++] = dx_rho_SPH[j];
-        buf[m++] = dy_rho_SPH[j];
-        buf[m++] = dz_rho_SPH[j];
         buf[m++] = width_SPH[j];
         buf[m++] = omega_SPH[j];
         // set u_SPH to 0 on ghost processors to ensure consistency with
@@ -278,7 +256,7 @@ int AtomVecCoulSPH::pack_comm_vel(int n, int *list, double *buf,
 
 /* ---------------------------------------------------------------------- */
 
-void AtomVecCoulSPH::unpack_comm(int n, int first, double *buf)
+void AtomVecSPH_leg::unpack_comm(int n, int first, double *buf)
 {
   int i,m,last;
 
@@ -289,9 +267,6 @@ void AtomVecCoulSPH::unpack_comm(int n, int first, double *buf)
     x[i][1] = buf[m++];
     x[i][2] = buf[m++];
     rho_SPH[i] = buf[m++];
-    dx_rho_SPH[i] = buf[m++];
-    dy_rho_SPH[i] = buf[m++];
-    dz_rho_SPH[i] = buf[m++];
     width_SPH[i] = buf[m++];
     omega_SPH[i] = buf[m++];
     u_SPH[i] = buf[m++];
@@ -300,7 +275,7 @@ void AtomVecCoulSPH::unpack_comm(int n, int first, double *buf)
 
 /* ---------------------------------------------------------------------- */
 
-void AtomVecCoulSPH::unpack_comm_vel(int n, int first, double *buf)
+void AtomVecSPH_leg::unpack_comm_vel(int n, int first, double *buf)
 {
   int i,m,last;
 
@@ -311,9 +286,6 @@ void AtomVecCoulSPH::unpack_comm_vel(int n, int first, double *buf)
     x[i][1] = buf[m++];
     x[i][2] = buf[m++];
     rho_SPH[i] = buf[m++];
-    dx_rho_SPH[i] = buf[m++];
-    dy_rho_SPH[i] = buf[m++];
-    dz_rho_SPH[i] = buf[m++];
     width_SPH[i] = buf[m++];
     omega_SPH[i] = buf[m++];
     u_SPH[i] = buf[m++];
@@ -325,7 +297,7 @@ void AtomVecCoulSPH::unpack_comm_vel(int n, int first, double *buf)
 
 /* ---------------------------------------------------------------------- */
 
-int AtomVecCoulSPH::pack_reverse(int n, int first, double *buf)
+int AtomVecSPH_leg::pack_reverse(int n, int first, double *buf)
 {
   int i,m,last;
 
@@ -341,7 +313,7 @@ int AtomVecCoulSPH::pack_reverse(int n, int first, double *buf)
 
 /* ---------------------------------------------------------------------- */
 
-void AtomVecCoulSPH::unpack_reverse(int n, int *list, double *buf)
+void AtomVecSPH_leg::unpack_reverse(int n, int *list, double *buf)
 {
   int i,j,m;
 
@@ -356,7 +328,7 @@ void AtomVecCoulSPH::unpack_reverse(int n, int *list, double *buf)
 
 /* ---------------------------------------------------------------------- */
 
-int AtomVecCoulSPH::pack_border(int n, int *list, double *buf,
+int AtomVecSPH_leg::pack_border(int n, int *list, double *buf,
                                int pbc_flag, int *pbc)
 {
   int i,j,m;
@@ -370,9 +342,6 @@ int AtomVecCoulSPH::pack_border(int n, int *list, double *buf,
       buf[m++] = x[j][1];
       buf[m++] = x[j][2];
       buf[m++] = rho_SPH[j];
-      buf[m++] = dx_rho_SPH[j];
-      buf[m++] = dy_rho_SPH[j];
-      buf[m++] = dz_rho_SPH[j];
       buf[m++] = width_SPH[j];
       buf[m++] = omega_SPH[j];
       // set u_SPH to 0 on ghost processors to ensure consistency with
@@ -399,9 +368,6 @@ int AtomVecCoulSPH::pack_border(int n, int *list, double *buf,
       buf[m++] = x[j][1] + dy;
       buf[m++] = x[j][2] + dz;
       buf[m++] = rho_SPH[j];
-      buf[m++] = dx_rho_SPH[j];
-      buf[m++] = dy_rho_SPH[j];
-      buf[m++] = dz_rho_SPH[j];
       buf[m++] = width_SPH[j];
       buf[m++] = omega_SPH[j];
       // set u_SPH to 0 on ghost processors to ensure consistency with
@@ -423,7 +389,7 @@ int AtomVecCoulSPH::pack_border(int n, int *list, double *buf,
 
 /* ---------------------------------------------------------------------- */
 
-int AtomVecCoulSPH::pack_border_vel(int n, int *list, double *buf,
+int AtomVecSPH_leg::pack_border_vel(int n, int *list, double *buf,
                                    int pbc_flag, int *pbc)
 {
   int i,j,m;
@@ -437,9 +403,6 @@ int AtomVecCoulSPH::pack_border_vel(int n, int *list, double *buf,
       buf[m++] = x[j][1];
       buf[m++] = x[j][2];
       buf[m++] = rho_SPH[j];
-      buf[m++] = dx_rho_SPH[j];
-      buf[m++] = dy_rho_SPH[j];
-      buf[m++] = dz_rho_SPH[j];
       buf[m++] = width_SPH[j];
       buf[m++] = omega_SPH[j];
       // set u_SPH to 0 on ghost processors to ensure consistency with
@@ -470,9 +433,6 @@ int AtomVecCoulSPH::pack_border_vel(int n, int *list, double *buf,
         buf[m++] = x[j][1] + dy;
         buf[m++] = x[j][2] + dz;
         buf[m++] = rho_SPH[j];
-        buf[m++] = dx_rho_SPH[j];
-        buf[m++] = dy_rho_SPH[j];
-        buf[m++] = dz_rho_SPH[j];
         buf[m++] = width_SPH[j];
         buf[m++] = omega_SPH[j];
         // set u_SPH to 0 on ghost processors to ensure consistency with
@@ -496,9 +456,6 @@ int AtomVecCoulSPH::pack_border_vel(int n, int *list, double *buf,
         buf[m++] = x[j][1] + dy;
         buf[m++] = x[j][2] + dz;
         buf[m++] = rho_SPH[j];
-        buf[m++] = dx_rho_SPH[j];
-        buf[m++] = dy_rho_SPH[j];
-        buf[m++] = dz_rho_SPH[j];
         buf[m++] = width_SPH[j];
         buf[m++] = omega_SPH[j];
         // set u_SPH to 0 on ghost processors to ensure consistency with
@@ -530,7 +487,7 @@ int AtomVecCoulSPH::pack_border_vel(int n, int *list, double *buf,
 
 /* ---------------------------------------------------------------------- */
 
-int AtomVecCoulSPH::pack_border_hybrid(int n, int *list, double *buf)
+int AtomVecSPH_leg::pack_border_hybrid(int n, int *list, double *buf)
 {
   int i,j,m;
 
@@ -539,9 +496,6 @@ int AtomVecCoulSPH::pack_border_hybrid(int n, int *list, double *buf)
     j = list[i];
     buf[m++] = q[j];
     buf[m++] = rho_SPH[j];
-    buf[m++] = dx_rho_SPH[j];
-    buf[m++] = dy_rho_SPH[j];
-    buf[m++] = dz_rho_SPH[j];
     buf[m++] = width_SPH[j];
     buf[m++] = omega_SPH[j];
     // set u_SPH to 0 on ghost processors to ensure consistency with
@@ -553,7 +507,7 @@ int AtomVecCoulSPH::pack_border_hybrid(int n, int *list, double *buf)
 
 /* ---------------------------------------------------------------------- */
 
-void AtomVecCoulSPH::unpack_border(int n, int first, double *buf)
+void AtomVecSPH_leg::unpack_border(int n, int first, double *buf)
 {
   int i,m,last;
 
@@ -565,9 +519,6 @@ void AtomVecCoulSPH::unpack_border(int n, int first, double *buf)
     x[i][1] = buf[m++];
     x[i][2] = buf[m++];
     rho_SPH[i] = buf[m++];
-    dx_rho_SPH[i] = buf[m++];
-    dy_rho_SPH[i] = buf[m++];
-    dz_rho_SPH[i] = buf[m++];
     width_SPH[i] = buf[m++];
     omega_SPH[i] = buf[m++];
     u_SPH[i] = buf[m++];
@@ -585,7 +536,7 @@ void AtomVecCoulSPH::unpack_border(int n, int first, double *buf)
 
 /* ---------------------------------------------------------------------- */
 
-void AtomVecCoulSPH::unpack_border_vel(int n, int first, double *buf)
+void AtomVecSPH_leg::unpack_border_vel(int n, int first, double *buf)
 {
   int i,m,last;
 
@@ -597,9 +548,6 @@ void AtomVecCoulSPH::unpack_border_vel(int n, int first, double *buf)
     x[i][1] = buf[m++];
     x[i][2] = buf[m++];
     rho_SPH[i] = buf[m++];
-    dx_rho_SPH[i] = buf[m++];
-    dy_rho_SPH[i] = buf[m++];
-    dz_rho_SPH[i] = buf[m++];
     width_SPH[i] = buf[m++];
     omega_SPH[i] = buf[m++];
     u_SPH[i] = buf[m++];
@@ -620,7 +568,7 @@ void AtomVecCoulSPH::unpack_border_vel(int n, int first, double *buf)
 
 /* ---------------------------------------------------------------------- */
 
-int AtomVecCoulSPH::unpack_border_hybrid(int n, int first, double *buf)
+int AtomVecSPH_leg::unpack_border_hybrid(int n, int first, double *buf)
 {
   int i,m,last;
 
@@ -629,9 +577,6 @@ int AtomVecCoulSPH::unpack_border_hybrid(int n, int first, double *buf)
   for (i = first; i < last; i++)
     q[i] = buf[m++];
     rho_SPH[i] = buf[m++];
-    dx_rho_SPH[i] = buf[m++];
-    dy_rho_SPH[i] = buf[m++];
-    dz_rho_SPH[i] = buf[m++];
     width_SPH[i] = buf[m++];
     omega_SPH[i] = buf[m++];
     u_SPH[i] = buf[m++];
@@ -643,7 +588,7 @@ int AtomVecCoulSPH::unpack_border_hybrid(int n, int first, double *buf)
    xyz must be 1st 3 values, so comm::exchange() can test on them
 ------------------------------------------------------------------------- */
 
-int AtomVecCoulSPH::pack_exchange(int i, double *buf)
+int AtomVecSPH_leg::pack_exchange(int i, double *buf)
 {
   int m = 1;
   buf[m++] = x[i][0];
@@ -659,9 +604,6 @@ int AtomVecCoulSPH::pack_exchange(int i, double *buf)
 
   buf[m++] = q[i];
   buf[m++] = rho_SPH[i];
-  buf[m++] = dx_rho_SPH[i];
-  buf[m++] = dy_rho_SPH[i];
-  buf[m++] = dz_rho_SPH[i];
   buf[m++] = width_SPH[i];
   buf[m++] = omega_SPH[i];
   buf[m++] = u_SPH[i];
@@ -676,7 +618,7 @@ int AtomVecCoulSPH::pack_exchange(int i, double *buf)
 
 /* ---------------------------------------------------------------------- */
 
-int AtomVecCoulSPH::unpack_exchange(double *buf)
+int AtomVecSPH_leg::unpack_exchange(double *buf)
 {
   int nlocal = atom->nlocal;
   if (nlocal == nmax) grow(0);
@@ -695,9 +637,6 @@ int AtomVecCoulSPH::unpack_exchange(double *buf)
 
   q[nlocal] = buf[m++];
   rho_SPH[nlocal] = buf[m++];
-  dx_rho_SPH[nlocal] = buf[m++];
-  dy_rho_SPH[nlocal] = buf[m++];
-  dz_rho_SPH[nlocal] = buf[m++];
   width_SPH[nlocal] = buf[m++];
   omega_SPH[nlocal] = buf[m++];
   u_SPH[nlocal] = buf[m++];
@@ -716,13 +655,13 @@ int AtomVecCoulSPH::unpack_exchange(double *buf)
    include extra data stored by fixes
 ------------------------------------------------------------------------- */
 
-int AtomVecCoulSPH::size_restart()
+int AtomVecSPH_leg::size_restart()
 {
   int i;
 
   int nlocal = atom->nlocal;
 
-  int n = 19 * nlocal;
+  int n = 16 * nlocal;
 
   if (atom->nextra_restart)
     for (int iextra = 0; iextra < atom->nextra_restart; iextra++)
@@ -738,16 +677,13 @@ int AtomVecCoulSPH::size_restart()
    molecular types may be negative, but write as positive
 ------------------------------------------------------------------------- */
 
-int AtomVecCoulSPH::pack_restart(int i, double *buf)
+int AtomVecSPH_leg::pack_restart(int i, double *buf)
 {
   int m = 1;
   buf[m++] = x[i][0];
   buf[m++] = x[i][1];
   buf[m++] = x[i][2];
   buf[m++] = rho_SPH[i];
-  buf[m++] = dx_rho_SPH[i];
-  buf[m++] = dy_rho_SPH[i];
-  buf[m++] = dz_rho_SPH[i];
   buf[m++] = width_SPH[i];
   buf[m++] = omega_SPH[i];
   buf[m++] = u_SPH[i];
@@ -773,7 +709,7 @@ int AtomVecCoulSPH::pack_restart(int i, double *buf)
    unpack data for one atom from restart file including extra quantities
 ------------------------------------------------------------------------- */
 
-int AtomVecCoulSPH::unpack_restart(double *buf)
+int AtomVecSPH_leg::unpack_restart(double *buf)
 {
   int nlocal = atom->nlocal;
   if (nlocal == nmax) {
@@ -787,9 +723,6 @@ int AtomVecCoulSPH::unpack_restart(double *buf)
   x[nlocal][1] = buf[m++];
   x[nlocal][2] = buf[m++];
   rho_SPH[nlocal] = buf[m++];
-  dx_rho_SPH[nlocal] = buf[m++];
-  dy_rho_SPH[nlocal] = buf[m++];
-  dz_rho_SPH[nlocal] = buf[m++];
   width_SPH[nlocal] = buf[m++];
   omega_SPH[nlocal] = buf[m++];
   u_SPH[nlocal] = buf[m++];
@@ -819,7 +752,7 @@ int AtomVecCoulSPH::unpack_restart(double *buf)
    set other values to defaults
 ------------------------------------------------------------------------- */
 
-void AtomVecCoulSPH::create_atom(int itype, double *coord)
+void AtomVecSPH_leg::create_atom(int itype, double *coord)
 {
   int nlocal = atom->nlocal;
   if (nlocal == nmax) grow(0);
@@ -831,9 +764,6 @@ void AtomVecCoulSPH::create_atom(int itype, double *coord)
   x[nlocal][2] = coord[2];
 
   rho_SPH[nlocal] = 0.0;
-  dx_rho_SPH[nlocal] = 0.0;
-  dy_rho_SPH[nlocal] = 0.0;
-  dz_rho_SPH[nlocal] = 0.0;
   width_SPH[nlocal] = 0.0;
   omega_SPH[nlocal] = 0.0;
   u_SPH[nlocal] = 0.0;
@@ -855,7 +785,7 @@ void AtomVecCoulSPH::create_atom(int itype, double *coord)
    initialize other atom quantities
 ------------------------------------------------------------------------- */
 
-void AtomVecCoulSPH::data_atom(double *coord, imageint imagetmp, char **values)
+void AtomVecSPH_leg::data_atom(double *coord, imageint imagetmp, char **values)
 {
   int nlocal = atom->nlocal;
   if (nlocal == nmax) grow(0);
@@ -867,12 +797,9 @@ void AtomVecCoulSPH::data_atom(double *coord, imageint imagetmp, char **values)
 
   q[nlocal] = utils::numeric(FLERR,values[2],true,lmp);
   rho_SPH[nlocal] = utils::numeric(FLERR,values[3],true,lmp);
-  dx_rho_SPH[nlocal] = utils::numeric(FLERR,values[4],true,lmp);
-  dy_rho_SPH[nlocal] = utils::numeric(FLERR,values[5],true,lmp);
-  dz_rho_SPH[nlocal] = utils::numeric(FLERR,values[6],true,lmp);
-  width_SPH[nlocal] = utils::numeric(FLERR,values[7],true,lmp);
-  omega_SPH[nlocal] = utils::numeric(FLERR,values[8],true,lmp);
-  u_SPH[nlocal] = utils::numeric(FLERR,values[9],true,lmp);
+  width_SPH[nlocal] = utils::numeric(FLERR,values[4],true,lmp);
+  omega_SPH[nlocal] = utils::numeric(FLERR,values[5],true,lmp);
+  u_SPH[nlocal] = utils::numeric(FLERR,values[6],true,lmp);
 
 
   x[nlocal][0] = coord[0];
@@ -894,25 +821,22 @@ void AtomVecCoulSPH::data_atom(double *coord, imageint imagetmp, char **values)
    initialize other atom quantities for this sub-style
 ------------------------------------------------------------------------- */
 
-int AtomVecCoulSPH::data_atom_hybrid(int nlocal, char **values)
+int AtomVecSPH_leg::data_atom_hybrid(int nlocal, char **values)
 {
   q[nlocal] = utils::numeric(FLERR,values[0],true,lmp);
   rho_SPH[nlocal] = 0.0;
-  dx_rho_SPH[nlocal] = 0.0;
-  dy_rho_SPH[nlocal] = 0.0;
-  dz_rho_SPH[nlocal] = 0.0;
   width_SPH[nlocal] = 0.0;
   omega_SPH[nlocal] = 0.0;
   u_SPH[nlocal] = 0.0;
 
-  return 8;
+  return 5;
 }
 
 /* ----------------------------------------------------------------------
    pack atom info for data file including 3 image flags
 ------------------------------------------------------------------------- */
 
-void AtomVecCoulSPH::pack_data(double **buf)
+void AtomVecSPH_leg::pack_data(double **buf)
 {
   int nlocal = atom->nlocal;
   for (int i = 0; i < nlocal; i++) {
@@ -920,18 +844,15 @@ void AtomVecCoulSPH::pack_data(double **buf)
     buf[i][1] = ubuf(type[i]).d;
     buf[i][2] = q[i];
     buf[i][3] = rho_SPH[i];
-    buf[i][4] = dx_rho_SPH[i];
-    buf[i][5] = dy_rho_SPH[i];
-    buf[i][6] = dz_rho_SPH[i];
-    buf[i][7] = width_SPH[i];
-    buf[i][8] = omega_SPH[i];
-    buf[i][9] = u_SPH[i];
-    buf[i][10] = x[i][0];
-    buf[i][11] = x[i][1];
-    buf[i][12] = x[i][2];
-    buf[i][13] = ubuf((image[i] & IMGMASK) - IMGMAX).d;
-    buf[i][14] = ubuf((image[i] >> IMGBITS & IMGMASK) - IMGMAX).d;
-    buf[i][15] = ubuf((image[i] >> IMG2BITS) - IMGMAX).d;
+    buf[i][4] = width_SPH[i];
+    buf[i][5] = omega_SPH[i];
+    buf[i][6] = u_SPH[i];
+    buf[i][7] = x[i][0];
+    buf[i][8] = x[i][1];
+    buf[i][9] = x[i][2];
+    buf[i][10] = ubuf((image[i] & IMGMASK) - IMGMAX).d;
+    buf[i][11] = ubuf((image[i] >> IMGBITS & IMGMASK) - IMGMAX).d;
+    buf[i][12] = ubuf((image[i] >> IMG2BITS) - IMGMAX).d;
   }
 }
 
@@ -939,48 +860,45 @@ void AtomVecCoulSPH::pack_data(double **buf)
    pack hybrid atom info for data file
 ------------------------------------------------------------------------- */
 
-int AtomVecCoulSPH::pack_data_hybrid(int i, double *buf)
+int AtomVecSPH_leg::pack_data_hybrid(int i, double *buf)
 {
   buf[0] = q[i];
   buf[1] = rho_SPH[i];
-  buf[2] = dx_rho_SPH[i];
-  buf[3] = dy_rho_SPH[i];
-  buf[4] = dz_rho_SPH[i];
-  buf[5] = width_SPH[i];
-  buf[6] = omega_SPH[i];
-  buf[7] = u_SPH[i];
-  return 8;
+  buf[2] = width_SPH[i];
+  buf[3] = omega_SPH[i];
+  buf[4] = u_SPH[i];
+  return 5;
 }
 
 /* ----------------------------------------------------------------------
    write atom info to data file including 3 image flags
 ------------------------------------------------------------------------- */
 
-void AtomVecCoulSPH::write_data(FILE *fp, int n, double **buf)
+void AtomVecSPH_leg::write_data(FILE *fp, int n, double **buf)
 {
   for (int i = 0; i < n; i++)
     fprintf(fp,TAGINT_FORMAT " %d %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %d %d %d\n",
             (tagint) ubuf(buf[i][0]).i,(int) ubuf(buf[i][1]).i,
             buf[i][2],buf[i][3],buf[i][4],buf[i][5],buf[i][6],buf[i][7],buf[i][8],buf[i][9],
-            buf[i][10],buf[i][11],buf[i][12],(int) ubuf(buf[i][13]).i,(int) ubuf(buf[i][14]).i,
-            (int) ubuf(buf[i][15]).i);
+            (int) ubuf(buf[i][10]).i,(int) ubuf(buf[i][11]).i,
+            (int) ubuf(buf[i][12]).i);
 }
 
 /* ----------------------------------------------------------------------
    write hybrid atom info to data file
 ------------------------------------------------------------------------- */
 
-int AtomVecCoulSPH::write_data_hybrid(FILE *fp, double *buf)
+int AtomVecSPH_leg::write_data_hybrid(FILE *fp, double *buf)
 {
-  fprintf(fp," %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e",buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7]);
-  return 8;
+  fprintf(fp," %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e",buf[0],buf[1],buf[2],buf[3],buf[4]);
+  return 5;
 }
 
 /* ----------------------------------------------------------------------
    return # of bytes of allocated memory
 ------------------------------------------------------------------------- */
 
-bigint AtomVecCoulSPH::memory_usage()
+bigint AtomVecSPH_leg::memory_usage()
 {
   bigint bytes = 0;
 
@@ -994,9 +912,6 @@ bigint AtomVecCoulSPH::memory_usage()
 
   if (atom->memcheck("q")) bytes += memory->usage(q,nmax);
   if (atom->memcheck("rho_SPH")) bytes += memory->usage(rho_SPH,nmax);
-  if (atom->memcheck("dx_rho_SPH")) bytes += memory->usage(dx_rho_SPH,nmax);    
-  if (atom->memcheck("dy_rho_SPH")) bytes += memory->usage(dy_rho_SPH,nmax);
-  if (atom->memcheck("dz_rho_SPH")) bytes += memory->usage(dz_rho_SPH,nmax);
   if (atom->memcheck("width_SPH")) bytes += memory->usage(width_SPH,nmax);
   if (atom->memcheck("omega_SPH")) bytes += memory->usage(omega_SPH,nmax);
   if (atom->memcheck("u_SPH")) bytes += memory->usage(u_SPH,nmax);

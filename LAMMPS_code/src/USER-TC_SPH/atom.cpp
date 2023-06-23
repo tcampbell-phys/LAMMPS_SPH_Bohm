@@ -79,6 +79,7 @@ Atom::Atom(LAMMPS *lmp) : Pointers(lmp)
   // SPH arrays:
 
   rho_SPH = width_SPH = omega_SPH = u_SPH = NULL;
+  dx_rho_SPH = dy_rho_SPH = dz_rho_SPH = NULL;
 
   molecule = NULL;
   molindex = molatom = NULL;
@@ -270,6 +271,9 @@ Atom::~Atom()
   // SPH
 
   memory->destroy(rho_SPH);
+  memory->destroy(dx_rho_SPH);
+  memory->destroy(dy_rho_SPH);
+  memory->destroy(dz_rho_SPH);
   memory->destroy(width_SPH);
   memory->destroy(omega_SPH);
   memory->destroy(u_SPH);
@@ -2276,6 +2280,9 @@ void *Atom::extract(char *name)
 
   //SPH:
   if (strcmp(name,"rho_SPH") == 0) return (void *) rho_SPH;
+  if (strcmp(name,"dx_rho_SPH") == 0) return (void *) dx_rho_SPH;
+  if (strcmp(name,"dy_rho_SPH") == 0) return (void *) dy_rho_SPH;
+  if (strcmp(name,"dz_rho_SPH") == 0) return (void *) dz_rho_SPH;
   if (strcmp(name,"width_SPH") == 0) return (void *) width_SPH;
   if (strcmp(name,"omega_SPH") == 0) return (void *) omega_SPH;
   if (strcmp(name,"u_SPH") == 0) return (void *) u_SPH;

@@ -61,9 +61,6 @@ protected:
 
   // per-atom arrays
 
-  double *dx_rho;
-  double *dy_rho;
-  double *dz_rho;
   double *dxx_rho;
   double *dxy_rho;
   double *dxz_rho;

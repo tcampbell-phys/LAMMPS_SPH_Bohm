@@ -122,6 +122,9 @@ void FixDynamicWidths::setup_post_neighbor()
   double **v = atom->v;
   double **f = atom->f;
   double *rho_SPH = atom->rho_SPH;
+  double *dx_rho_SPH = atom->dx_rho_SPH;
+  double *dy_rho_SPH = atom->dy_rho_SPH;
+  double *dz_rho_SPH = atom->dz_rho_SPH;
   double *omega_SPH = atom->omega_SPH;
   double *width_SPH = atom->width_SPH;
   double *mass = atom->mass;
@@ -247,6 +250,9 @@ void FixDynamicWidths::setup_post_neighbor()
   for(int i = 0; i < nall; i++){
       
       rho_SPH[i] = 0.;
+      dx_rho_SPH[i] = 0.;
+      dy_rho_SPH[i] = 0.;
+      dz_rho_SPH[i] = 0.;
       omega_SPH[i] = 0.;
     }
 
@@ -259,6 +265,11 @@ void FixDynamicWidths::setup_post_neighbor()
     xtmp = x[i][0];
     ytmp = x[i][1];
     ztmp = x[i][2];
+
+    // fprintf(screen,"Particle at...\n");
+    // fprintf(screen,"x = %16.16f\n",xtmp);
+    // fprintf(screen,"y = %16.16f\n",ytmp);
+    // fprintf(screen,"z = %16.16f\n",ztmp);
 
     itype = type[i];
     
@@ -289,9 +300,22 @@ void FixDynamicWidths::setup_post_neighbor()
 
       if (rsq < cutsquared) {
 
+        // fprintf(screen,"neighbour at...\n");
+        // fprintf(screen,"x_n = %16.16f\n",x[j][0]);
+        // fprintf(screen,"y_n = %16.16f\n",x[j][1]);
+        // fprintf(screen,"z_n = %16.16f\n",x[j][2]);
+
         jmass = mass[jtype];
         m_gauss_ij = jmass*gauss_pre_i*exp(-(rsq)*hm2_i/2);
         rho_SPH[i] += m_gauss_ij;
+
+        dx_rho_SPH[i] += ((-delx)*hm2_i)*m_gauss_ij;
+        dy_rho_SPH[i] += ((-dely)*hm2_i)*m_gauss_ij;
+        dz_rho_SPH[i] += ((-delz)*hm2_i)*m_gauss_ij;
+
+        // fprintf(screen,"dx_rho_SPH[i] += %16.16f\n",((-delx)*hm2_i)*m_gauss_ij);
+        // fprintf(screen,"dy_rho_SPH[i] += %16.16f\n",((-dely)*hm2_i)*m_gauss_ij);
+        // fprintf(screen,"dz_rho_SPH[i] += %16.16f\n",((-delz)*hm2_i)*m_gauss_ij);
 
         if (newton_pair || j < nlocal) {
 
@@ -299,12 +323,20 @@ void FixDynamicWidths::setup_post_neighbor()
           hm2_j = 1/(h_j*h_j);
           gauss_pre_j = pi_fact*(1/(h_j*h_j*h_j));
           m_gauss_ji = imass*gauss_pre_j*exp(-(rsq)*hm2_j/2);
+          dx_rho_SPH[j] += ((delx)*hm2_j)*m_gauss_ji;
+          dy_rho_SPH[j] += ((dely)*hm2_j)*m_gauss_ji;
+          dz_rho_SPH[j] += ((delz)*hm2_j)*m_gauss_ji;
+          // fprintf(screen,"dx_rho_SPH[j] += %16.16f\n",((delx)*hm2_j)*m_gauss_ji);
+          // fprintf(screen,"dy_rho_SPH[j] += %16.16f\n",((dely)*hm2_j)*m_gauss_ji);
+          // fprintf(screen,"dz_rho_SPH[j] += %16.16f\n",((delz)*hm2_j)*m_gauss_ji);
           rho_SPH[j] += m_gauss_ji;
         }
       }
     }
   }
-  commflag = 0;
+  commflag = 3;
+  comm_forward = 4;
+  comm_reverse = 4; 
   if (newton_pair){
     comm->reverse_comm_fix(this);
   }
@@ -364,6 +396,8 @@ void FixDynamicWidths::setup_post_neighbor()
     }
   }
   commflag = 2;
+  comm_forward = 1;
+  comm_reverse = 1; 
   if (newton_pair){
     comm->reverse_comm_fix(this);
   }
@@ -383,6 +417,9 @@ void FixDynamicWidths::pre_force(int)
   double **v = atom->v;
   double **f = atom->f;
   double *rho_SPH = atom->rho_SPH;
+  double *dx_rho_SPH = atom->dx_rho_SPH;
+  double *dy_rho_SPH = atom->dy_rho_SPH;
+  double *dz_rho_SPH = atom->dz_rho_SPH;
   double *omega_SPH = atom->omega_SPH;
   double *width_SPH = atom->width_SPH;
   double *mass = atom->mass;
@@ -456,8 +493,6 @@ void FixDynamicWidths::pre_force(int)
 
         jtype = type[j];
 
-        
-
         delx = xtmp - x[j][0];
         dely = ytmp - x[j][1];
         delz = ztmp - x[j][2];
@@ -505,6 +540,9 @@ void FixDynamicWidths::pre_force(int)
   for(int i = 0; i < nall; i++){
       
       rho_SPH[i] = 0.;
+      dx_rho_SPH[i] = 0.;
+      dy_rho_SPH[i] = 0.;
+      dz_rho_SPH[i] = 0.;
       omega_SPH[i] = 0.;
     }
 
@@ -517,6 +555,11 @@ void FixDynamicWidths::pre_force(int)
     xtmp = x[i][0];
     ytmp = x[i][1];
     ztmp = x[i][2];
+
+    // fprintf(screen,"Particle at...\n");
+    // fprintf(screen,"x = %16.16f\n",xtmp);
+    // fprintf(screen,"y = %16.16f\n",ytmp);
+    // fprintf(screen,"z = %16.16f\n",ztmp);
 
     itype = type[i];
     
@@ -539,8 +582,6 @@ void FixDynamicWidths::pre_force(int)
 
       jtype = type[j];
 
-      
-
       delx = xtmp - x[j][0];
       dely = ytmp - x[j][1];
       delz = ztmp - x[j][2];
@@ -549,9 +590,21 @@ void FixDynamicWidths::pre_force(int)
 
       if (rsq < cutsquared) {
 
+        // fprintf(screen,"neighbour at...\n");
+        // fprintf(screen,"x_n = %16.16f\n",x[j][0]);
+        // fprintf(screen,"y_n = %16.16f\n",x[j][1]);
+        // fprintf(screen,"z_n = %16.16f\n",x[j][2]);
+
         jmass = mass[jtype];
         m_gauss_ij = jmass*gauss_pre_i*exp(-(rsq)*hm2_i/2);
         rho_SPH[i] += m_gauss_ij;
+        dx_rho_SPH[i] += ((-delx)*hm2_i)*m_gauss_ij;
+        dy_rho_SPH[i] += ((-dely)*hm2_i)*m_gauss_ij;
+        dz_rho_SPH[i] += ((-delz)*hm2_i)*m_gauss_ij;
+
+        // fprintf(screen,"dx_rho_SPH[i] += %16.16f\n",((-delx)*hm2_i)*m_gauss_ij);
+        // fprintf(screen,"dy_rho_SPH[i] += %16.16f\n",((-dely)*hm2_i)*m_gauss_ij);
+        // fprintf(screen,"dz_rho_SPH[i] += %16.16f\n",((-delz)*hm2_i)*m_gauss_ij);
 
         if (newton_pair || j < nlocal) {
 
@@ -560,11 +613,20 @@ void FixDynamicWidths::pre_force(int)
           gauss_pre_j = pi_fact*(1/(h_j*h_j*h_j));
           m_gauss_ji = imass*gauss_pre_j*exp(-(rsq)*hm2_j/2);
           rho_SPH[j] += m_gauss_ji;
+          dx_rho_SPH[j] += ((delx)*hm2_j)*m_gauss_ji;
+          dy_rho_SPH[j] += ((dely)*hm2_j)*m_gauss_ji;
+          dz_rho_SPH[j] += ((delz)*hm2_j)*m_gauss_ji;
+          // fprintf(screen,"dx_rho_SPH[j] += %16.16f\n",((delx)*hm2_j)*m_gauss_ji);
+          // fprintf(screen,"dy_rho_SPH[j] += %16.16f\n",((dely)*hm2_j)*m_gauss_ji);
+          // fprintf(screen,"dz_rho_SPH[j] += %16.16f\n",((delz)*hm2_j)*m_gauss_ji);
+          
         }
       }
     }
   }
-  commflag = 0;
+  commflag = 3;
+  comm_forward = 4;
+  comm_reverse = 4; 
   if (newton_pair){
     comm->reverse_comm_fix(this);
   }
@@ -602,8 +664,6 @@ void FixDynamicWidths::pre_force(int)
 
       jtype = type[j];
 
-      
-
       delx = xtmp - x[j][0];
       dely = ytmp - x[j][1];
       delz = ztmp - x[j][2];
@@ -626,6 +686,8 @@ void FixDynamicWidths::pre_force(int)
     }
   }
   commflag = 2;
+  comm_forward = 1;
+  comm_reverse = 1; 
   if (newton_pair){
     comm->reverse_comm_fix(this);
   }
@@ -647,6 +709,19 @@ int FixDynamicWidths::pack_forward_comm(int n, int *list, double *buf,
     for (i = 0; i < n; i++) {
       j = list[i];
       buf[m++] = rho_SPH[j];
+    }
+  }
+  if (commflag == 3){
+    double *rho_SPH = atom->rho_SPH;
+    double *dx_rho_SPH = atom->dx_rho_SPH;
+    double *dy_rho_SPH = atom->dy_rho_SPH;
+    double *dz_rho_SPH = atom->dz_rho_SPH;
+    for (i = 0; i < n; i++) {
+      j = list[i];
+      buf[m++] = rho_SPH[j];
+      buf[m++] = dx_rho_SPH[j];
+      buf[m++] = dy_rho_SPH[j];
+      buf[m++] = dz_rho_SPH[j];
     }
   }
   if (commflag == 1){
@@ -674,6 +749,18 @@ void FixDynamicWidths::unpack_forward_comm(int n, int first, double *buf)
 
   m = 0;
   last = first + n;
+  if (commflag == 3){
+    double *rho_SPH = atom->rho_SPH;
+    double *dx_rho_SPH = atom->dx_rho_SPH;
+    double *dy_rho_SPH = atom->dy_rho_SPH;
+    double *dz_rho_SPH = atom->dz_rho_SPH;
+    for (i = first; i < last; i++){
+      rho_SPH[i] = buf[m++];
+      dx_rho_SPH[i] = buf[m++];
+      dy_rho_SPH[i] = buf[m++];
+      dz_rho_SPH[i] = buf[m++];
+    }
+  }
   if (commflag == 0){
     double *rho_SPH = atom->rho_SPH;
     for (i = first; i < last; i++){
@@ -701,6 +788,18 @@ int FixDynamicWidths::pack_reverse_comm(int n, int first, double *buf)
 
   m = 0;
   last = first + n;
+  if (commflag == 3){
+    double *rho_SPH = atom->rho_SPH;
+    double *dx_rho_SPH = atom->dx_rho_SPH;
+    double *dy_rho_SPH = atom->dy_rho_SPH;
+    double *dz_rho_SPH = atom->dz_rho_SPH;
+    for (i = first; i < last; i++){
+      buf[m++] = rho_SPH[i];
+      buf[m++] = dx_rho_SPH[i];
+      buf[m++] = dy_rho_SPH[i];
+      buf[m++] = dz_rho_SPH[i];
+    }
+  }
   if (commflag == 0){
     double *rho_SPH = atom->rho_SPH;
     for (i = first; i < last; i++){
@@ -729,6 +828,19 @@ void FixDynamicWidths::unpack_reverse_comm(int n, int *list, double *buf)
   int i,j,m;
 
   m = 0;
+  if (commflag == 3){
+    double *rho_SPH = atom->rho_SPH;
+    double *dx_rho_SPH = atom->dx_rho_SPH;
+    double *dy_rho_SPH = atom->dy_rho_SPH;
+    double *dz_rho_SPH = atom->dz_rho_SPH;
+    for (i = 0; i < n; i++) {
+      j = list[i];
+      rho_SPH[j] += buf[m++];
+      dx_rho_SPH[j] += buf[m++];
+      dy_rho_SPH[j] += buf[m++];
+      dz_rho_SPH[j] += buf[m++];
+    }
+  }
   if (commflag == 0){
     double *rho_SPH = atom->rho_SPH;
     for (i = 0; i < n; i++) {

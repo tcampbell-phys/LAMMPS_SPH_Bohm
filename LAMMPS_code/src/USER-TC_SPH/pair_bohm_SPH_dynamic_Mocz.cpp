@@ -36,9 +36,6 @@ PairBohmSPHDynamicMocz::PairBohmSPHDynamicMocz(LAMMPS *lmp) : Pair(lmp) {
 
   manybody_flag = 1;
 
-  dx_rho = NULL;
-  dy_rho = NULL;
-  dz_rho = NULL;
   dxx_rho = NULL;
   dxy_rho = NULL;
   dxz_rho = NULL;
@@ -46,8 +43,8 @@ PairBohmSPHDynamicMocz::PairBohmSPHDynamicMocz(LAMMPS *lmp) : Pair(lmp) {
   dyz_rho = NULL;
   dzz_rho = NULL;
 
-  comm_forward = 9;
-  comm_reverse = 9;
+  comm_forward = 6;
+  comm_reverse = 6;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -58,9 +55,6 @@ PairBohmSPHDynamicMocz::~PairBohmSPHDynamicMocz()
     memory->destroy(setflag);
     memory->destroy(cutsq);
     memory->destroy(cut);
-    memory->destroy(dx_rho);
-    memory->destroy(dy_rho);
-    memory->destroy(dz_rho);
     memory->destroy(dxx_rho);
     memory->destroy(dxy_rho);
     memory->destroy(dxz_rho);
@@ -111,9 +105,6 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
 
   if (atom->nmax > nmax) {
     // delete and create new memory arrays for any per-particle variables that need communicating.
-    memory->destroy(dx_rho);
-    memory->destroy(dy_rho);
-    memory->destroy(dz_rho);
     memory->destroy(dxx_rho);
     memory->destroy(dxy_rho);
     memory->destroy(dxz_rho);
@@ -123,9 +114,6 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
     
     nmax = atom->nmax;
 
-    memory->create(dx_rho,nmax,"pair:dx_rho");
-    memory->create(dy_rho,nmax,"pair:dy_rho");
-    memory->create(dz_rho,nmax,"pair:dz_rho");
     memory->create(dxx_rho,nmax,"pair:dxx_rho");
     memory->create(dxy_rho,nmax,"pair:dxy_rho");
     memory->create(dxz_rho,nmax,"pair:dxz_rho");
@@ -143,6 +131,9 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
   double *omega_SPH = atom->omega_SPH;
   double *width_SPH = atom->width_SPH;
   double *rho_SPH = atom->rho_SPH;
+  double *dx_rho_SPH = atom->dx_rho_SPH;
+  double *dy_rho_SPH = atom->dy_rho_SPH;
+  double *dz_rho_SPH = atom->dz_rho_SPH;
   double *u_SPH = atom->u_SPH;
 
   double fx,fy,fz;
@@ -169,9 +160,6 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
 
   if (newton_pair) {
     for (i = 0; i < nall; i++){
-      dx_rho[i] = 0.0;
-      dy_rho[i] = 0.0;
-      dz_rho[i] = 0.0;
       dxx_rho[i] = 0.0;
       dxy_rho[i] = 0.0;
       dxz_rho[i] = 0.0;
@@ -182,9 +170,6 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
   } 
   else{
     for (i = 0; i < nlocal; i++){
-      dx_rho[i] = 0.0;
-      dy_rho[i] = 0.0;
-      dz_rho[i] = 0.0;
       dxx_rho[i] = 0.0;
       dxy_rho[i] = 0.0;
       dxz_rho[i] = 0.0;
@@ -193,8 +178,6 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
       dzz_rho[i] = 0.0;
     }
   }
-
-  if (newton_pair)
 
   // loop over my atoms
 
@@ -255,11 +238,10 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
 
         rho_j = rho_SPH[j];
 
+        //apply Mocz factor to second order derivatives:
+
         dens_factor_ij = 1. - rho_i/rho_j;
         
-        dx_rho[i] += ((-delx)*hm2_i)*m_gauss_ij;
-        dy_rho[i] += ((-dely)*hm2_i)*m_gauss_ij;
-        dz_rho[i] += ((-delz)*hm2_i)*m_gauss_ij;
         dxx_rho[i] += hm2_i*(delx_2*hm2_i - 1.)*m_gauss_ij*dens_factor_ij;
         dxy_rho[i] += hm4_i*(delx*dely)*m_gauss_ij*dens_factor_ij;
         dxz_rho[i] += hm4_i*(delx*delz)*m_gauss_ij*dens_factor_ij;
@@ -280,9 +262,6 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
         
           m_gauss_ji = imass*gauss_pre_j*exp(-(rsq)*hm2_j/2.);
 
-          dx_rho[j] += ((delx)*hm2_j)*m_gauss_ji;
-          dy_rho[j] += ((dely)*hm2_j)*m_gauss_ji;
-          dz_rho[j] += ((delz)*hm2_j)*m_gauss_ji;
           dxx_rho[j] += hm2_j*(delx_2*hm2_j - 1.)*m_gauss_ji*dens_factor_ji;
           dxy_rho[j] += hm4_j*(delx*dely)*m_gauss_ji*dens_factor_ji;
           dxz_rho[j] += hm4_j*(delx*delz)*m_gauss_ji*dens_factor_ji;
@@ -332,12 +311,21 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
     // 3D Gaussian prefactor
     gauss_pre_i = pi_fact*(1./(h_i*h_i*h_i));
 
-    Pixx = gamma_factor*f_prefactor*((dx_rho[i]*dx_rho[i])/rho_SPH[i] - dxx_rho[i]);
-    Pixy = gamma_factor*f_prefactor*((dx_rho[i]*dy_rho[i])/rho_SPH[i] - dxy_rho[i]);
-    Pixz = gamma_factor*f_prefactor*((dx_rho[i]*dz_rho[i])/rho_SPH[i] - dxz_rho[i]);
-    Piyy = gamma_factor*f_prefactor*((dy_rho[i]*dy_rho[i])/rho_SPH[i] - dyy_rho[i]);
-    Piyz = gamma_factor*f_prefactor*((dy_rho[i]*dz_rho[i])/rho_SPH[i] - dyz_rho[i]);
-    Pizz = gamma_factor*f_prefactor*((dz_rho[i]*dz_rho[i])/rho_SPH[i] - dzz_rho[i]);
+    // fprintf(screen,"\nParticle at...\n");
+    // fprintf(screen,"x = %16.16f\n",xtmp);
+    // fprintf(screen,"y = %16.16f\n",ytmp);
+    // fprintf(screen,"z = %16.16f\n",ztmp);
+
+    // fprintf(screen,"dx_rho_SPH = %16.16f\n",dx_rho_SPH[i]);
+    // fprintf(screen,"dy_rho_SPH = %16.16f\n",dy_rho_SPH[i]);
+    // fprintf(screen,"dz_rho_SPH = %16.16f\n",dz_rho_SPH[i]);
+
+    Pixx = gamma_factor*f_prefactor*((dx_rho_SPH[i]*dx_rho_SPH[i])/rho_SPH[i] - dxx_rho[i]);
+    Pixy = gamma_factor*f_prefactor*((dx_rho_SPH[i]*dy_rho_SPH[i])/rho_SPH[i] - dxy_rho[i]);
+    Pixz = gamma_factor*f_prefactor*((dx_rho_SPH[i]*dz_rho_SPH[i])/rho_SPH[i] - dxz_rho[i]);
+    Piyy = gamma_factor*f_prefactor*((dy_rho_SPH[i]*dy_rho_SPH[i])/rho_SPH[i] - dyy_rho[i]);
+    Piyz = gamma_factor*f_prefactor*((dy_rho_SPH[i]*dz_rho_SPH[i])/rho_SPH[i] - dyz_rho[i]);
+    Pizz = gamma_factor*f_prefactor*((dz_rho_SPH[i]*dz_rho_SPH[i])/rho_SPH[i] - dzz_rho[i]);
 
     u_prefact_i = (dt/(rho_i2*omega_i));
 
@@ -373,12 +361,12 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
 
         gauss_pre_j = pi_fact*(1./(h_j*h_j*h_j));
 
-        Pjxx = gamma_factor*f_prefactor*((dx_rho[j]*dx_rho[j])/rho_SPH[j] - dxx_rho[j]);
-        Pjxy = gamma_factor*f_prefactor*((dx_rho[j]*dy_rho[j])/rho_SPH[j] - dxy_rho[j]);
-        Pjxz = gamma_factor*f_prefactor*((dx_rho[j]*dz_rho[j])/rho_SPH[j] - dxz_rho[j]);
-        Pjyy = gamma_factor*f_prefactor*((dy_rho[j]*dy_rho[j])/rho_SPH[j] - dyy_rho[j]);
-        Pjyz = gamma_factor*f_prefactor*((dy_rho[j]*dz_rho[j])/rho_SPH[j] - dyz_rho[j]);
-        Pjzz = gamma_factor*f_prefactor*((dz_rho[j]*dz_rho[j])/rho_SPH[j] - dzz_rho[j]);
+        Pjxx = gamma_factor*f_prefactor*((dx_rho_SPH[j]*dx_rho_SPH[j])/rho_SPH[j] - dxx_rho[j]);
+        Pjxy = gamma_factor*f_prefactor*((dx_rho_SPH[j]*dy_rho_SPH[j])/rho_SPH[j] - dxy_rho[j]);
+        Pjxz = gamma_factor*f_prefactor*((dx_rho_SPH[j]*dz_rho_SPH[j])/rho_SPH[j] - dxz_rho[j]);
+        Pjyy = gamma_factor*f_prefactor*((dy_rho_SPH[j]*dy_rho_SPH[j])/rho_SPH[j] - dyy_rho[j]);
+        Pjyz = gamma_factor*f_prefactor*((dy_rho_SPH[j]*dz_rho_SPH[j])/rho_SPH[j] - dyz_rho[j]);
+        Pjzz = gamma_factor*f_prefactor*((dz_rho_SPH[j]*dz_rho_SPH[j])/rho_SPH[j] - dzz_rho[j]);
       
         dx_Wij = gauss_pre_i*(-delx*hm2_i)*exp_ij;
         dy_Wij = gauss_pre_i*(-dely*hm2_i)*exp_ij;
@@ -603,9 +591,6 @@ int PairBohmSPHDynamicMocz::pack_forward_comm(int n, int *list, double *buf,
   if (commflag == 0){
     for (i = 0; i < n; i++) {
       j = list[i];
-      buf[m++] = dx_rho[j];
-      buf[m++] = dy_rho[j];
-      buf[m++] = dz_rho[j];
       buf[m++] = dxx_rho[j];
       buf[m++] = dxy_rho[j];
       buf[m++] = dxz_rho[j];
@@ -636,9 +621,6 @@ void PairBohmSPHDynamicMocz::unpack_forward_comm(int n, int first, double *buf)
   last = first + n;
   if (commflag == 0){
     for (i = first; i < last; i++){
-      dx_rho[i] = buf[m++];
-      dy_rho[i] = buf[m++];
-      dz_rho[i] = buf[m++];
       dxx_rho[i] = buf[m++];
       dxy_rho[i] = buf[m++];
       dxz_rho[i] = buf[m++];
@@ -667,9 +649,6 @@ int PairBohmSPHDynamicMocz::pack_reverse_comm(int n, int first, double *buf)
   last = first + n;
   if (commflag == 0){
     for (i = first; i < last; i++){
-      buf[m++] = dx_rho[i];
-      buf[m++] = dy_rho[i];
-      buf[m++] = dz_rho[i];
       buf[m++] = dxx_rho[i];
       buf[m++] = dxy_rho[i];
       buf[m++] = dxz_rho[i];
@@ -698,9 +677,6 @@ void PairBohmSPHDynamicMocz::unpack_reverse_comm(int n, int *list, double *buf)
   if (commflag == 0){
     for (i = 0; i < n; i++) {
       j = list[i];
-      dx_rho[j] += buf[m++];
-      dy_rho[j] += buf[m++];
-      dz_rho[j] += buf[m++];
       dxx_rho[j] += buf[m++];
       dxy_rho[j] += buf[m++];
       dxz_rho[j] += buf[m++];

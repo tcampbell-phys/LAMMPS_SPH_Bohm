@@ -44,7 +44,7 @@ enum{ID,MOL,PROC,PROCP1,TYPE,ELEMENT,MASS,
      Q,MUX,MUY,MUZ,MU,RADIUS,DIAMETER,
      OMEGAX,OMEGAY,OMEGAZ,ANGMOMX,ANGMOMY,ANGMOMZ,
      TQX,TQY,TQZ,
-     COMPUTE,FIX,VARIABLE,INAME,DNAME,RHO_SPH,WIDTH_SPH,OMEGA_SPH,U_SPH};
+     COMPUTE,FIX,VARIABLE,INAME,DNAME,RHO_SPH,DX_RHO_SPH,DY_RHO_SPH,DZ_RHO_SPH,WIDTH_SPH,OMEGA_SPH,U_SPH};
 enum{LT,LE,GT,GE,EQ,NEQ,XOR};
 
 #define INVOKED_PERATOM 8
@@ -836,6 +836,24 @@ int DumpCustom::count()
                      "Threshold for an atom property that isn't allocated");
         ptr = atom->rho_SPH;
         nstride = 1;
+      } else if (thresh_array[ithresh] == DX_RHO_SPH) {
+        if (!atom->TC_SPH_flag)
+          error->all(FLERR,
+                     "Threshold for an atom property that isn't allocated");
+        ptr = atom->dx_rho_SPH;
+        nstride = 1;
+      } else if (thresh_array[ithresh] == DY_RHO_SPH) {
+        if (!atom->TC_SPH_flag)
+          error->all(FLERR,
+                     "Threshold for an atom property that isn't allocated");
+        ptr = atom->dy_rho_SPH;
+        nstride = 1;
+      } else if (thresh_array[ithresh] == DZ_RHO_SPH) {
+        if (!atom->TC_SPH_flag)
+          error->all(FLERR,
+                     "Threshold for an atom property that isn't allocated");
+        ptr = atom->dz_rho_SPH;
+        nstride = 1;
       } else if (thresh_array[ithresh] == WIDTH_SPH) {
         if (!atom->TC_SPH_flag)
           error->all(FLERR,
@@ -1304,6 +1322,21 @@ int DumpCustom::parse_fields(int narg, char **arg)
       if (!atom->TC_SPH_flag)
         error->all(FLERR,"Dumping an atom property that isn't allocated");
       pack_choice[i] = &DumpCustom::pack_rho_SPH;
+      vtype[i] = Dump::DOUBLE;
+    } else if (strcmp(arg[iarg],"dx_rho_SPH") == 0) {
+      if (!atom->TC_SPH_flag)
+        error->all(FLERR,"Dumping an atom property that isn't allocated");
+      pack_choice[i] = &DumpCustom::pack_dx_rho_SPH;
+      vtype[i] = Dump::DOUBLE;
+    } else if (strcmp(arg[iarg],"dy_rho_SPH") == 0) {
+      if (!atom->TC_SPH_flag)
+        error->all(FLERR,"Dumping an atom property that isn't allocated");
+      pack_choice[i] = &DumpCustom::pack_dy_rho_SPH;
+      vtype[i] = Dump::DOUBLE;
+    } else if (strcmp(arg[iarg],"dx_rho_SPH") == 0) {
+      if (!atom->TC_SPH_flag)
+        error->all(FLERR,"Dumping an atom property that isn't allocated");
+      pack_choice[i] = &DumpCustom::pack_dz_rho_SPH;
       vtype[i] = Dump::DOUBLE;
     } else if (strcmp(arg[iarg],"width_SPH") == 0) {
       if (!atom->TC_SPH_flag)
@@ -1841,6 +1874,9 @@ int DumpCustom::modify_param(int narg, char **arg)
     else if (strcmp(arg[1],"q") == 0) thresh_array[nthresh] = Q;
     //TC SPH
     else if (strcmp(arg[1],"rho_SPH") == 0) thresh_array[nthresh] = RHO_SPH;
+    else if (strcmp(arg[1],"dx_rho_SPH") == 0) thresh_array[nthresh] = DX_RHO_SPH;
+    else if (strcmp(arg[1],"dy_rho_SPH") == 0) thresh_array[nthresh] = DY_RHO_SPH;
+    else if (strcmp(arg[1],"dz_rho_SPH") == 0) thresh_array[nthresh] = DZ_RHO_SPH;
     else if (strcmp(arg[1],"width_SPH") == 0) thresh_array[nthresh] = WIDTH_SPH;
     else if (strcmp(arg[1],"omega_SPH") == 0) thresh_array[nthresh] = OMEGA_SPH;
     else if (strcmp(arg[1],"u_SPH") == 0) thresh_array[nthresh] = U_SPH;
@@ -2723,6 +2759,42 @@ void DumpCustom::pack_rho_SPH(int n)
 
   for (int i = 0; i < nchoose; i++) {
     buf[n] = rho_SPH[clist[i]];
+    n += size_one;
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+
+void DumpCustom::pack_dx_rho_SPH(int n)
+{
+  double *dx_rho_SPH = atom->dx_rho_SPH;
+
+  for (int i = 0; i < nchoose; i++) {
+    buf[n] = dx_rho_SPH[clist[i]];
+    n += size_one;
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+
+void DumpCustom::pack_dy_rho_SPH(int n)
+{
+  double *dy_rho_SPH = atom->dy_rho_SPH;
+
+  for (int i = 0; i < nchoose; i++) {
+    buf[n] = dy_rho_SPH[clist[i]];
+    n += size_one;
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+
+void DumpCustom::pack_dz_rho_SPH(int n)
+{
+  double *dz_rho_SPH = atom->dz_rho_SPH;
+
+  for (int i = 0; i < nchoose; i++) {
+    buf[n] = dz_rho_SPH[clist[i]];
     n += size_one;
   }
 }

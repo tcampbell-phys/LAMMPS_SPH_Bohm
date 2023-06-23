@@ -15,21 +15,21 @@
 
 #ifdef ATOM_CLASS
 
-AtomStyle(coul_SPH,AtomVecCoulSPH)
+AtomStyle(SPH_leg,AtomVecSPH_leg)
 
 #else
 
-#ifndef LMP_ATOM_VEC_COUL_SPH_H
-#define LMP_ATOM_VEC_COUL_SPH_H
+#ifndef LMP_ATOM_VEC_SPH_LEG_H
+#define LMP_ATOM_VEC_SPH_LEG_H
 
 #include "atom_vec.h"
 
 namespace LAMMPS_NS {
 
-class AtomVecCoulSPH : public AtomVec {
+class AtomVecSPH_leg : public AtomVec {
  public:
-  AtomVecCoulSPH(class LAMMPS *);
-  virtual ~AtomVecCoulSPH() {}
+  AtomVecSPH_leg(class LAMMPS *);
+  virtual ~AtomVecSPH_leg() {}
   void grow(int);
   void grow_reset();
   void copy(int, int, int);
@@ -67,9 +67,6 @@ class AtomVecCoulSPH : public AtomVec {
   double *q;
   //SPH variables
   double *rho_SPH;
-  double *dx_rho_SPH;
-  double *dy_rho_SPH;
-  double *dz_rho_SPH;
   double *width_SPH;
   double *omega_SPH;
   double *u_SPH; //internal Bohm energy per-particle

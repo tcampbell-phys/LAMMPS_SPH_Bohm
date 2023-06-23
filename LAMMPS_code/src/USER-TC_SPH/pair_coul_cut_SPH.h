@@ -39,20 +39,22 @@ class PairCoulCutSPH : public Pair {
   void read_restart(FILE *);
   virtual void write_restart_settings(FILE *);
   virtual void read_restart_settings(FILE *);
-  virtual double single(int, int, int, int, double, double, double, double &);
+  virtual int pack_forward_comm(int, int *, double *, int, int *);
+  virtual void unpack_forward_comm(int, int, double *);
+  int pack_reverse_comm(int, int, double *);
+  void unpack_reverse_comm(int, int *, double *);
   void *extract(const char *, int &);
 
  protected:
   int nmax;
   double cut_global;
+  double ke_in;
   double **cut,**scale;
 
+  double sqrt2 = 1.4142135623730951;
+  double sqrt_pi = 1.7724538509055159;
+
   //per-atom arrays
-
-  double *dx_rho_coul;
-  double *dy_rho_coul;
-  double *dz_rho_coul;
-
   double *theta_coul;
 
   virtual void allocate();

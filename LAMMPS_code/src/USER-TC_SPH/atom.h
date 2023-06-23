@@ -69,6 +69,7 @@ class Atom : protected Pointers {
 
   //Thomas Campbell SPH
   double *rho_SPH,*width_SPH,*omega_SPH,*u_SPH;
+  double *dx_rho_SPH,*dy_rho_SPH,*dz_rho_SPH;
 
   // SPIN package
 

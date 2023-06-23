@@ -129,6 +129,21 @@ ComputePropertyAtom::ComputePropertyAtom(LAMMPS *lmp, int narg, char **arg) :
         error->all(FLERR,"Compute property/atom for "
                    "atom property that isn't allocated");
       pack_choice[i] = &ComputePropertyAtom::pack_rho_SPH;
+    } else if (strcmp(arg[iarg],"dx_rho_SPH") == 0) {
+      if (!atom->TC_SPH_flag)
+        error->all(FLERR,"Compute property/atom for "
+                   "atom property that isn't allocated");
+      pack_choice[i] = &ComputePropertyAtom::pack_dx_rho_SPH;
+    } else if (strcmp(arg[iarg],"dy_rho_SPH") == 0) {
+      if (!atom->TC_SPH_flag)
+        error->all(FLERR,"Compute property/atom for "
+                   "atom property that isn't allocated");
+      pack_choice[i] = &ComputePropertyAtom::pack_dy_rho_SPH;
+    } else if (strcmp(arg[iarg],"dz_rho_SPH") == 0) {
+      if (!atom->TC_SPH_flag)
+        error->all(FLERR,"Compute property/atom for "
+                   "atom property that isn't allocated");
+      pack_choice[i] = &ComputePropertyAtom::pack_dz_rho_SPH;
     } else if (strcmp(arg[iarg],"width_SPH") == 0) {
       if (!atom->TC_SPH_flag)
         error->all(FLERR,"Compute property/atom for "
@@ -1004,6 +1019,51 @@ void ComputePropertyAtom::pack_rho_SPH(int n)
 
   for (int i = 0; i < nlocal; i++) {
     if (mask[i] & groupbit) buf[n] = rho_SPH[i];
+    else buf[n] = 0.0;
+    n += nvalues;
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+
+void ComputePropertyAtom::pack_dx_rho_SPH(int n)
+{
+  double *dx_rho_SPH = atom->dx_rho_SPH;
+  int *mask = atom->mask;
+  int nlocal = atom->nlocal;
+
+  for (int i = 0; i < nlocal; i++) {
+    if (mask[i] & groupbit) buf[n] = dx_rho_SPH[i];
+    else buf[n] = 0.0;
+    n += nvalues;
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+
+void ComputePropertyAtom::pack_dy_rho_SPH(int n)
+{
+  double *dy_rho_SPH = atom->dy_rho_SPH;
+  int *mask = atom->mask;
+  int nlocal = atom->nlocal;
+
+  for (int i = 0; i < nlocal; i++) {
+    if (mask[i] & groupbit) buf[n] = dy_rho_SPH[i];
+    else buf[n] = 0.0;
+    n += nvalues;
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+
+void ComputePropertyAtom::pack_dz_rho_SPH(int n)
+{
+  double *dz_rho_SPH = atom->dz_rho_SPH;
+  int *mask = atom->mask;
+  int nlocal = atom->nlocal;
+
+  for (int i = 0; i < nlocal; i++) {
+    if (mask[i] & groupbit) buf[n] = dz_rho_SPH[i];
     else buf[n] = 0.0;
     n += nvalues;
   }
