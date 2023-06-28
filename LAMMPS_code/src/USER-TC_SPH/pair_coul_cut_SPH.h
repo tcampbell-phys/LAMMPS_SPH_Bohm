@@ -51,11 +51,14 @@ class PairCoulCutSPH : public Pair {
   double ke_in;
   double **cut,**scale;
 
+  int commflag;
+
   double sqrt2 = 1.4142135623730951;
   double sqrt_pi = 1.7724538509055159;
 
   //per-atom arrays
   double *theta_coul;
+  int *count;
 
   virtual void allocate();
 };
