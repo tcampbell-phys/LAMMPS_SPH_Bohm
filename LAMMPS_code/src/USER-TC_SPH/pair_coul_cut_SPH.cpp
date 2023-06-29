@@ -38,12 +38,9 @@ PairCoulCutSPH::PairCoulCutSPH(LAMMPS *lmp) : Pair(lmp) {
 
   theta_coul = NULL;
 
-  count = NULL;
-
   comm_forward = 1;
   comm_reverse = 1;
 
-  commflag = 0;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -58,7 +55,6 @@ PairCoulCutSPH::~PairCoulCutSPH()
     memory->destroy(scale);
 
     memory->destroy(theta_coul);
-    memory->destroy(count);
   }
 }
 
@@ -101,6 +97,7 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
   double h_j,h2_j,hm2_j,hm4_j;
   double imass,jmass,ijmass;
   double m_gauss_ij,m_gauss_ji;
+  double ij_fact,ji_fact;
   double *mass = atom->mass;
 
   inum = list->inum;
@@ -112,12 +109,10 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
     // delete and create new memory arrays for any per-particle variables that need communicating.
 
     memory->destroy(theta_coul);
-    memory->destroy(count);
     
     nmax = atom->nmax;
 
     memory->create(theta_coul,nmax,"pair:theta_coul");
-    memory->create(count,nmax,"pair:count");
 
   }
 
@@ -126,13 +121,11 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
   if (newton_pair) {
     for (i = 0; i < nall; i++){
       theta_coul[i] = 0.0;
-      count[i] = 0;
     }
   } 
   else{
     for (i = 0; i < nlocal; i++){
       theta_coul[i] = 0.0;
-      count[i] = 0;
     }
   }
 
@@ -187,11 +180,9 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
       }
     }
   }
-  commflag = 0;
+
   if (newton_pair) comm->reverse_comm_pair(this);
   comm->forward_comm_pair(this);
-
-  int targ_index = 249;
 
   // loop over neighbors of my atoms
 
@@ -254,8 +245,6 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
 
       if (rsq < cutsq[itype][jtype]) {
 
-        count[i] += 1;
-
         jmass = mass[jtype];
         m_gauss_ij = jmass*gauss_pre_i*exp(-(rsq)*hm2_i/2);
 
@@ -266,16 +255,16 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
         f[i][0] += delx*force_fact;
         f[i][1] += dely*force_fact;
         f[i][2] += delz*force_fact;
-
     
         h_j = width_SPH[j];
         hm2_j = 1/(h_j*h_j);
         gauss_pre_j = pi_fact*(1/(h_j*h_j*h_j));
         m_gauss_ji = imass*gauss_pre_j*exp(-(rsq)*hm2_j/2);
+        ji_fact = hm2_j*m_gauss_ji*theta_coul[j];
 
-        f[i][0] += ((delx)*hm2_j)*m_gauss_ji*theta_coul[j];
-        f[i][1] += ((dely)*hm2_j)*m_gauss_ji*theta_coul[j];
-        f[i][2] += ((delz)*hm2_j)*m_gauss_ji*theta_coul[j];
+        f[i][0] += (delx)*ji_fact;
+        f[i][1] += (dely)*ji_fact;
+        f[i][2] += (delz)*ji_fact;
 
         // if (i == targ_index){
         //   fprintf(screen,"neighbour at...\n");
@@ -295,15 +284,15 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
 
         if (newton_pair || j < nlocal) {
 
-          count[j] += 1;
-
           f[j][0] -= delx*force_fact;
           f[j][1] -= dely*force_fact;
           f[j][2] -= delz*force_fact;
 
-          f[j][0] -= ((delx)*hm2_i)*m_gauss_ij*theta_coul[i];
-          f[j][1] -= ((dely)*hm2_i)*m_gauss_ij*theta_coul[i];
-          f[j][2] -= ((delz)*hm2_i)*m_gauss_ij*theta_coul[i];
+          ij_fact = hm2_i*m_gauss_ij*theta_coul[i];
+
+          f[j][0] -= (delx)*ij_fact;
+          f[j][1] -= (dely)*ij_fact;
+          f[j][2] -= (delz)*ij_fact;
         //   if (j == targ_index){
         //     fprintf(screen,"neighbour at...\n");
         //     fprintf(screen,"x_n = %16.16f\n",x[i][0]);
@@ -317,11 +306,10 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
         //     fprintf(screen,"i nodir fx = %16.16f\n",-((delx)*hm2_i)*m_gauss_ij*theta_coul[i]);
         //     fprintf(screen,"i nodir fy = %16.16f\n",-((dely)*hm2_i)*m_gauss_ij*theta_coul[i]);
         //     fprintf(screen,"i nodir fz = %16.16f\n",-((delz)*hm2_i)*m_gauss_ij*theta_coul[i]);
-        //   }
         }
+        
 
-        if (eflag)
-          ecoul = qqrd2e*scale[itype][jtype]*qtmp*q[j]*erf(rsqrt/(sqrt2*eff_width))/rsqrt;
+        if (eflag) ecoul = qqrd2e*scale[itype][jtype]*qtmp*q[j]*erf(rsqrt/(sqrt2*eff_width))/rsqrt;
           // ecoul = factor_coul * qqrd2e * scale[itype][jtype] * qtmp*q[j]*rinv;
 
         // dynamic coulomb-SPH force expression is not pairwise symmetric
@@ -333,11 +321,6 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
   }
 
   if (vflag_fdotr) virial_fdotr_compute();
-
-  // print out # neighbours for each particle
-
-  commflag = 1;
-  if (newton_pair) comm->reverse_comm_pair(this);
   
   // for (ii = 0; ii < inum; ii++){
   //   i = ilist[ii];
@@ -561,16 +544,10 @@ int PairCoulCutSPH::pack_reverse_comm(int n, int first, double *buf)
 
   m = 0;
   last = first + n;
-  if (commflag == 0){
-    for (i = first; i < last; i++){
-      buf[m++] = theta_coul[i];
-    }
+  for (i = first; i < last; i++){
+    buf[m++] = theta_coul[i];
   }
-  if (commflag == 1){
-    for (i = first; i < last; i++){
-      buf[m++] = count[i];
-    }
-  }
+
   return m;
 }
 
@@ -581,16 +558,9 @@ void PairCoulCutSPH::unpack_reverse_comm(int n, int *list, double *buf)
   int i,j,m;
 
   m = 0;
-  if (commflag == 0){
-    for (i = 0; i < n; i++) {
-      j = list[i];
-      theta_coul[j] += buf[m++];
-    }
+  for (i = 0; i < n; i++) {
+    j = list[i];
+    theta_coul[j] += buf[m++];
   }
-  if (commflag == 1){
-    for (i = 0; i < n; i++) {
-      j = list[i];
-      count[j] += buf[m++];
-    }
-  }
+  
 }
