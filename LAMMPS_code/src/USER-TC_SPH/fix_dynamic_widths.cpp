@@ -83,8 +83,6 @@ void FixDynamicWidths::init()
   for(int i = 0; i < nall; ++i){
     
     if (type[i] == type_avoid){
-      // fprintf(screen,"In continue condition...\n");
-      // fprintf(screen,"type[i] = %d\n",type[i]);
       continue;
     }
     width_SPH[i] = start_width;
@@ -178,12 +176,11 @@ void FixDynamicWidths::setup_post_neighbor()
       ztmp = x[i][2];
 
       itype = type[i];
-      // fprintf(screen,"itype = %d\n",itype);
-      // if (type[i] == type_avoid){
-      //   fprintf(screen,"In continue condition...\n");
-      //   fprintf(screen,"itype = %d\n",itype);
-      //   continue;
-      // }
+
+      if (itype == type_avoid){
+        fprintf(screen,'\nIn continue i-loop in fix_dynamic_widths.cpp');
+        continue;
+      }
       jlist = firstneigh[i];
 
       jnum = numneigh[i];
@@ -202,6 +199,11 @@ void FixDynamicWidths::setup_post_neighbor()
         j &= NEIGHMASK;
 
         jtype = type[j];
+
+        if (jtype == type_avoid){
+          fprintf(screen,'\nIn continue j-loop in fix_dynamic_widths.cpp');
+          continue;
+        }
 
         delx = xtmp - x[j][0];
         dely = ytmp - x[j][1];
@@ -266,11 +268,6 @@ void FixDynamicWidths::setup_post_neighbor()
     ytmp = x[i][1];
     ztmp = x[i][2];
 
-    // fprintf(screen,"Particle at...\n");
-    // fprintf(screen,"x = %16.16f\n",xtmp);
-    // fprintf(screen,"y = %16.16f\n",ytmp);
-    // fprintf(screen,"z = %16.16f\n",ztmp);
-
     itype = type[i];
     
     jlist = firstneigh[i];
@@ -300,11 +297,6 @@ void FixDynamicWidths::setup_post_neighbor()
 
       if (rsq < cutsquared) {
 
-        // fprintf(screen,"neighbour at...\n");
-        // fprintf(screen,"x_n = %16.16f\n",x[j][0]);
-        // fprintf(screen,"y_n = %16.16f\n",x[j][1]);
-        // fprintf(screen,"z_n = %16.16f\n",x[j][2]);
-
         jmass = mass[jtype];
         m_gauss_ij = jmass*gauss_pre_i*exp(-(rsq)*hm2_i/2);
         rho_SPH[i] += m_gauss_ij;
@@ -312,10 +304,6 @@ void FixDynamicWidths::setup_post_neighbor()
         dx_rho_SPH[i] += ((-delx)*hm2_i)*m_gauss_ij;
         dy_rho_SPH[i] += ((-dely)*hm2_i)*m_gauss_ij;
         dz_rho_SPH[i] += ((-delz)*hm2_i)*m_gauss_ij;
-
-        // fprintf(screen,"dx_rho_SPH[i] += %16.16f\n",((-delx)*hm2_i)*m_gauss_ij);
-        // fprintf(screen,"dy_rho_SPH[i] += %16.16f\n",((-dely)*hm2_i)*m_gauss_ij);
-        // fprintf(screen,"dz_rho_SPH[i] += %16.16f\n",((-delz)*hm2_i)*m_gauss_ij);
 
         if (newton_pair || j < nlocal) {
 
@@ -326,9 +314,6 @@ void FixDynamicWidths::setup_post_neighbor()
           dx_rho_SPH[j] += ((delx)*hm2_j)*m_gauss_ji;
           dy_rho_SPH[j] += ((dely)*hm2_j)*m_gauss_ji;
           dz_rho_SPH[j] += ((delz)*hm2_j)*m_gauss_ji;
-          // fprintf(screen,"dx_rho_SPH[j] += %16.16f\n",((delx)*hm2_j)*m_gauss_ji);
-          // fprintf(screen,"dy_rho_SPH[j] += %16.16f\n",((dely)*hm2_j)*m_gauss_ji);
-          // fprintf(screen,"dz_rho_SPH[j] += %16.16f\n",((delz)*hm2_j)*m_gauss_ji);
           rho_SPH[j] += m_gauss_ji;
         }
       }
@@ -434,7 +419,6 @@ void FixDynamicWidths::pre_force(int)
   double dh_drho_SPH_i,dh_drho_SPH_j;
   double m_gauss_ij,m_gauss_ji;
 
-
 	int *type = atom->type;
   int nlocal = atom->nlocal;
   int nall = nlocal + atom->nghost;
@@ -556,11 +540,6 @@ void FixDynamicWidths::pre_force(int)
     ytmp = x[i][1];
     ztmp = x[i][2];
 
-    // fprintf(screen,"Particle at...\n");
-    // fprintf(screen,"x = %16.16f\n",xtmp);
-    // fprintf(screen,"y = %16.16f\n",ytmp);
-    // fprintf(screen,"z = %16.16f\n",ztmp);
-
     itype = type[i];
     
     jlist = firstneigh[i];
@@ -590,21 +569,12 @@ void FixDynamicWidths::pre_force(int)
 
       if (rsq < cutsquared) {
 
-        // fprintf(screen,"neighbour at...\n");
-        // fprintf(screen,"x_n = %16.16f\n",x[j][0]);
-        // fprintf(screen,"y_n = %16.16f\n",x[j][1]);
-        // fprintf(screen,"z_n = %16.16f\n",x[j][2]);
-
         jmass = mass[jtype];
         m_gauss_ij = jmass*gauss_pre_i*exp(-(rsq)*hm2_i/2);
         rho_SPH[i] += m_gauss_ij;
         dx_rho_SPH[i] += ((-delx)*hm2_i)*m_gauss_ij;
         dy_rho_SPH[i] += ((-dely)*hm2_i)*m_gauss_ij;
         dz_rho_SPH[i] += ((-delz)*hm2_i)*m_gauss_ij;
-
-        // fprintf(screen,"dx_rho_SPH[i] += %16.16f\n",((-delx)*hm2_i)*m_gauss_ij);
-        // fprintf(screen,"dy_rho_SPH[i] += %16.16f\n",((-dely)*hm2_i)*m_gauss_ij);
-        // fprintf(screen,"dz_rho_SPH[i] += %16.16f\n",((-delz)*hm2_i)*m_gauss_ij);
 
         if (newton_pair || j < nlocal) {
 
@@ -616,9 +586,6 @@ void FixDynamicWidths::pre_force(int)
           dx_rho_SPH[j] += ((delx)*hm2_j)*m_gauss_ji;
           dy_rho_SPH[j] += ((dely)*hm2_j)*m_gauss_ji;
           dz_rho_SPH[j] += ((delz)*hm2_j)*m_gauss_ji;
-          // fprintf(screen,"dx_rho_SPH[j] += %16.16f\n",((delx)*hm2_j)*m_gauss_ji);
-          // fprintf(screen,"dy_rho_SPH[j] += %16.16f\n",((dely)*hm2_j)*m_gauss_ji);
-          // fprintf(screen,"dz_rho_SPH[j] += %16.16f\n",((delz)*hm2_j)*m_gauss_ji);
           
         }
       }

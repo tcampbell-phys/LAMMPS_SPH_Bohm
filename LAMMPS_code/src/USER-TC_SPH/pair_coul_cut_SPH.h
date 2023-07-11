@@ -49,6 +49,7 @@ class PairCoulCutSPH : public Pair {
   int nmax;
   double cut_global;
   double ke_in;
+  int ion_species; // label which species are point charges
   double **cut,**scale;
 
   double sqrt2 = 1.4142135623730951;
@@ -56,6 +57,7 @@ class PairCoulCutSPH : public Pair {
 
   //per-atom arrays
   double *theta_coul;
+  double *theta_coul_ei;
   int *count;
 
   virtual void allocate();
