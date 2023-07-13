@@ -430,6 +430,9 @@ void PairBohmSPHDynamic::settings(int narg, char **arg)
 {
   if (narg != 2) error->all(FLERR,"Illegal pair_style command. Require 2 input arguments.");
 
+  if (comm->ghost_velocity != 1) error->all(FLERR,"Illegal pair_style command. Require ghost atom velocity.");
+
+
   cut_global = force->numeric(FLERR,arg[0]);
   gamma_factor = force->numeric(FLERR,arg[1]);
 

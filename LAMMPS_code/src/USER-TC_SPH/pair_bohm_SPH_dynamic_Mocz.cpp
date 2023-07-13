@@ -272,7 +272,8 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
       }
     }
   }
-  
+  comm_forward = 6;
+  comm_reverse = 6;
   commflag = 0;
 
   if (newton_pair) comm->reverse_comm_pair(this);
@@ -406,7 +407,8 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
       }
     }
   }
-
+  comm_forward = 1;
+  comm_reverse = 1;
   commflag = 1;
   if (newton_pair) comm->reverse_comm_pair(this);
   comm->forward_comm_pair(this);
@@ -448,6 +450,8 @@ void PairBohmSPHDynamicMocz::allocate()
 void PairBohmSPHDynamicMocz::settings(int narg, char **arg)
 {
   if (narg != 2) error->all(FLERR,"Illegal pair_style command. Require 2 input arguments.");
+
+  if (comm->ghost_velocity != 1) error->all(FLERR,"Illegal pair_style command. Require ghost atom velocity.");
 
   cut_global = force->numeric(FLERR,arg[0]);
   gamma_factor = force->numeric(FLERR,arg[1]);
@@ -659,7 +663,8 @@ int PairBohmSPHDynamicMocz::pack_reverse_comm(int n, int first, double *buf)
     return m;
   }
   if (commflag == 1){
-    double *u_SPH = atom->u_SPH; 
+    double *u_SPH = atom->u_SPH;
+    // fprintf(screen,"In u_SPH pack reverse comm loop...");
     for (i = first; i < last; i++){
       buf[m++] = u_SPH[i];
     }
@@ -687,6 +692,7 @@ void PairBohmSPHDynamicMocz::unpack_reverse_comm(int n, int *list, double *buf)
   }
   if (commflag == 1){
     double *u_SPH = atom->u_SPH;
+    // fprintf(screen,"In u_SPH unpack reverse comm loop...");
     for (i = 0; i < n; i++) {
       j = list[i];
       u_SPH[j] += buf[m++];

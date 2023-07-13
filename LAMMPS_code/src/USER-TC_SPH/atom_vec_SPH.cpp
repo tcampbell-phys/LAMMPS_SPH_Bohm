@@ -874,7 +874,6 @@ void AtomVecSPH::data_atom(double *coord, imageint imagetmp, char **values)
   omega_SPH[nlocal] = utils::numeric(FLERR,values[8],true,lmp);
   u_SPH[nlocal] = utils::numeric(FLERR,values[9],true,lmp);
 
-
   x[nlocal][0] = coord[0];
   x[nlocal][1] = coord[1];
   x[nlocal][2] = coord[2];

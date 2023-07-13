@@ -48,7 +48,7 @@ protected:
   int nmax;                         // allocated size of per-atom arrays
 
   // electron rest mass in AMU
-  double e_mass = 0.0005485799;
+  double e_mass = 0.00054857991;
 
   double cut_global;
   double gamma_factor;

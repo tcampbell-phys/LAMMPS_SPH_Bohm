@@ -81,10 +81,6 @@ void FixDynamicWidths::init()
 
   // assign all particles same initial width
   for(int i = 0; i < nall; ++i){
-    
-    if (type[i] == type_avoid){
-      continue;
-    }
     width_SPH[i] = start_width;
     u_SPH[i] = 0.0;
   }
@@ -159,9 +155,6 @@ void FixDynamicWidths::setup_post_neighbor()
     // clear all density values
 
     for(int i = 0; i < nall; i++){
-      if (type[i] == type_avoid){
-        continue;
-      }
       rho_SPH[i] = 0.;
     }
 
@@ -178,7 +171,7 @@ void FixDynamicWidths::setup_post_neighbor()
       itype = type[i];
 
       if (itype == type_avoid){
-        fprintf(screen,'\nIn continue i-loop in fix_dynamic_widths.cpp');
+        // fprintf(screen,"\nIn continue i-loop in fix_dynamic_widths.cpp");
         continue;
       }
       jlist = firstneigh[i];
@@ -201,7 +194,7 @@ void FixDynamicWidths::setup_post_neighbor()
         jtype = type[j];
 
         if (jtype == type_avoid){
-          fprintf(screen,'\nIn continue j-loop in fix_dynamic_widths.cpp');
+          // fprintf(screen,"\nIn continue j-loop in fix_dynamic_widths.cpp");
           continue;
         }
 
@@ -238,7 +231,9 @@ void FixDynamicWidths::setup_post_neighbor()
     for (ii = 0; ii < inum; ii++) {
       i = ilist[ii];
       itype = type[i];
-      
+      if (type[i] == type_avoid){
+        continue;
+      }
       imass = mass[itype];
       // mixing factor applied
       width_SPH[i] = mix_fact*constant*(pow(imass/rho_SPH[i],(1./3.))) + (1-mix_fact)*(width_SPH[i]);
@@ -269,6 +264,10 @@ void FixDynamicWidths::setup_post_neighbor()
     ztmp = x[i][2];
 
     itype = type[i];
+
+    if (type[i] == type_avoid){
+      continue;
+    }
     
     jlist = firstneigh[i];
     jnum = numneigh[i];
@@ -288,6 +287,10 @@ void FixDynamicWidths::setup_post_neighbor()
       j &= NEIGHMASK;
 
       jtype = type[j];
+
+      if (type[j] == type_avoid){
+        continue;
+      }
 
       delx = xtmp - x[j][0];
       dely = ytmp - x[j][1];
@@ -336,6 +339,9 @@ void FixDynamicWidths::setup_post_neighbor()
     ztmp = x[i][2];
 
     itype = type[i];
+    if (type[i] == type_avoid){
+      continue;
+    }
     
     jlist = firstneigh[i];
 
@@ -358,6 +364,9 @@ void FixDynamicWidths::setup_post_neighbor()
       j &= NEIGHMASK;
 
       jtype = type[j];
+      if (type[j] == type_avoid){
+        continue;
+      }
 
       delx = xtmp - x[j][0];
       dely = ytmp - x[j][1];
@@ -440,9 +449,6 @@ void FixDynamicWidths::pre_force(int)
     // clear all density values
 
     for(int i = 0; i < nall; i++){
-      if (type[i] == type_avoid){
-        continue;
-      }
       rho_SPH[i] = 0.;
     }
 
@@ -457,6 +463,9 @@ void FixDynamicWidths::pre_force(int)
       ztmp = x[i][2];
 
       itype = type[i];
+      if (type[i] == type_avoid){
+        continue;
+      }
       
       jlist = firstneigh[i];
 
@@ -476,6 +485,9 @@ void FixDynamicWidths::pre_force(int)
         j &= NEIGHMASK;
 
         jtype = type[j];
+        if (type[j] == type_avoid){
+          continue;
+        }
 
         delx = xtmp - x[j][0];
         dely = ytmp - x[j][1];
@@ -510,6 +522,9 @@ void FixDynamicWidths::pre_force(int)
     for (ii = 0; ii < inum; ii++) {
       i = ilist[ii];
       itype = type[i];
+      if (type[i] == type_avoid){
+        continue;
+      }
       
       imass = mass[itype];
       // mixing factor applied
@@ -541,6 +556,9 @@ void FixDynamicWidths::pre_force(int)
     ztmp = x[i][2];
 
     itype = type[i];
+    if (type[i] == type_avoid){
+      continue;
+    }
     
     jlist = firstneigh[i];
     jnum = numneigh[i];
@@ -560,6 +578,9 @@ void FixDynamicWidths::pre_force(int)
       j &= NEIGHMASK;
 
       jtype = type[j];
+      if (type[j] == type_avoid){
+        continue;
+      }
 
       delx = xtmp - x[j][0];
       dely = ytmp - x[j][1];
@@ -608,6 +629,9 @@ void FixDynamicWidths::pre_force(int)
     ztmp = x[i][2];
 
     itype = type[i];
+    if (type[i] == type_avoid){
+      continue;
+    }
     
     jlist = firstneigh[i];
 
@@ -630,6 +654,9 @@ void FixDynamicWidths::pre_force(int)
       j &= NEIGHMASK;
 
       jtype = type[j];
+      if (type[j] == type_avoid){
+        continue;
+      }
 
       delx = xtmp - x[j][0];
       dely = ytmp - x[j][1];
