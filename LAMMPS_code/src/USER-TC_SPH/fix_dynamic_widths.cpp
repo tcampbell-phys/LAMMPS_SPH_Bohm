@@ -43,7 +43,7 @@ FixDynamicWidths::FixDynamicWidths(LAMMPS *lmp, int narg, char **arg):
   cut_global = force->numeric(FLERR,arg[7]);
   // type not involved in SPH loop
   type_avoid = force->numeric(FLERR,arg[8]);
-  fprintf(screen,"type_avoid = %d\n",type_avoid);
+  // fprintf(screen,"type_avoid = %d\n",type_avoid);
   pair_name = strdup(arg[9]);
 
   cutsquared = cut_global*cut_global;
@@ -94,7 +94,7 @@ void FixDynamicWidths::setup_post_neighbor()
   PairHybrid *hybrid_pair = dynamic_cast<PairHybrid*> (pair);
 
   if (hybrid_pair) {
-    // fprintf(screen,"hybrid_pair neighbour list on...\n");
+    // // fprintf(screen,"hybrid_pair neighbour list on...\n");
     // The pair style is a hybrid style.
     if (!pair_name) error->all(FLERR,"When a hybrid pair-style is used, 'pair_name' must be set for the lagrangian solver.");
     int nstyles = hybrid_pair->nstyles;
@@ -169,11 +169,13 @@ void FixDynamicWidths::setup_post_neighbor()
       ztmp = x[i][2];
 
       itype = type[i];
+      // fprintf(screen,"\nA pre if itype = %d",itype);
 
       if (itype == type_avoid){
-        // fprintf(screen,"\nIn continue i-loop in fix_dynamic_widths.cpp");
+        // fprintf(screen,"\nA In continue i-loop");
         continue;
       }
+      // fprintf(screen,"\nA post if itype = %d",itype);
       jlist = firstneigh[i];
 
       jnum = numneigh[i];
@@ -192,11 +194,13 @@ void FixDynamicWidths::setup_post_neighbor()
         j &= NEIGHMASK;
 
         jtype = type[j];
+        // fprintf(screen,"\nA pre jtype = %d",jtype);
 
         if (jtype == type_avoid){
-          // fprintf(screen,"\nIn continue j-loop in fix_dynamic_widths.cpp");
+          // fprintf(screen,"\nA In continue j-loop");
           continue;
         }
+        // fprintf(screen,"\nA post jtype = %d",jtype);
 
         delx = xtmp - x[j][0];
         dely = ytmp - x[j][1];
@@ -231,9 +235,12 @@ void FixDynamicWidths::setup_post_neighbor()
     for (ii = 0; ii < inum; ii++) {
       i = ilist[ii];
       itype = type[i];
+      // fprintf(screen,"\nB pre itype = %d",itype);
       if (type[i] == type_avoid){
+        // fprintf(screen,"\nB In continue i-loop");
         continue;
       }
+      // fprintf(screen,"\nB post itype = %d",itype);
       imass = mass[itype];
       // mixing factor applied
       width_SPH[i] = mix_fact*constant*(pow(imass/rho_SPH[i],(1./3.))) + (1-mix_fact)*(width_SPH[i]);
@@ -265,9 +272,12 @@ void FixDynamicWidths::setup_post_neighbor()
 
     itype = type[i];
 
+    // fprintf(screen,"\nC pre itype = %d",itype);
     if (type[i] == type_avoid){
+      // fprintf(screen,"\nC In continue i-loop");
       continue;
     }
+    // fprintf(screen,"\nC post itype = %d",itype);
     
     jlist = firstneigh[i];
     jnum = numneigh[i];
@@ -288,9 +298,12 @@ void FixDynamicWidths::setup_post_neighbor()
 
       jtype = type[j];
 
+      // fprintf(screen,"\nC pre jtype = %d",jtype);
       if (type[j] == type_avoid){
+        // fprintf(screen,"\nC In continue j-loop");
         continue;
       }
+      // fprintf(screen,"\nC post jtype = %d",jtype);
 
       delx = xtmp - x[j][0];
       dely = ytmp - x[j][1];
@@ -339,9 +352,12 @@ void FixDynamicWidths::setup_post_neighbor()
     ztmp = x[i][2];
 
     itype = type[i];
+    // fprintf(screen,"\nD pre itype = %d",itype);
     if (type[i] == type_avoid){
+      // fprintf(screen,"\nD In continue i-loop");
       continue;
     }
+    // fprintf(screen,"\nD post itype = %d",itype);
     
     jlist = firstneigh[i];
 
@@ -364,9 +380,12 @@ void FixDynamicWidths::setup_post_neighbor()
       j &= NEIGHMASK;
 
       jtype = type[j];
+      // fprintf(screen,"\nD pre jtype = %d",jtype);
       if (type[j] == type_avoid){
+        // fprintf(screen,"\nD In continue j-loop");
         continue;
       }
+      // fprintf(screen,"\nD post jtype = %d",jtype);
 
       delx = xtmp - x[j][0];
       dely = ytmp - x[j][1];
@@ -534,7 +553,7 @@ void FixDynamicWidths::pre_force(int)
     comm->forward_comm_fix(this);
   }
 
-  // clear density (again) and assign omega_SPH values
+  // clear density (again)
 
   for(int i = 0; i < nall; i++){
       
