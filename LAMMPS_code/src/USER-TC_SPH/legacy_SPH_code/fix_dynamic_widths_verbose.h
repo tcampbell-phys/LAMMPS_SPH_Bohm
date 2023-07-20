@@ -16,7 +16,6 @@ class FixDynamicWidths : public Fix {
   virtual void setup_post_neighbor();
   virtual void pre_force(int);
   virtual void post_neighbor();
-  virtual void min_pre_force(int);
   virtual int pack_forward_comm(int, int *, double *, int, int *);
   virtual void unpack_forward_comm(int, int, double *);
   virtual int pack_reverse_comm(int, int, double *);
@@ -34,7 +33,6 @@ class FixDynamicWidths : public Fix {
   double cutsquared;
   double commflag;
   char *pair_name;
-  void FixedPointIterator();
   double Gauss_Width_Deriv(double pre_fact, double wid, double sep_sq);
  
 };

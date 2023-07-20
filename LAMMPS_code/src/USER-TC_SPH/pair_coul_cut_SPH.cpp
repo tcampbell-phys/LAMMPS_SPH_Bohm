@@ -100,6 +100,7 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
   double imass,jmass,ijmass;
   double m_gauss_ij,m_gauss_ji;
   double ij_fact,ji_fact;
+  double full_factor;
   double *mass = atom->mass;
 
   inum = list->inum;
@@ -223,11 +224,11 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
 
     imass = mass[itype];
 
-    fprintf(screen,"\n\n\n Target particle type %d at...",itype);
+  // fprintf(screen,"\n\n\n Target particle type %d at...",itype);
 
-    fprintf(screen,"\nx = %16.16f",xtmp);
-    fprintf(screen,"\ny = %16.16f",ytmp);
-    fprintf(screen,"\nz = %16.16f",ztmp);
+  // fprintf(screen,"\nx = %16.16f",xtmp);
+  // fprintf(screen,"\ny = %16.16f",ytmp);
+  // fprintf(screen,"\nz = %16.16f",ztmp);
 
     // fprintf(screen,"\nitype = %d",itype);
 
@@ -244,12 +245,12 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
       f[i][0] += -(theta_coul[i]+theta_coul_ei[i])*dx_rho_SPH[i];
       f[i][1] += -(theta_coul[i]+theta_coul_ei[i])*dy_rho_SPH[i];
       f[i][2] += -(theta_coul[i]+theta_coul_ei[i])*dz_rho_SPH[i];
-      fprintf(screen,"\nfx e-e theta += %16.16f",-(theta_coul[i])*dx_rho_SPH[i]);
-      fprintf(screen,"\nfy e-e theta += %16.16f",-(theta_coul[i])*dy_rho_SPH[i]);
-      fprintf(screen,"\nfz e-e theta += %16.16f",-(theta_coul[i])*dz_rho_SPH[i]);
-      fprintf(screen,"\nfx e-i theta += %16.16f",-(theta_coul_ei[i])*dx_rho_SPH[i]);
-      fprintf(screen,"\nfy e-i theta += %16.16f",-(theta_coul_ei[i])*dy_rho_SPH[i]);
-      fprintf(screen,"\nfz e-i theta += %16.16f",-(theta_coul_ei[i])*dz_rho_SPH[i]);
+      // fprintf(screen,"\nfx e-e theta += %16.16f",-(theta_coul[i])*dx_rho_SPH[i]);
+      // fprintf(screen,"\nfy e-e theta += %16.16f",-(theta_coul[i])*dy_rho_SPH[i]);
+      // fprintf(screen,"\nfz e-e theta += %16.16f",-(theta_coul[i])*dz_rho_SPH[i]);
+      // fprintf(screen,"\nfx e-i theta += %16.16f",-(theta_coul_ei[i])*dx_rho_SPH[i]);
+      // fprintf(screen,"\nfy e-i theta += %16.16f",-(theta_coul_ei[i])*dy_rho_SPH[i]);
+      // fprintf(screen,"\nfz e-i theta += %16.16f",-(theta_coul_ei[i])*dz_rho_SPH[i]);
       
       // // // fprintf(screen,"\nele self theta_coul fact = %16.16f",theta_coul[i]);
       // // // fprintf(screen,"\nele self theta_coul_ei fact = %16.16f",theta_coul_ei[i]);
@@ -272,11 +273,11 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
 
       if (rsq < cutsq[itype][jtype]) {
 
-        fprintf(screen,"\n\n neigh particle type %d at...",jtype);
+      // fprintf(screen,"\n\n neigh particle type %d at...",jtype);
 
-        fprintf(screen,"\nx = %16.16f",x[j][0]);
-        fprintf(screen,"\ny = %16.16f",x[j][1]);
-        fprintf(screen,"\nz = %16.16f",x[j][2]);
+      // fprintf(screen,"\nx = %16.16f",x[j][0]);
+      // fprintf(screen,"\ny = %16.16f",x[j][1]);
+      // fprintf(screen,"\nz = %16.16f",x[j][2]);
 
         // fprintf(screen,"\njtype = %d",jtype);
         // // fprintf(screen,"\nfactor_coul = %16.16f",factor_coul);
@@ -303,22 +304,22 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
             f[i][1] += dely*force_fact;
             f[i][2] += delz*force_fact;
             // // // fprintf(screen,"\nion-ele fact = %16.16f",force_fact);
-            fprintf(screen,"\nfx i-e += %16.16f",delx*force_fact);
-            fprintf(screen,"\nfy i-e += %16.16f",dely*force_fact);
-            fprintf(screen,"\nfz i-e += %16.16f",delz*force_fact);
+            // fprintf(screen,"\nfx i-e += %16.16f",delx*force_fact);
+            // fprintf(screen,"\nfy i-e += %16.16f",dely*force_fact);
+            // fprintf(screen,"\nfz i-e += %16.16f",delz*force_fact);
     
             if (newton_pair || j < nlocal) {
               f[j][0] -= delx*force_fact;
               f[j][1] -= dely*force_fact;
               f[j][2] -= delz*force_fact;
 
-              fprintf(screen,"\nfx e-i += %16.16f",-delx*force_fact);
-              fprintf(screen,"\nfy e-i += %16.16f",-dely*force_fact);
-              fprintf(screen,"\nfz e-i += %16.16f",-delz*force_fact);
+              // fprintf(screen,"\nfx e-i += %16.16f",-delx*force_fact);
+              // fprintf(screen,"\nfy e-i += %16.16f",-dely*force_fact);
+              // fprintf(screen,"\nfz e-i += %16.16f",-delz*force_fact);
     
             }
-            if (eflag)ecoul = factor_coul * qqrd2e * scale[itype][jtype] * qtmp*q[j]*rinv*erf(rsqrt/(sqrt2*h_j));
-            // // fprintf(screen,"\nion-ele ecoul += %16.16f",ecoul);
+            if (eflag)ecoul = factor_coul * qqrd2e * scale[itype][jtype] * qtmp*q[j]*erf(rsqrt/(sqrt2*h_j))/rsqrt;
+          // fprintf(screen,"\nion-ele ecoul += %16.16f",ecoul);
             if (evflag) ev_tally(i,j,nlocal,newton_pair,
                                  0.0,ecoul,force_fact,delx,dely,delz);
           }
@@ -353,13 +354,13 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
             f[i][1] += (dely)*ji_fact;
             f[i][2] += (delz)*ji_fact;
 
-            fprintf(screen,"\nfx e-e dir += %16.16f",delx*(force_fact));
-            fprintf(screen,"\nfy e-e dir += %16.16f",dely*(force_fact));
-            fprintf(screen,"\nfz e-e dir += %16.16f",delz*(force_fact));
+            // fprintf(screen,"\nfx e-e dir += %16.16f",delx*(force_fact));
+            // fprintf(screen,"\nfy e-e dir += %16.16f",dely*(force_fact));
+            // fprintf(screen,"\nfz e-e dir += %16.16f",delz*(force_fact));
 
-            fprintf(screen,"\nfx e-e dyn += %16.16f",delx*(ji_fact));
-            fprintf(screen,"\nfy e-e dyn += %16.16f",dely*(ji_fact));
-            fprintf(screen,"\nfz e-e dyn += %16.16f",delz*(ji_fact));
+            // fprintf(screen,"\nfx e-e dyn += %16.16f",delx*(ji_fact));
+            // fprintf(screen,"\nfy e-e dyn += %16.16f",dely*(ji_fact));
+            // fprintf(screen,"\nfz e-e dyn += %16.16f",delz*(ji_fact));
     
             if (newton_pair || j < nlocal) {
 
@@ -381,18 +382,21 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
               // fprintf(screen,"\nhm2_i += %16.16f",hm2_i);
               // fprintf(screen,"\nm_gauss_ij += %16.16f",m_gauss_ij);
 
-              fprintf(screen,"\nfx e-e rev dyn += %16.16f",-delx*(ij_fact));
-              fprintf(screen,"\nfy e-e rev dyn += %16.16f",-dely*(ij_fact));
-              fprintf(screen,"\nfz e-e rev dyn += %16.16f",-delz*(ij_fact));
+              // fprintf(screen,"\nfx e-e rev dyn += %16.16f",-delx*(ij_fact));
+              // fprintf(screen,"\nfy e-e rev dyn += %16.16f",-dely*(ij_fact));
+              // fprintf(screen,"\nfz e-e rev dyn += %16.16f",-delz*(ij_fact));
     
             }
 
             if (eflag) ecoul = factor_coul * qqrd2e*scale[itype][jtype]*qtmp*q[j]*erf(rsqrt/(sqrt2*eff_width))/rsqrt;
-            // // fprintf(screen,"\nele-ele ecoul += %16.16f",ecoul);
+          // fprintf(screen,"\nele-ele ecoul += %16.16f",ecoul);
             // dynamic coulomb-SPH force expression is not pairwise symmetric
             // use of ev_tally not accurate for pressure evaluation - edit in future.
-            if (evflag) ev_tally(i,j,nlocal,newton_pair,
-                                0.0,ecoul,force_fact + 0.5*(ij_fact+ji_fact),delx,dely,delz);
+            // if (evflag) ev_tally(i,j,nlocal,newton_pair,
+            //                     0.0,ecoul,force_fact + 0.5*(ij_fact+ji_fact),delx,dely,delz);
+            full_factor = force_fact + 0.5*(ij_fact+ji_fact);
+            if (evflag) ev_tally_xyz(i,j,nlocal,newton_pair,0.0,ecoul,
+                        full_factor*delx - 0.5*(theta_coul[i]+theta_coul_ei[i])*dx_rho_SPH[i] + 0.5*(theta_coul[j]+theta_coul_ei[j])*dx_rho_SPH[j],full_factor*dely - 0.5*(theta_coul[i]+theta_coul_ei[i])*dy_rho_SPH[i] + 0.5*(theta_coul[j]+theta_coul_ei[j])*dy_rho_SPH[j],full_factor*delz - 0.5*(theta_coul[i]+theta_coul_ei[i])*dz_rho_SPH[i] + 0.5*(theta_coul[j]+theta_coul_ei[j])*dz_rho_SPH[j],delx,dely,delz);
           }
         }
 
@@ -416,9 +420,9 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
             f[i][1] += dely*force_fact;
             f[i][2] += delz*force_fact;
 
-            fprintf(screen,"\nfx e-i += %16.16f",delx*force_fact);
-            fprintf(screen,"\nfy e-i += %16.16f",dely*force_fact);
-            fprintf(screen,"\nfz e-i += %16.16f",delz*force_fact);
+            // fprintf(screen,"\nfx e-i += %16.16f",delx*force_fact);
+            // fprintf(screen,"\nfy e-i += %16.16f",dely*force_fact);
+            // fprintf(screen,"\nfz e-i += %16.16f",delz*force_fact);
     
 
             // // fprintf(screen,"\nele-ion fact = %16.16f",force_fact);
@@ -429,13 +433,13 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
               f[j][1] -= dely*force_fact;
               f[j][2] -= delz*force_fact;
 
-              fprintf(screen,"\nfx i-e += %16.16f",-delx*force_fact);
-              fprintf(screen,"\nfy i-e += %16.16f",-dely*force_fact);
-              fprintf(screen,"\nfz i-e += %16.16f",-delz*force_fact);
+              // fprintf(screen,"\nfx i-e += %16.16f",-delx*force_fact);
+              // fprintf(screen,"\nfy i-e += %16.16f",-dely*force_fact);
+              // fprintf(screen,"\nfz i-e += %16.16f",-delz*force_fact);
     
             }
-            if (eflag) ecoul = factor_coul * qqrd2e * scale[itype][jtype] * qtmp*q[j]*rinv*erf(rsqrt/(sqrt2*h_i));
-            // // fprintf(screen,"\nele-ion ecoul += %16.16f",ecoul);
+            if (eflag) ecoul = factor_coul * qqrd2e * scale[itype][jtype] * qtmp*q[j]*erf(rsqrt/(sqrt2*h_i))/rsqrt;
+          // fprintf(screen,"\nele-ion ecoul += %16.16f",ecoul);
             if (evflag) ev_tally(i,j,nlocal,newton_pair,
                                  0.0,ecoul,force_fact,delx,dely,delz);
           }
@@ -456,9 +460,9 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
             f[i][1] += dely*fpair;
             f[i][2] += delz*fpair;
 
-            fprintf(screen,"\nfx i-i += %16.16f",delx*fpair);
-            fprintf(screen,"\nfy i-i += %16.16f",dely*fpair);
-            fprintf(screen,"\nfz i-i += %16.16f",delz*fpair);
+            // fprintf(screen,"\nfx i-i += %16.16f",delx*fpair);
+            // fprintf(screen,"\nfy i-i += %16.16f",dely*fpair);
+            // fprintf(screen,"\nfz i-i += %16.16f",delz*fpair);
 
             // // fprintf(screen,"\nion-ion fact = %16.16f",fpair);
 
@@ -468,13 +472,13 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
               f[j][1] -= dely*fpair;
               f[j][2] -= delz*fpair;
 
-              fprintf(screen,"\nfx i-i rev += %16.16f",-delx*fpair);
-              fprintf(screen,"\nfy i-i rev += %16.16f",-dely*fpair);
-              fprintf(screen,"\nfz i-i rev += %16.16f",-delz*fpair);
+              // fprintf(screen,"\nfx i-i rev += %16.16f",-delx*fpair);
+              // fprintf(screen,"\nfy i-i rev += %16.16f",-dely*fpair);
+              // fprintf(screen,"\nfz i-i rev += %16.16f",-delz*fpair);
     
             }
             if (eflag) ecoul = factor_coul * qqrd2e * scale[itype][jtype] * qtmp*q[j]*rinv;
-            // // fprintf(screen,"\nion-ion ecoul += %16.16f",ecoul);
+          // fprintf(screen,"\nion-ion ecoul += %16.16f",ecoul);
             
             if (evflag) ev_tally(i,j,nlocal,newton_pair,
                                 0.0,ecoul,fpair,delx,dely,delz);

@@ -747,6 +747,7 @@ void FixNH::setup(int /*vflag*/)
   t_current = temperature->compute_scalar();
   tdof = temperature->dof;
 
+
   // t_target is needed by NVT and NPT in compute_scalar()
   // If no thermostat or using fix nphug,
   // t_target must be defined by other means.
@@ -789,6 +790,14 @@ void FixNH::setup(int /*vflag*/)
     for (int ich = 1; ich < mtchain; ich++) {
       eta_dotdot[ich] = (eta_mass[ich-1]*eta_dot[ich-1]*eta_dot[ich-1] -
                          boltz * t_target) / eta_mass[ich];
+
+      // fprintf(screen,"\n ich = %d",ich);
+      // fprintf(screen,"\n eta_mass[%d] = %16.16f",ich-1,eta_mass[ich-1]);
+      // fprintf(screen,"\n eta_mass[%d] = %16.16f",ich,eta_mass[ich]);
+      // fprintf(screen,"\n setup eta_dot[%d] = %16.16f",ich-1,eta_dot[ich-1]);
+      // fprintf(screen,"\n boltz = %16.16f",boltz);
+      // fprintf(screen,"\n t_target = %16.16f",t_target);
+      // fprintf(screen,"\n setup eta_dotdot[%d] = %16.16f",ich,eta_dotdot[ich]);
     }
   }
 
@@ -1779,11 +1788,21 @@ void FixNH::nhc_temp_integrate()
 
     for (ich = mtchain-1; ich > 0; ich--) {
       expfac = exp(-ncfac*dt8*eta_dot[ich+1]);
+      // fprintf(screen,"\neta_dot[%d] = %16.16f", ich+1 ,eta_dot[ich+1]);
+      // fprintf(screen,"\nexpfac = %16.16f", expfac);
       eta_dot[ich] *= expfac;
       eta_dot[ich] += eta_dotdot[ich] * ncfac*dt4;
+      // fprintf(screen,"\neta_dotdot[%d] = %16.16f", ich ,eta_dotdot[ich]);
       eta_dot[ich] *= tdrag_factor;
+      // fprintf(screen,"\ndt8 = %16.16f",dt8);
+      // fprintf(screen,"\nncfac = %16.16f",ncfac);
+      // fprintf(screen,"\ntdrag_factor = %16.16f",tdrag_factor);
       eta_dot[ich] *= expfac;
+      // fprintf(screen,"\neta_dot[%d] = %16.16f",ich,eta_dot[ich]);
+      
     }
+
+    // fprintf(screen,"\nmtchain = %d",mtchain);
 
     expfac = exp(-ncfac*dt8*eta_dot[1]);
     eta_dot[0] *= expfac;
@@ -1791,13 +1810,13 @@ void FixNH::nhc_temp_integrate()
     eta_dot[0] *= tdrag_factor;
     eta_dot[0] *= expfac;
 
-    fprintf(screen,"\nexpfac = %16.16f",expfac);
-    fprintf(screen,"\ntdrag_factor = %16.16f",tdrag_factor);
-    fprintf(screen,"\neta_dotdot[0] = %16.16f",eta_dotdot[0]);
-    fprintf(screen,"\nexpfac = %16.16f",expfac);
-    fprintf(screen,"\nncfac = %16.16f",ncfac);
-    fprintf(screen,"\neta_dot[1] = %16.16f",eta_dot[1]);
-    fprintf(screen,"\neta_dot[0] = %16.16f",eta_dot[0]);
+    // // fprintf(screen,"\nexpfac = %16.16f",expfac);
+    // // fprintf(screen,"\ntdrag_factor = %16.16f",tdrag_factor);
+    // // fprintf(screen,"\neta_dotdot[0] = %16.16f",eta_dotdot[0]);
+    // // fprintf(screen,"\nexpfac = %16.16f",expfac);
+    // // fprintf(screen,"\nncfac = %16.16f",ncfac);
+    // // fprintf(screen,"\neta_dot[1] = %16.16f",eta_dot[1]);
+    // // fprintf(screen,"\neta_dot[0] = %16.16f",eta_dot[0]);
 
     factor_eta = exp(-ncfac*dthalf*eta_dot[0]);
 
@@ -2067,7 +2086,7 @@ void FixNH::nh_v_temp()
   int nlocal = atom->nlocal;
   if (igroup == atom->firstgroup) nlocal = atom->nfirst;
 
-  fprintf(screen,"\nfactor_eta = %16.16f \n",factor_eta);
+  // fprintf(screen,"\nfactor_eta = %16.16f \n",factor_eta);
 
   if (which == NOBIAS) {
     for (int i = 0; i < nlocal; i++) {
