@@ -156,6 +156,8 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
 
   cutsquared = cut_global*cut_global;
 
+  // fprintf(screen,"\nIn pair_bohm_dynamic_Mocz compute function...\n");
+
   // zero out per-atom arrays
 
   if (newton_pair) {
@@ -208,6 +210,8 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
     hm4_i = hm2_i*hm2_i;
 
     rho_i = rho_SPH[i];
+    // fprintf(screen,"\nrho_SPH[%d] = %16.16f\n",i,rho_SPH[i]);
+
 
     // 3D Gaussian prefactor
     gauss_pre_i = pi_fact*(1./(h_i*h_i*h_i));

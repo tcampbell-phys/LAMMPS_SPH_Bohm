@@ -80,22 +80,20 @@ void FixDynamicWidths::init()
   int nlocal = atom->nlocal;
   int nall = nlocal + atom->nghost;
 
+  // fprintf(screen,"\nIn fix init function...\n");
+
   // assign all particles same initial width
   for(int i = 0; i < nall; ++i){
     width_SPH[i] = start_width;
     u_SPH[i] = 0.0;
   }
-}
 
-void FixDynamicWidths::setup_post_neighbor()
-{
-  // inherit neighbour lists from pair style
   pair = force->pair;
   // If a hybrid style is used we need to acces the correct sub-style.
   PairHybrid *hybrid_pair = dynamic_cast<PairHybrid*> (pair);
 
   if (hybrid_pair) {
-    // // fprintf(screen,"hybrid_pair neighbour list on...\n");
+    // fprintf(screen,"hybrid_pair neighbour list on...\n");
     // The pair style is a hybrid style.
     if (!pair_name) error->all(FLERR,"When a hybrid pair-style is used, 'pair_name' must be set for the lagrangian solver.");
     int nstyles = hybrid_pair->nstyles;
@@ -110,17 +108,33 @@ void FixDynamicWidths::setup_post_neighbor()
     // Set the correct pair style.
     pair = hybrid_pair->styles[found];
   }
+}
+
+
+void FixDynamicWidths::setup_pre_force(int)
+{
+  // fprintf(screen,"\nIn fix setup_pre_force function...\n");
+  FixedPointIterator();
+}
+
+void FixDynamicWidths::min_pre_force(int)
+{
+  // fprintf(screen,"\nIn fix min_pre_force function...\n");
+  FixedPointIterator();
+}
+
+
+void FixDynamicWidths::setup_post_neighbor()
+{
+  // fprintf(screen,"\nIn fix setup_post_neighbor function...\n");
+  // inherit neighbour lists from pair style
+  
   FixedPointIterator();
 }
 
 void FixDynamicWidths::post_neighbor()
 {
   return;
-}
-
-void FixDynamicWidths::min_pre_force(int)
-{
-  FixedPointIterator();
 }
 
 void FixDynamicWidths::pre_force(int)
@@ -348,6 +362,8 @@ void FixDynamicWidths::FixedPointIterator()
   // loop to compute omega_SPH values after assignment of density and width values
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
+
+    // fprintf(screen,"\nrho_SPH[%d] = %16.16f",i,rho_SPH[i]);
 
     xtmp = x[i][0];
     ytmp = x[i][1];

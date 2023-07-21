@@ -13,10 +13,11 @@ class FixDynamicWidths : public Fix {
   virtual ~FixDynamicWidths();
   int setmask();
   virtual void init();
+  virtual void setup_pre_force(int);
   virtual void setup_post_neighbor();
+  virtual void min_pre_force(int);
   virtual void pre_force(int);
   virtual void post_neighbor();
-  virtual void min_pre_force(int);
   virtual int pack_forward_comm(int, int *, double *, int, int *);
   virtual void unpack_forward_comm(int, int, double *);
   virtual int pack_reverse_comm(int, int, double *);
