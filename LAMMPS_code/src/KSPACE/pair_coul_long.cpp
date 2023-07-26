@@ -105,6 +105,11 @@ void PairCoulLong::compute(int eflag, int vflag)
     jlist = firstneigh[i];
     jnum = numneigh[i];
 
+    fprintf(screen,"\n\nTarget particle at...");
+    fprintf(screen,"\nx = %16.16f",xtmp);
+    fprintf(screen,"\ny = %16.16f",ytmp);
+    fprintf(screen,"\nz = %16.16f",ztmp);
+
     for (jj = 0; jj < jnum; jj++) {
       j = jlist[jj];
       factor_coul = special_coul[sbmask(j)];

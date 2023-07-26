@@ -39,7 +39,11 @@ class PairCoulLongSPH : public Pair {
   void read_restart(FILE *);
   virtual void write_restart_settings(FILE *);
   virtual void read_restart_settings(FILE *);
-  virtual double single(int, int, int, int, double, double, double, double &);
+  virtual int pack_forward_comm(int, int *, double *, int, int *);
+  virtual void unpack_forward_comm(int, int, double *);
+  int pack_reverse_comm(int, int, double *);
+  void unpack_reverse_comm(int, int *, double *);
+//   virtual double single(int, int, int, int, double, double, double, double &);
   virtual void *extract(const char *, int &);
 
  protected:
@@ -48,15 +52,18 @@ class PairCoulLongSPH : public Pair {
   double cut_coul,cut_coulsq,qdist;
   double *cut_respa;
   double g_ewald;
+  double ke_in;
+  int ion_species; // label which species are point charges
   double **scale;
 
   // per-atom arrays
-
-  double *dx_rho_coul;
-  double *dy_rho_coul;
-  double *dz_rho_coul;
-
   double *theta_coul;
+  double *theta_coul_ei;
+
+  int numforce; // value to check whether many body quantities have been computed prior to calling single()
+
+  double sqrt2 = 1.4142135623730951;
+  double sqrt_pi = 1.7724538509055159;
 
   virtual void allocate();
 };
