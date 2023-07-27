@@ -368,7 +368,7 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
             r2inv = 1.0/rsq;
             rinv = sqrt(r2inv);
             forcecoul = qqrd2e * scale[itype][jtype] * qtmp*q[j]*rinv;
-            fpair = factor_coul*forcecoul * r2inv;
+            fpair = factor_coul * forcecoul * r2inv;
 
             f[i][0] += delx*fpair;
             f[i][1] += dely*fpair;

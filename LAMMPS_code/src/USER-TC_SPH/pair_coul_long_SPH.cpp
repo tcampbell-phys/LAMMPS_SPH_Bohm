@@ -248,11 +248,7 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
     jlist = firstneigh[i];
     jnum = numneigh[i];
 
-    fprintf(screen,"\n\nTarget particle at...");
-    fprintf(screen,"\nx = %16.16f",xtmp);
-    fprintf(screen,"\ny = %16.16f",ytmp);
-    fprintf(screen,"\nz = %16.16f",ztmp);
-    fprintf(screen,"\ntype = %d",itype);
+
 
     if (itype != ion_species) {
       // electron target
@@ -261,16 +257,12 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
       h2_i = h_i*h_i;
       hm2_i = 1/h2_i;
 
-      fprintf(screen,"\nelectron self terms...");
-
       gauss_pre_i = pi_fact*(1/(h_i*h_i*h_i));
       // ele-ele and ion-ele SPH dynamic terms
       f[i][0] += -(theta_coul[i]+theta_coul_ei[i])*dx_rho_SPH[i];
       f[i][1] += -(theta_coul[i]+theta_coul_ei[i])*dy_rho_SPH[i];
       f[i][2] += -(theta_coul[i]+theta_coul_ei[i])*dz_rho_SPH[i];
-      fprintf(screen,"\nfx = %16.16f",-(theta_coul[i]+theta_coul_ei[i])*dx_rho_SPH[i]);
-      fprintf(screen,"\nfy = %16.16f",-(theta_coul[i]+theta_coul_ei[i])*dy_rho_SPH[i]);
-      fprintf(screen,"\nfz = %16.16f",-(theta_coul[i]+theta_coul_ei[i])*dz_rho_SPH[i]); 
+    
     }
 
 
@@ -294,12 +286,6 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
         t = 1.0 / (1.0 + EWALD_P*grij);
         erfc = t * (A1+t*(A2+t*(A3+t*(A4+t*A5)))) * expm2;
 
-        fprintf(screen,"\n\nneighbour particle at...");
-        fprintf(screen,"\nx = %16.16f",x[j][0]);
-        fprintf(screen,"\ny = %16.16f",x[j][1]);
-        fprintf(screen,"\nz = %16.16f",x[j][2]);
-        fprintf(screen,"\ntype = %d",jtype);
-        
         if (jtype != ion_species){
 
           // electron neighbour
@@ -318,10 +304,6 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
             f[i][0] += delx*force_fact;
             f[i][1] += dely*force_fact;
             f[i][2] += delz*force_fact;
-
-            fprintf(screen,"\nfx += %16.16f",delx*force_fact);
-            fprintf(screen,"\nfy += %16.16f",dely*force_fact);
-            fprintf(screen,"\nfz += %16.16f",delz*force_fact);
 
             if (newton_pair || j < nlocal) {
               f[j][0] -= delx*force_fact;
@@ -359,10 +341,6 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
             f[i][1] += (dely)*ji_fact;
             f[i][2] += (delz)*ji_fact;
 
-            fprintf(screen,"\nfx += %16.16f",delx*(force_fact*ji_fact));
-            fprintf(screen,"\nfy += %16.16f",dely*(force_fact*ji_fact));
-            fprintf(screen,"\nfz += %16.16f",delz*(force_fact*ji_fact));
-
 
             if (newton_pair || j < nlocal) {
 
@@ -399,7 +377,8 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
             // electron target
 
             ecoul = factor_coul * qqrd2e * scale[itype][jtype] * qtmp*q[j]*erf(r/(sqrt2*h_i))/r;
-
+            // fprintf(screen,"\necoul = %16.16f",ecoul*erfc);
+            
             force_fact = ecoul*EWALD_F*g_ewald*expm2/r + erfc*factor_coul*qqrd2e*scale[itype][jtype]*(qtmp*q[j])*(erf(r/(sqrt2*h_i))/(r*r*r) - (sqrt2/sqrt_pi)*(exp(-rsq*hm2_i/2)/(h_i*rsq)));
 
             f[i][0] += delx*force_fact;
