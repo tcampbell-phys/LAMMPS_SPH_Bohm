@@ -17,8 +17,7 @@
    - for use with dynamic per-particle SPH kernel widths
 ------------------------------------------------------------------------- */
 
-#include "pair_coul_long_SPH.h"
-#include "domain.h"
+#include "pair_coul_long_SPH_nopseudo.h"
 #include <mpi.h>
 #include <cmath>
 #include <cstring>
@@ -44,7 +43,7 @@ using namespace LAMMPS_NS;
 
 /* ---------------------------------------------------------------------- */
 
-PairCoulLongSPH::PairCoulLongSPH(LAMMPS *lmp) : Pair(lmp)
+PairCoulLongNopseudoSPH::PairCoulLongNopseudoSPH(LAMMPS *lmp) : Pair(lmp)
 {
   ewaldflag = pppmflag = 1;
   ftable = NULL;
@@ -58,9 +57,6 @@ PairCoulLongSPH::PairCoulLongSPH(LAMMPS *lmp) : Pair(lmp)
 
   theta_coul = NULL;
   theta_coul_ei = NULL;
-  
-  // fprintf(screen,"\n test al_lda_A_c[3] = %f ",al_lda_A_c[3]);
-  // fprintf(screen,"\n test al_lda_A_a[2] = %f ",al_lda_A_a[2]);
 
   comm_forward = 2;
   comm_reverse = 2;
@@ -68,7 +64,7 @@ PairCoulLongSPH::PairCoulLongSPH(LAMMPS *lmp) : Pair(lmp)
 
 /* ---------------------------------------------------------------------- */
 
-PairCoulLongSPH::~PairCoulLongSPH()
+PairCoulLongNopseudoSPH::~PairCoulLongNopseudoSPH()
 {
   if (copymode) return;
 
@@ -80,9 +76,6 @@ PairCoulLongSPH::~PairCoulLongSPH()
     memory->destroy(theta_coul_ei);
 
     memory->destroy(scale);
-
-    // memory->destroy(al_lda_A_c);
-    // memory->destroy(al_lda_A_a);
   }
   // still require this condition without use of tables in compute?
   if (ftable) free_tables();
@@ -90,7 +83,7 @@ PairCoulLongSPH::~PairCoulLongSPH()
 
 /* ---------------------------------------------------------------------- */
 
-void PairCoulLongSPH::compute(int eflag, int vflag)
+void PairCoulLongNopseudoSPH::compute(int eflag, int vflag)
 {
   int i,j,ii,jj,inum,jnum,itable,itype,jtype;
   double qtmp,xtmp,ytmp,ztmp,delx,dely,delz,ecoul,fpair;
@@ -254,6 +247,8 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
     itype = type[i];
     jlist = firstneigh[i];
     jnum = numneigh[i];
+
+
 
     if (itype != ion_species) {
       // electron target
@@ -435,7 +430,7 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
    allocate all arrays
 ------------------------------------------------------------------------- */
 
-void PairCoulLongSPH::allocate()
+void PairCoulLongNopseudoSPH::allocate()
 {
   allocated = 1;
   int n = atom->ntypes;
@@ -454,49 +449,20 @@ void PairCoulLongSPH::allocate()
    global settings
 ------------------------------------------------------------------------- */
 
-void PairCoulLongSPH::settings(int narg, char **arg)
+void PairCoulLongNopseudoSPH::settings(int narg, char **arg)
 {
-  double *c_coeff;
-  double *a_coeff;
-
-  if (narg != 6) error->all(FLERR,"Illegal pair_style command");
+  if (narg != 3) error->all(FLERR,"Illegal pair_style command");
 
   cut_coul = force->numeric(FLERR,arg[0]);
   ke_in = force->numeric(FLERR,arg[1]);
   ion_species = force->numeric(FLERR,arg[2]);
-  pseudo_key = force->numeric(FLERR,arg[3]);
-  dens_wid_const = force->numeric(FLERR,arg[4]);
-  N_ele = force->numeric(FLERR,arg[5]);
-
-  // check input parameters match selected Pseudopotential parameters
-  if (pseudo_key==al_lda_A_key){
-    c_coeff = al_lda_A_c;
-    a_coeff = al_lda_A_a;
-    fprintf(screen,"\ndomain->xprd = %f\n",domain->xprd);
-    fprintf(screen,"\nN_ele = %d\n",N_ele);
-    if (domain->xprd != al_lda_A_L || domain->yprd != al_lda_A_L || domain->zprd != al_lda_A_L){
-      error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: box_len ");
-    }
-    if (N_ele != al_lda_A_N_ele){
-      error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: N_ele ");
-    }
-    if (dens_wid_const != al_lda_A_sigma){
-      error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: sigma ");
-    }
-    if (cut_coul < al_lda_A_tfwhm){
-      error->all(FLERR,"PSEUDO_ERR cutoff too short for use with SPH coulomb: cutoff must be larger than TFWHM");
-    }
-  }
-  fprintf(screen,"\n test c_coeff[3] = %f ",c_coeff[3]);
-  fprintf(screen,"\n test a_coeff[2] = %f ",a_coeff[2]);
-
 }
 
 /* ----------------------------------------------------------------------
    set coeffs for one or more type pairs
 ------------------------------------------------------------------------- */
 
-void PairCoulLongSPH::coeff(int narg, char **arg)
+void PairCoulLongNopseudoSPH::coeff(int narg, char **arg)
 {
   if (narg != 2) error->all(FLERR,"Incorrect args for pair coefficients");
   if (!allocated) allocate();
@@ -521,7 +487,7 @@ void PairCoulLongSPH::coeff(int narg, char **arg)
    init specific to this pair style
 ------------------------------------------------------------------------- */
 
-void PairCoulLongSPH::init_style()
+void PairCoulLongNopseudoSPH::init_style()
 {
   if (!atom->q_flag)
     error->all(FLERR,"Pair style lj/cut/coul/long requires atom attribute q");
@@ -541,7 +507,7 @@ void PairCoulLongSPH::init_style()
    init for one type pair i,j and corresponding j,i
 ------------------------------------------------------------------------- */
 
-double PairCoulLongSPH::init_one(int i, int j)
+double PairCoulLongNopseudoSPH::init_one(int i, int j)
 {
   scale[j][i] = scale[i][j];
   return cut_coul+2.0*qdist;
@@ -551,7 +517,7 @@ double PairCoulLongSPH::init_one(int i, int j)
   proc 0 writes to restart file
 ------------------------------------------------------------------------- */
 
-void PairCoulLongSPH::write_restart(FILE *fp)
+void PairCoulLongNopseudoSPH::write_restart(FILE *fp)
 {
   write_restart_settings(fp);
 
@@ -567,7 +533,7 @@ void PairCoulLongSPH::write_restart(FILE *fp)
   proc 0 reads from restart file, bcasts
 ------------------------------------------------------------------------- */
 
-void PairCoulLongSPH::read_restart(FILE *fp)
+void PairCoulLongNopseudoSPH::read_restart(FILE *fp)
 {
   read_restart_settings(fp);
 
@@ -590,7 +556,7 @@ void PairCoulLongSPH::read_restart(FILE *fp)
   proc 0 writes to restart file
 ------------------------------------------------------------------------- */
 
-void PairCoulLongSPH::write_restart_settings(FILE *fp)
+void PairCoulLongNopseudoSPH::write_restart_settings(FILE *fp)
 {
   fwrite(&cut_coul,sizeof(double),1,fp);
   fwrite(&offset_flag,sizeof(int),1,fp);
@@ -601,7 +567,7 @@ void PairCoulLongSPH::write_restart_settings(FILE *fp)
   proc 0 reads from restart file, bcasts
 ------------------------------------------------------------------------- */
 
-void PairCoulLongSPH::read_restart_settings(FILE *fp)
+void PairCoulLongNopseudoSPH::read_restart_settings(FILE *fp)
 {
   if (comm->me == 0) {
     utils::sfread(FLERR,&cut_coul,sizeof(double),1,fp,NULL,error);
@@ -615,7 +581,7 @@ void PairCoulLongSPH::read_restart_settings(FILE *fp)
 
 /* ---------------------------------------------------------------------- */
 
-// double PairCoulLongSPH::single(int i, int j, int /*itype*/, int /*jtype*/,
+// double PairCoulLongNopseudoSPH::single(int i, int j, int /*itype*/, int /*jtype*/,
 //                             double rsq,
 //                             double factor_coul, double /*factor_lj*/,
 //                             double &fforce)
@@ -652,7 +618,7 @@ void PairCoulLongSPH::read_restart_settings(FILE *fp)
 
 /* ---------------------------------------------------------------------- */
 
-void *PairCoulLongSPH::extract(const char *str, int &dim)
+void *PairCoulLongNopseudoSPH::extract(const char *str, int &dim)
 {
   if (strcmp(str,"cut_coul") == 0) {
     dim = 0;
@@ -668,7 +634,7 @@ void *PairCoulLongSPH::extract(const char *str, int &dim)
 /* ---------------------------------------------------------------------- */
 
 
-int PairCoulLongSPH::pack_forward_comm(int n, int *list, double *buf,
+int PairCoulLongNopseudoSPH::pack_forward_comm(int n, int *list, double *buf,
                                int /*pbc_flag*/, int * /*pbc*/)
 {
   int i,j,m;
@@ -685,7 +651,7 @@ int PairCoulLongSPH::pack_forward_comm(int n, int *list, double *buf,
 
 /* ---------------------------------------------------------------------- */
 
-void PairCoulLongSPH::unpack_forward_comm(int n, int first, double *buf)
+void PairCoulLongNopseudoSPH::unpack_forward_comm(int n, int first, double *buf)
 {
   int i,m,last;
 
@@ -699,7 +665,7 @@ void PairCoulLongSPH::unpack_forward_comm(int n, int first, double *buf)
 }
 /* ---------------------------------------------------------------------- */
 
-int PairCoulLongSPH::pack_reverse_comm(int n, int first, double *buf)
+int PairCoulLongNopseudoSPH::pack_reverse_comm(int n, int first, double *buf)
 {
   int i,m,last;
 
@@ -715,7 +681,7 @@ int PairCoulLongSPH::pack_reverse_comm(int n, int first, double *buf)
 
 /* ---------------------------------------------------------------------- */
 
-void PairCoulLongSPH::unpack_reverse_comm(int n, int *list, double *buf)
+void PairCoulLongNopseudoSPH::unpack_reverse_comm(int n, int *list, double *buf)
 {
   int i,j,m;
 

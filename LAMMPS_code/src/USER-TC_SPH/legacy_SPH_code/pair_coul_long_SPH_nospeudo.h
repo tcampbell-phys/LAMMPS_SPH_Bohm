@@ -15,22 +15,21 @@
 
 #ifdef PAIR_CLASS
 
-PairStyle(coul/long/SPH,PairCoulLongSPH)
+PairStyle(coul/long/SPH,PairCoulLongNopseudoSPH)
 
 #else
 
-#ifndef LMP_PAIR_COUL_LONG_SPH_H
-#define LMP_PAIR_COUL_LONG_SPH_H
+#ifndef LMP_PAIR_COUL_LONG_NOPSEUDO_SPH_H
+#define LMP_PAIR_COUL_LONG_NOPSEUDO_SPH_H
 
 #include "pair.h"
-#include <vector>
 
 namespace LAMMPS_NS {
 
-class PairCoulLongSPH : public Pair {
+class PairCoulLongNopseudoSPH : public Pair {
  public:
-  PairCoulLongSPH(class LAMMPS *);
-  ~PairCoulLongSPH();
+  PairCoulLongNopseudoSPH(class LAMMPS *);
+  ~PairCoulLongNopseudoSPH();
   virtual void compute(int, int);
   virtual void settings(int, char **);
   void coeff(int, char **);
@@ -53,11 +52,8 @@ class PairCoulLongSPH : public Pair {
   double cut_coul,cut_coulsq,qdist;
   double *cut_respa;
   double g_ewald;
-  double ke_in; //currently redundant - could be used as a multiplier
+  double ke_in;
   int ion_species; // label which species are point charges
-  int pseudo_key; // label to select pseudo parameters below
-  double dens_wid_const; // dens_wid_const used in width updates, must be consistent with that used for pseudo (which has erf removed) decomposition
-  int N_ele; //number of SPH electrons
   double **scale;
 
   // per-atom arrays
@@ -70,22 +66,6 @@ class PairCoulLongSPH : public Pair {
   double sqrt_pi = 1.7724538509055159;
 
   virtual void allocate();
-
-  // Pseudopotential Gaussian Decomposition Parameters
-
-  int al_lda_A_key = 0;
-  int al_lda_A_N_ele = 3000;
-  double al_lda_A_L = 38.748135232811201;
-  double al_lda_A_sigma = 1.05;
-  double al_lda_A_tfwhm = 13.285790472304193;
-  double al_lda_A_c[15] = {-5.14414688e+04, -2.00432236e-01, -5.44821597e-01, -1.37874312e+05,
-       -3.22981077e-01, -1.51575274e+00,  4.06085156e+04,  7.76306641e+02,
-        1.54194062e+05,  5.56792383e+03,  3.33183441e+01, -6.14383008e+03,
-        2.27608887e+03, -6.97869682e+00, -7.98537305e+03};
-  double al_lda_A_a[15] = {1.56580753e+00, 3.79744894e-03, 6.88447417e-02, 1.76841280e+00,
-       1.94923158e-02, 2.64088528e-01, 2.00319861e+00, 1.29756323e+00,
-       1.66630857e+00, 4.70061071e+00, 9.09985643e-01, 4.63405408e+00,
-       3.31597070e+00, 8.04481746e+00, 2.52239866e+00};
 };
 
 }
