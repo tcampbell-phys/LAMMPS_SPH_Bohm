@@ -56,13 +56,14 @@ class PairCoulLongSPH : public Pair {
   double ke_in; //currently redundant - could be used as a multiplier
   int ion_species; // label which species are point charges
   int pseudo_key; // label to select pseudo parameters below
-  double dens_wid_const; // dens_wid_const used in width updates, must be consistent with that used for pseudo (which has erf removed) decomposition
-  int N_ele; //number of SPH electrons
+  int ion_charge; // ion charge
+  double ele_TFWHM; // twice the full width half maximum of the average electron in SPH system
+  double input_g_ewald;
   double **scale;
 
   // per-atom arrays
   double *theta_coul;
-  double *theta_coul_ei;
+  double *chi_coul_ei;
 
   int numforce; // value to check whether many body quantities have been computed prior to calling single()
 
@@ -73,19 +74,23 @@ class PairCoulLongSPH : public Pair {
 
   // Pseudopotential Gaussian Decomposition Parameters
 
+  // A - al_lda for 5.2 g/cc 3+ ions. Density-width constant of 1.05
   int al_lda_A_key = 0;
-  int al_lda_A_N_ele = 3000;
-  double al_lda_A_L = 38.748135232811201;
-  double al_lda_A_sigma = 1.05;
-  double al_lda_A_tfwhm = 13.285790472304193;
-  double al_lda_A_c[15] = {-5.14414688e+04, -2.00432236e-01, -5.44821597e-01, -1.37874312e+05,
-       -3.22981077e-01, -1.51575274e+00,  4.06085156e+04,  7.76306641e+02,
-        1.54194062e+05,  5.56792383e+03,  3.33183441e+01, -6.14383008e+03,
-        2.27608887e+03, -6.97869682e+00, -7.98537305e+03};
-  double al_lda_A_a[15] = {1.56580753e+00, 3.79744894e-03, 6.88447417e-02, 1.76841280e+00,
-       1.94923158e-02, 2.64088528e-01, 2.00319861e+00, 1.29756323e+00,
-       1.66630857e+00, 4.70061071e+00, 9.09985643e-01, 4.63405408e+00,
-       3.31597070e+00, 8.04481746e+00, 2.52239866e+00};
+  int al_lda_A_ion_charge = 3;
+  double al_lda_A_g_ewald = 0.0358953535654616; // g_ewald used for erf (k-space) removal 
+  int al_lda_A_Ncoeff = 13;
+  double al_lda_A_a[13] = {0.003876418186049235, 1.150625641772063, 0.056097205005079455, 0.019689359264809383, 
+  1.747983820726069, 1.0998362686176768, 1.305314808231124, 0.36011457237236427, 
+  1.5545126182845386, 1.9257077692314741, 1.8243933672383936, 7.4009573484454805, 
+  0.10506523220666016};
+  double al_lda_A_c[13] = {-0.20478337125996404, -22542.599365234375, -0.29884432538528927, -0.3111565024664742, 
+  89734.388671875, 11642.630920410156, 22648.13720703125, -2.8933730144053698, 
+  -36925.607421875, 18654.174072265625, -83205.1767578125, -0.14233727008104324, 
+  -0.41864406527020037};
+
+  double *c_coeff;
+  double *a_coeff;
+  int N_coeff;
 };
 
 }

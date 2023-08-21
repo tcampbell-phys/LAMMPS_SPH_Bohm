@@ -37,7 +37,7 @@ PairCoulCutSPH::PairCoulCutSPH(LAMMPS *lmp) : Pair(lmp) {
   manybody_flag = 1;
 
   theta_coul = NULL;
-  theta_coul_ei = NULL;
+  chi_coul_ei = NULL;
 
   comm_forward = 2;
   comm_reverse = 2;
@@ -56,7 +56,7 @@ PairCoulCutSPH::~PairCoulCutSPH()
     memory->destroy(scale);
 
     memory->destroy(theta_coul);
-    memory->destroy(theta_coul_ei);
+    memory->destroy(chi_coul_ei);
   }
 }
 
@@ -112,12 +112,12 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
     // delete and create new memory arrays for any per-particle variables that need communicating.
 
     memory->destroy(theta_coul);
-    memory->destroy(theta_coul_ei);
+    memory->destroy(chi_coul_ei);
     
     nmax = atom->nmax;
 
     memory->create(theta_coul,nmax,"pair:theta_coul");
-    memory->create(theta_coul_ei,nmax,"pair:theta_coul_ei");
+    memory->create(chi_coul_ei,nmax,"pair:chi_coul_ei");
 
   }
 
@@ -126,13 +126,13 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
   if (newton_pair) {
     for (i = 0; i < nall; i++){
       theta_coul[i] = 0.0;
-      theta_coul_ei[i] = 0.0;
+      chi_coul_ei[i] = 0.0;
     }
   } 
   else{
     for (i = 0; i < nlocal; i++){
       theta_coul[i] = 0.0;
-      theta_coul_ei[i] = 0.0;
+      chi_coul_ei[i] = 0.0;
     }
   }
 
@@ -190,7 +190,7 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
 
           if (jtype == ion_species){
             // ion neighbour
-            theta_coul_ei[i] += factor_coul*scale[itype][jtype]*fact_i*q[j]*exp(-rsq/(2*h2_i))/(h_i);
+            chi_coul_ei[i] += factor_coul*scale[itype][jtype]*fact_i*q[j]*exp(-rsq/(2*h2_i))/(h_i);
           }
         }
 
@@ -199,7 +199,7 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
           if (jtype != ion_species){
             // electron neighbour
             if (newton_pair || j < nlocal) {
-              theta_coul_ei[j] += factor_coul*scale[itype][jtype]*theta_const*((qtmp*q[j])/(rho_SPH[j]*omega_SPH[j]))*(1/width_SPH[j])*exp(-rsq/(2*width_SPH[j]*width_SPH[j]));
+              chi_coul_ei[j] += factor_coul*scale[itype][jtype]*theta_const*((qtmp*q[j])/(rho_SPH[j]*omega_SPH[j]))*(1/width_SPH[j])*exp(-rsq/(2*width_SPH[j]*width_SPH[j]));
             }
           }
         }
@@ -233,9 +233,9 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
 
       gauss_pre_i = pi_fact*(1/(h_i*h_i*h_i));
       // ele-ele and ion-ele SPH dynamic terms
-      f[i][0] += -(theta_coul[i]+theta_coul_ei[i])*dx_rho_SPH[i];
-      f[i][1] += -(theta_coul[i]+theta_coul_ei[i])*dy_rho_SPH[i];
-      f[i][2] += -(theta_coul[i]+theta_coul_ei[i])*dz_rho_SPH[i];
+      f[i][0] += -(theta_coul[i]+chi_coul_ei[i])*dx_rho_SPH[i];
+      f[i][1] += -(theta_coul[i]+chi_coul_ei[i])*dy_rho_SPH[i];
+      f[i][2] += -(theta_coul[i]+chi_coul_ei[i])*dz_rho_SPH[i];
    
     }
     
@@ -298,7 +298,7 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
             hm2_j = 1/(h_j*h_j);
             gauss_pre_j = pi_fact*(1/(h_j*h_j*h_j));
             m_gauss_ji = imass*gauss_pre_j*exp(-(rsq)*hm2_j/2);
-            ji_fact = hm2_j*m_gauss_ji*(theta_coul[j]+theta_coul_ei[j]);
+            ji_fact = hm2_j*m_gauss_ji*(theta_coul[j]+chi_coul_ei[j]);
 
             // ele-ele and ion-ele SPH dynamic width terms
 
@@ -316,7 +316,7 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
               jmass = mass[jtype];
               m_gauss_ij = jmass*gauss_pre_i*exp(-(rsq)*hm2_i/2);
 
-              ij_fact = hm2_i*m_gauss_ij*(theta_coul[i]+theta_coul_ei[i]);
+              ij_fact = hm2_i*m_gauss_ij*(theta_coul[i]+chi_coul_ei[i]);
               
               f[j][0] -= (delx)*ij_fact;
               f[j][1] -= (dely)*ij_fact;
@@ -329,7 +329,7 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
             // use of ev_tally not accurate for pressure evaluation - edit in future.
             full_factor = force_fact + 0.5*(ij_fact+ji_fact);
             if (evflag) ev_tally_xyz(i,j,nlocal,newton_pair,0.0,ecoul,
-                        full_factor*delx - 0.5*(theta_coul[i]+theta_coul_ei[i])*dx_rho_SPH[i] + 0.5*(theta_coul[j]+theta_coul_ei[j])*dx_rho_SPH[j],full_factor*dely - 0.5*(theta_coul[i]+theta_coul_ei[i])*dy_rho_SPH[i] + 0.5*(theta_coul[j]+theta_coul_ei[j])*dy_rho_SPH[j],full_factor*delz - 0.5*(theta_coul[i]+theta_coul_ei[i])*dz_rho_SPH[i] + 0.5*(theta_coul[j]+theta_coul_ei[j])*dz_rho_SPH[j],delx,dely,delz);
+                        full_factor*delx - 0.5*(theta_coul[i]+chi_coul_ei[i])*dx_rho_SPH[i] + 0.5*(theta_coul[j]+chi_coul_ei[j])*dx_rho_SPH[j],full_factor*dely - 0.5*(theta_coul[i]+chi_coul_ei[i])*dy_rho_SPH[i] + 0.5*(theta_coul[j]+chi_coul_ei[j])*dy_rho_SPH[j],full_factor*delz - 0.5*(theta_coul[i]+chi_coul_ei[i])*dz_rho_SPH[i] + 0.5*(theta_coul[j]+chi_coul_ei[j])*dz_rho_SPH[j],delx,dely,delz);
           }
         }
 
@@ -420,19 +420,26 @@ void PairCoulCutSPH::allocate()
 
 void PairCoulCutSPH::settings(int narg, char **arg)
 {
-  if (narg != 3) error->all(FLERR,"Illegal pair_style command");
+  if (narg != 5) error->all(FLERR,"Illegal pair_style command");
 
   cut_global = force->numeric(FLERR,arg[0]);
   ke_in = force->numeric(FLERR,arg[1]);
   ion_species = force->numeric(FLERR,arg[2]);
+  pseudo_key = force->numeric(FLERR,arg[3]);
+  ion_charge = force->numeric(FLERR,arg[4]);
 
-  // reset cutoffs that have been explicitly set
 
-  if (allocated) {
-    int i,j;
-    for (i = 1; i <= atom->ntypes; i++)
-      for (j = i; j <= atom->ntypes; j++)
-        if (setflag[i][j]) cut[i][j] = cut_global;
+  // check input parameters match selected Pseudopotential parameters
+  if (pseudo_key==al_lda_A_key){
+    c_coeff = al_lda_A_c;
+    a_coeff = al_lda_A_a;
+    N_coeff = al_lda_A_Ncoeff;
+    if (ion_charge != al_lda_A_ion_charge){
+      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      fprintf(screen,"\n al_lda_A_ion_charge = %d \n",al_lda_A_ion_charge);
+      
+      error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
+    }
   }
 }
 
@@ -580,7 +587,7 @@ int PairCoulCutSPH::pack_forward_comm(int n, int *list, double *buf,
   for (i = 0; i < n; i++) {
     j = list[i];
     buf[m++] = theta_coul[j];
-    buf[m++] = theta_coul_ei[j];
+    buf[m++] = chi_coul_ei[j];
   }
   return m;
   
@@ -596,7 +603,7 @@ void PairCoulCutSPH::unpack_forward_comm(int n, int first, double *buf)
   last = first + n;
   for (i = first; i < last; i++){
     theta_coul[i] = buf[m++];
-    theta_coul_ei[i] = buf[m++];
+    chi_coul_ei[i] = buf[m++];
   }
   
 }
@@ -610,7 +617,7 @@ int PairCoulCutSPH::pack_reverse_comm(int n, int first, double *buf)
   last = first + n;
   for (i = first; i < last; i++){
     buf[m++] = theta_coul[i];
-    buf[m++] = theta_coul_ei[i];
+    buf[m++] = chi_coul_ei[i];
   }
 
   return m;
@@ -626,7 +633,7 @@ void PairCoulCutSPH::unpack_reverse_comm(int n, int *list, double *buf)
   for (i = 0; i < n; i++) {
     j = list[i];
     theta_coul[j] += buf[m++];
-    theta_coul_ei[j] += buf[m++];
+    chi_coul_ei[j] += buf[m++];
   }
   
 }

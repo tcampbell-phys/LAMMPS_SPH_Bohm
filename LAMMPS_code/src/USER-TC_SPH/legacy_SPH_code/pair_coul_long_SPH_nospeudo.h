@@ -15,7 +15,7 @@
 
 #ifdef PAIR_CLASS
 
-PairStyle(coul/long/SPH,PairCoulLongNopseudoSPH)
+PairStyle(coul/long/SPH_nopseudo,PairCoulLongNopseudoSPH)
 
 #else
 
