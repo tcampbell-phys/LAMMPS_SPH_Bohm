@@ -40,4 +40,6 @@ do
     
     scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" campbell@hedp64.nat.physics.ox.ac.uk:/data/tcampbell/LAMMPS/SPH_Bohm/hedp_SPH_dynamic_bohm_$i/log.* ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/hedp64/dynamic_width/hedp_SPH_dynamic_bohm_$i/
     scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" campbell@hedp64.nat.physics.ox.ac.uk:/data/tcampbell/LAMMPS/SPH_Bohm/hedp_SPH_dynamic_bohm_$i/*.dump ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/hedp64/dynamic_width/hedp_SPH_dynamic_bohm_$i/
+    # scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" campbell@hedp64.nat.physics.ox.ac.uk:/data/tcampbell/LAMMPS/SPH_Bohm/hedp_SPH_dynamic_bohm_$i/pair_coul_cut_SPH.* ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/hedp64/dynamic_width/hedp_SPH_dynamic_bohm_$i/
+
 done

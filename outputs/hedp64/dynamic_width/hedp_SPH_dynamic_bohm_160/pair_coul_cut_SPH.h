@@ -15,27 +15,26 @@
 
 #ifdef PAIR_CLASS
 
-PairStyle(coul/long/SPH,PairCoulLongSPH)
+PairStyle(coul/cut/SPH,PairCoulCutSPH)
 
 #else
 
-#ifndef LMP_PAIR_COUL_LONG_SPH_H
-#define LMP_PAIR_COUL_LONG_SPH_H
+#ifndef LMP_PAIR_COUL_CUT_SPH_H
+#define LMP_PAIR_COUL_CUT_SPH_H
 
 #include "pair.h"
-#include <vector>
 
 namespace LAMMPS_NS {
 
-class PairCoulLongSPH : public Pair {
+class PairCoulCutSPH : public Pair {
  public:
-  PairCoulLongSPH(class LAMMPS *);
-  ~PairCoulLongSPH();
+  PairCoulCutSPH(class LAMMPS *);
+  virtual ~PairCoulCutSPH();
   virtual void compute(int, int);
   virtual void settings(int, char **);
   void coeff(int, char **);
-  virtual void init_style();
-  virtual double init_one(int, int);
+  void init_style();
+  double init_one(int, int);
   void write_restart(FILE *);
   void read_restart(FILE *);
   virtual void write_restart_settings(FILE *);
@@ -44,37 +43,29 @@ class PairCoulLongSPH : public Pair {
   virtual void unpack_forward_comm(int, int, double *);
   int pack_reverse_comm(int, int, double *);
   void unpack_reverse_comm(int, int *, double *);
-//   virtual double single(int, int, int, int, double, double, double, double &);
-  virtual void *extract(const char *, int &);
+  void *extract(const char *, int &);
 
  protected:
-  int nmax; // allocated size of per-atom arrays
-
-  double cut_coul,cut_coulsq,qdist;
-  double *cut_respa;
-  double g_ewald;
-  double ke_in; //currently redundant - could be used as a multiplier
+  int nmax;
+  double cut_global;
+  double ke_in;
   int ion_species; // label which species are point charges
   int pseudo_key; // label to select pseudo parameters below
   int ion_charge; // ion charge
-  double ele_TFWHM; // twice the full width half maximum of the average electron in SPH system
-  double input_g_ewald;
-  double **scale;
-
-  // per-atom arrays
-  double *theta_coul;
-  double *chi_coul_ei;
-
-  int numforce; // value to check whether many body quantities have been computed prior to calling single()
+  double **cut,**scale;
 
   double sqrt2 = 1.4142135623730951;
   double sqrt_pi = 1.7724538509055159;
+
+  //per-atom arrays
+  double *theta_coul;
+  double *chi_coul_ei;
+  int *count;
 
   virtual void allocate();
 
   // Pseudopotential Gaussian Decomposition Parameters
 
-  // A - al_lda for 5.2 g/cc 3+ ions. Density-width constant of 1.05
   int al_lda_A_key = 0;
   int al_lda_A_ion_charge = 3;
   double al_lda_A_g_ewald = 0.0358953535654616; // g_ewald used for erf (k-space) removal 
@@ -87,17 +78,7 @@ class PairCoulLongSPH : public Pair {
   89734.388671875, 11642.630920410156, 22648.13720703125, -2.8933730144053698, 
   -36925.607421875, 18654.174072265625, -83205.1767578125, -0.14233727008104324, 
   -0.41864406527020037};
-
-  // C - al_lda for 5.2 g/cc 3+ ions. Density-width constant of 1.05
-  int al_lda_C_key = 2;
-  int al_lda_C_ion_charge = 3;
-  double al_lda_C_g_ewald = 0.0358953535654616; // g_ewald used for erf (k-space) removal 
-  int al_lda_C_Ncoeff = 9;
-  double al_lda_C_a[9] = {0.022063807735731536, 3.547822877903542, 0.09345367519018334, 0.3755945972301612, 0.0038878924104936274, 
-  2.9305118623360524, 3.2882171981907806, 3.2506380495467324, 3.3707537258599056};
-  double al_lda_C_c[9] = {-0.38168869834225916, 14500.067932128906, -0.7312451063917251, -1.5490339689422399, -0.2086173632540067, 
-  4738.353607177734, 454906.3154296875, -308486.9697265625, -165653.236328125};
-
+  
   double *c_coeff;
   double *a_coeff;
   int N_coeff;
@@ -120,12 +101,8 @@ E: Incorrect args for pair coefficients
 
 Self-explanatory.  Check the input script or data file.
 
-E: Pair style lj/cut/coul/long requires atom attribute q
+E: Pair style coul/cut requires atom attribute q
 
-The atom style defined does not have this attribute.
-
-E: Pair style requires a KSpace style
-
-No kspace style is defined.
+The atom style defined does not have these attributes.
 
 */

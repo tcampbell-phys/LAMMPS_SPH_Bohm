@@ -66,9 +66,9 @@ class PairCoulCutSPH : public Pair {
 
   // Pseudopotential Gaussian Decomposition Parameters
 
+// A - erf contribution removed
   int al_lda_A_key = 0;
   int al_lda_A_ion_charge = 3;
-  double al_lda_A_g_ewald = 0.0358953535654616; // g_ewald used for erf (k-space) removal 
   int al_lda_A_Ncoeff = 13;
   double al_lda_A_a[13] = {0.003876418186049235, 1.150625641772063, 0.056097205005079455, 0.019689359264809383, 
   1.747983820726069, 1.0998362686176768, 1.305314808231124, 0.36011457237236427, 
@@ -78,6 +78,15 @@ class PairCoulCutSPH : public Pair {
   89734.388671875, 11642.630920410156, 22648.13720703125, -2.8933730144053698, 
   -36925.607421875, 18654.174072265625, -83205.1767578125, -0.14233727008104324, 
   -0.41864406527020037};
+
+// B - no erf contribution removed. Slight deviation from true pseudo near origin
+  int al_lda_B_key = 1;
+  int al_lda_B_ion_charge = 3;
+  int al_lda_B_Ncoeff = 7;
+  double al_lda_B_a[7] = {0.002136611701287025, 0.11302714794414181, 0.023864321399827804, 16.358158351362377, 
+  0.5303677735320211, 1.6243022290451936, 1.6122771477857079};
+  double al_lda_B_c[7] = {-0.32036271967553065, -0.8633169812604677, -0.4424901366994751, 0.2138221574664385, 
+  -2.399742395954945, -330.45034973789006, 335.90637417469407};
   
   double *c_coeff;
   double *a_coeff;
