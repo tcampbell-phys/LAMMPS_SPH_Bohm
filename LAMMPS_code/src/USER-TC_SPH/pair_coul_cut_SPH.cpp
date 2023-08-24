@@ -453,6 +453,14 @@ void PairCoulCutSPH::settings(int narg, char **arg)
   pseudo_key = force->numeric(FLERR,arg[3]);
   ion_charge = force->numeric(FLERR,arg[4]);
 
+    // reset cutoffs that have been explicitly set
+
+  if (allocated) {
+    int i,j;
+    for (i = 1; i <= atom->ntypes; i++)
+      for (j = i; j <= atom->ntypes; j++)
+        if (setflag[i][j]) cut[i][j] = cut_global;
+  }
 
   // check input parameters match selected Pseudopotential parameters
   if (pseudo_key==al_lda_A_key){
@@ -472,6 +480,26 @@ void PairCoulCutSPH::settings(int narg, char **arg)
     if (ion_charge != al_lda_B_ion_charge){
       fprintf(screen,"\n ion_charge = %d \n",ion_charge);
       fprintf(screen,"\n al_lda_B_ion_charge = %d \n",al_lda_B_ion_charge);
+      error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
+    }
+  }
+  if (pseudo_key==al_lda_C_key){
+    c_coeff = al_lda_C_c;
+    a_coeff = al_lda_C_a;
+    N_coeff = al_lda_C_Ncoeff;
+    if (ion_charge != al_lda_C_ion_charge){
+      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      fprintf(screen,"\n al_lda_C_ion_charge = %d \n",al_lda_C_ion_charge);
+      error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
+    }
+  }
+  if (pseudo_key==al_lda_D_key){
+    c_coeff = al_lda_D_c;
+    a_coeff = al_lda_D_a;
+    N_coeff = al_lda_D_Ncoeff;
+    if (ion_charge != al_lda_D_ion_charge){
+      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      fprintf(screen,"\n al_lda_D_ion_charge = %d \n",al_lda_D_ion_charge);
       error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
     }
   }
