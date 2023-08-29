@@ -174,6 +174,12 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
     jlist = firstneigh[i];
     jnum = numneigh[i];
 
+    // fprintf(screen,"\nitype = %d",itype);
+    // fprintf(screen,"\npos: ");
+    // fprintf(screen,"\nx = %16.16f",x[i][0]);
+    // fprintf(screen,"\ny = %16.16f",x[i][1]);
+    // fprintf(screen,"\nz = %16.16f",x[i][2]);
+
     imass = mass[itype];
     if (itype != ion_species) {
       h_i = width_SPH[i];
@@ -213,6 +219,7 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
             if (newton_pair || j < nlocal) {
               theta_coul[j] += erfc*factor_coul*scale[itype][jtype]*theta_const*((qtmp*q[j])/(rho_SPH[j]*omega_SPH[j]))*(width_SPH[j]*width_SPH[j]/(eff_width*eff_width*eff_width))*exp(-rsq/(2*eff_width*eff_width));
             }
+            // fprintf(screen,"\ntheta_coul[i] = %16.16f",theta_coul[i]);
           }
 
           if (jtype == ion_species){
@@ -223,6 +230,7 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
               beta_k = a_coeff[k]/mu_k;
               chi_coul_ei[i] += prefact*c_coeff[k]*2*h_i*a_coeff[k]*exp(-beta_k*rsq)*pow(mu_k,-2.5)*(2*rsq*beta_k - 3);
             }
+            // fprintf(screen,"\nchi_coul_ei[i] = %16.16f",chi_coul_ei[i]);
           }
         }
 
@@ -237,6 +245,7 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
                 beta_k = a_coeff[k]/mu_k;
                 chi_coul_ei[j] += prefact*c_coeff[k]*2*width_SPH[j]*a_coeff[k]*exp(-beta_k*rsq)*pow(mu_k,-2.5)*(2*rsq*beta_k - 3);
               }
+              // fprintf(screen,"\nchi_coul_ei[j] = %16.16f",chi_coul_ei[j]);
             }
           }
         }
@@ -259,6 +268,12 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
     itype = type[i];
     jlist = firstneigh[i];
     jnum = numneigh[i];
+
+    // fprintf(screen,"\nitype = %d",itype);
+    // fprintf(screen,"\npos: ");
+    // fprintf(screen,"\nx = %16.16f",x[i][0]);
+    // fprintf(screen,"\ny = %16.16f",x[i][1]);
+    // fprintf(screen,"\nz = %16.16f",x[i][2]);
 
     if (itype != ion_species) {
       // electron target
@@ -319,7 +334,7 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
 
             ecoul *= factor_coul * qqrd2e * scale[itype][jtype];
             force_fact *= factor_coul * qqrd2e * scale[itype][jtype];
-
+            // fprintf(screen,"\ne-i force_fact = %16.16f",force_fact);
             f[i][0] += delx*force_fact;
             f[i][1] += dely*force_fact;
             f[i][2] += delz*force_fact;
@@ -343,7 +358,8 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
             eff_width = pow((h2_i + width_SPH[j]*width_SPH[j]),0.5);
 
             force_fact = ecoul*EWALD_F*g_ewald*expm2/r + erfc*factor_coul*qqrd2e*scale[itype][jtype]*(qtmp*q[j])*(erf(r/(sqrt2*eff_width))/(r*r*r) - (sqrt2/sqrt_pi)*(exp(-rsq/(2*eff_width*eff_width))/(eff_width*rsq)));
-
+            // fprintf(screen,"\ne-e force_fact = %16.16f",force_fact);
+            
             f[i][0] += delx*force_fact;
             f[i][1] += dely*force_fact;
             f[i][2] += delz*force_fact;
@@ -405,7 +421,8 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
             }
             ecoul *= factor_coul * qqrd2e * scale[itype][jtype];
             force_fact *= factor_coul * qqrd2e * scale[itype][jtype];
-
+            // fprintf(screen,"\ni-e force_fact = %16.16f",force_fact);
+            
             f[i][0] += delx*force_fact;
             f[i][1] += dely*force_fact;
             f[i][2] += delz*force_fact;
@@ -427,6 +444,8 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
             forcecoul = prefactor * (erfc + EWALD_F*grij*expm2);
             
             fpair = factor_coul * forcecoul * r2inv;
+            // fprintf(screen,"\ni-i force_fact = %16.16f",fpair);
+            
 
             f[i][0] += delx*fpair;
             f[i][1] += dely*fpair;
