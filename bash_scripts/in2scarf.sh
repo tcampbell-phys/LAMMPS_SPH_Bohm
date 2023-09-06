@@ -15,6 +15,9 @@
 #scp  fix_fermi_no_cons.cpp scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/lammps-3Mar20/src/
 #scp  fix_fermi_no_cons.h scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/lammps-3Mar20/src/
 
-scp ../input_decks/testing/in.scarf_legacy_benchmark2 scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/lammps-3Mar20/SPH_Bohm/
-scp ../input_decks/testing/in.scarf_SPH_benchmark2 scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/lammps-3Mar20/SPH_Bohm/
-# scp ../LAMMPS_code/pair_bohm_SPH_basic.* scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/lammps-3Mar20/src/
+# rsync ../input_decks/scarf/SPH_tests/in.* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/SPH_Bohm/
+scp ../LAMMPS_code/src/USER-TC_SPH/*.cpp scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
+scp ../LAMMPS_code/src/USER-TC_SPH/*.h scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
+# scp ../LAMMPS_code/src/USER-TC_SPH/pair_coul_pseudo/* scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
+# scp ../LAMMPS_code/src/USER-TC_SPH/pair_coul_no_pseudo/* scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
+# scp ../LAMMPS_code/src/USER-TC_SPH/pair_bohm/* scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/

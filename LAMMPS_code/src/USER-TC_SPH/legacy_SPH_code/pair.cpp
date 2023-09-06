@@ -82,7 +82,7 @@ Pair::Pair(LAMMPS *lmp) : Pointers(lmp)
   mix_flag = GEOMETRIC;
   tail_flag = 0;
   etail = ptail = etail_ij = ptail_ij = 0.0;
-  ncoultablebits = 14;
+  ncoultablebits = 12;
   ndisptablebits = 12;
   tabinner = sqrt(2.0);
   tabinner_disp = sqrt(2.0);
@@ -327,8 +327,6 @@ void Pair::init_tables(double cut_coul, double *cut_respa)
   if (force->kspace == NULL)
     error->all(FLERR,"Pair style requires a KSpace style");
   double g_ewald = force->kspace->g_ewald;
-  // fprintf(screen,"\ntable g_ewald = %16.16f\n",g_ewald);
-
 
   double cut_coulsq = cut_coul * cut_coul;
 

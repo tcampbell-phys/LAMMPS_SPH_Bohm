@@ -236,6 +236,7 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
     imass = mass[itype];
 
     if (itype != ion_species) {
+      // fprintf(screen,"\n\ne target...");
       // electron target
 
       h_i = width_SPH[i];
@@ -244,10 +245,17 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
 
       gauss_pre_i = pi_fact*(1/(h_i*h_i*h_i));
       // ele-ele and ion-ele SPH dynamic terms
+      // fprintf(screen,"\ne fx self = %16.16f",-(theta_coul[i]+chi_coul_ei[i])*dx_rho_SPH[i]);
+      // fprintf(screen,"\ne fy self = %16.16f",-(theta_coul[i]+chi_coul_ei[i])*dy_rho_SPH[i]);
+      // fprintf(screen,"\ne fz self = %16.16f",-(theta_coul[i]+chi_coul_ei[i])*dz_rho_SPH[i]);
+
       f[i][0] += -(theta_coul[i]+chi_coul_ei[i])*dx_rho_SPH[i];
       f[i][1] += -(theta_coul[i]+chi_coul_ei[i])*dy_rho_SPH[i];
       f[i][2] += -(theta_coul[i]+chi_coul_ei[i])*dz_rho_SPH[i];
    
+    }
+    else{
+      // fprintf(screen,"\n\ni target...");
     }
     
     for (jj = 0; jj < jnum; jj++) {
@@ -264,6 +272,8 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
       jtype = type[j];
 
       if (rsq < cutsq[itype][jtype]) {
+
+        // fprintf(screen,"\nrsq = %16.16f",rsq);
 
         if (jtype != ion_species){
 
@@ -291,10 +301,21 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
             f[i][1] += dely*force_fact;
             f[i][2] += delz*force_fact;
 
+            // fprintf(screen,"\ni-e coul = %16.16f",ecoul);
+            // fprintf(screen,"\ni-e fact = %16.16f",force_fact);
+
+            // fprintf(screen,"\ni-e fx = %16.16f",delx*force_fact);
+            // fprintf(screen,"\ni-e fy = %16.16f",dely*force_fact);
+            // fprintf(screen,"\ni-e fz = %16.16f",delz*force_fact);
+
             if (newton_pair || j < nlocal) {
               f[j][0] -= delx*force_fact;
               f[j][1] -= dely*force_fact;
               f[j][2] -= delz*force_fact;
+
+              // fprintf(screen,"\ne-i fx = %16.16f",-delx*force_fact);
+              // fprintf(screen,"\ne-i fy = %16.16f",-dely*force_fact);
+              // fprintf(screen,"\ne-i fz = %16.16f",-delz*force_fact);
 
             }
             if (evflag) ev_tally(i,j,nlocal,newton_pair,
@@ -325,6 +346,10 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
             f[i][1] += (dely)*ji_fact;
             f[i][2] += (delz)*ji_fact;
 
+            // fprintf(screen,"\ne-e ji fx = %16.16f",delx*(force_fact+ji_fact));
+            // fprintf(screen,"\ne-e ji fy = %16.16f",dely*(force_fact+ji_fact));
+            // fprintf(screen,"\ne-e ji fz = %16.16f",delz*(force_fact+ji_fact));
+
             
             if (newton_pair || j < nlocal) {
 
@@ -341,9 +366,18 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
               f[j][1] -= (dely)*ij_fact;
               f[j][2] -= (delz)*ij_fact;
 
+              // fprintf(screen,"\ne-e ij fx = %16.16f",-delx*(force_fact+ij_fact));
+              // fprintf(screen,"\ne-e ij fy = %16.16f",-dely*(force_fact+ij_fact));
+              // fprintf(screen,"\ne-e ij fz = %16.16f",-delz*(force_fact+ij_fact));
+
+
             }
 
             if (eflag) ecoul = factor_coul * qqrd2e*scale[itype][jtype]*qtmp*q[j]*erf(rsqrt/(sqrt2*eff_width))/rsqrt;
+            
+            // fprintf(screen,"\ne-e coul = %16.16f",ecoul);
+            // fprintf(screen,"\ne-e fact = %16.16f",force_fact + 0.5*(ij_fact+ji_fact));
+
             // dynamic coulomb-SPH force expression is not pairwise symmetric
             // use of ev_tally not accurate for pressure evaluation - edit in future.
             full_factor = force_fact + 0.5*(ij_fact+ji_fact);
@@ -372,14 +406,27 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
             ecoul *= factor_coul * qqrd2e * scale[itype][jtype];
             force_fact *= factor_coul * qqrd2e * scale[itype][jtype];
 
+            // fprintf(screen,"\ne-i coul = %16.16f",ecoul);
+            // fprintf(screen,"\ne-i fact = %16.16f",force_fact);
+
             f[i][0] += delx*force_fact;
             f[i][1] += dely*force_fact;
             f[i][2] += delz*force_fact;
+
+            // fprintf(screen,"\ne-i fx = %16.16f",delx*force_fact);
+            // fprintf(screen,"\ne-i fy = %16.16f",dely*force_fact);
+            // fprintf(screen,"\ne-i fz = %16.16f",delz*force_fact);
+
 
             if (newton_pair || j < nlocal) {
               f[j][0] -= delx*force_fact;
               f[j][1] -= dely*force_fact;
               f[j][2] -= delz*force_fact;
+
+              // fprintf(screen,"\ni-e fx = %16.16f",-delx*force_fact);
+              // fprintf(screen,"\ni-e fy = %16.16f",-dely*force_fact);
+              // fprintf(screen,"\ni-e fz = %16.16f",-delz*force_fact);
+
 
             }
             if (evflag) ev_tally(i,j,nlocal,newton_pair,
@@ -394,18 +441,31 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
             rinv = sqrt(r2inv);
             forcecoul = qqrd2e * scale[itype][jtype] * qtmp*q[j]*rinv;
             fpair = factor_coul * forcecoul * r2inv;
+            // fprintf(screen,"\ni-i forcecoul = %16.16f",forcecoul);
+            // fprintf(screen,"\ni-i factor_coul = %16.16f",factor_coul);
 
             f[i][0] += delx*fpair;
             f[i][1] += dely*fpair;
             f[i][2] += delz*fpair;
+
+            // fprintf(screen,"\ni-i fx = %16.16f",delx*fpair);
+            // fprintf(screen,"\ni-i fy = %16.16f",dely*fpair);
+            // fprintf(screen,"\ni-i fz = %16.16f",delz*fpair);
 
             if (newton_pair || j < nlocal) {
               f[j][0] -= delx*fpair;
               f[j][1] -= dely*fpair;
               f[j][2] -= delz*fpair;
 
+              // fprintf(screen,"\ni-i fx = %16.16f",-delx*fpair);
+              // fprintf(screen,"\ni-i fy = %16.16f",-dely*fpair);
+              // fprintf(screen,"\ni-i fz = %16.16f",-delz*fpair);
+
+
             }
             if (eflag) ecoul = factor_coul * qqrd2e * scale[itype][jtype] * qtmp*q[j]*rinv;
+            // fprintf(screen,"\ni-i coul = %16.16f",ecoul);
+            // fprintf(screen,"\ni-i fact = %16.16f",fpair);
           
             if (evflag) ev_tally(i,j,nlocal,newton_pair,
                                 0.0,ecoul,fpair,delx,dely,delz);
@@ -468,8 +528,8 @@ void PairCoulCutSPH::settings(int narg, char **arg)
     a_coeff = al_lda_A_a;
     N_coeff = al_lda_A_Ncoeff;
     if (ion_charge != al_lda_A_ion_charge){
-      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
-      fprintf(screen,"\n al_lda_A_ion_charge = %d \n",al_lda_A_ion_charge);
+      // fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      // fprintf(screen,"\n al_lda_A_ion_charge = %d \n",al_lda_A_ion_charge);
       error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
     }
   }
@@ -478,8 +538,8 @@ void PairCoulCutSPH::settings(int narg, char **arg)
     a_coeff = al_lda_B_a;
     N_coeff = al_lda_B_Ncoeff;
     if (ion_charge != al_lda_B_ion_charge){
-      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
-      fprintf(screen,"\n al_lda_B_ion_charge = %d \n",al_lda_B_ion_charge);
+      // fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      // fprintf(screen,"\n al_lda_B_ion_charge = %d \n",al_lda_B_ion_charge);
       error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
     }
   }
@@ -488,8 +548,8 @@ void PairCoulCutSPH::settings(int narg, char **arg)
     a_coeff = al_lda_C_a;
     N_coeff = al_lda_C_Ncoeff;
     if (ion_charge != al_lda_C_ion_charge){
-      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
-      fprintf(screen,"\n al_lda_C_ion_charge = %d \n",al_lda_C_ion_charge);
+      // fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      // fprintf(screen,"\n al_lda_C_ion_charge = %d \n",al_lda_C_ion_charge);
       error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
     }
   }
@@ -498,8 +558,8 @@ void PairCoulCutSPH::settings(int narg, char **arg)
     a_coeff = al_lda_D_a;
     N_coeff = al_lda_D_Ncoeff;
     if (ion_charge != al_lda_D_ion_charge){
-      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
-      fprintf(screen,"\n al_lda_D_ion_charge = %d \n",al_lda_D_ion_charge);
+      // fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      // fprintf(screen,"\n al_lda_D_ion_charge = %d \n",al_lda_D_ion_charge);
       error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
     }
   }

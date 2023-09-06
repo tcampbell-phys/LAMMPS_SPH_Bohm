@@ -92,6 +92,8 @@ void PairCoulLong::compute(int eflag, int vflag)
   ilist = list->ilist;
   numneigh = list->numneigh;
   firstneigh = list->firstneigh;
+  fprintf(screen,"\n\n coul/long g_ewald = %16.16f",g_ewald);
+
 
   // loop over neighbors of my atoms
 
@@ -104,12 +106,6 @@ void PairCoulLong::compute(int eflag, int vflag)
     itype = type[i];
     jlist = firstneigh[i];
     jnum = numneigh[i];
-
-    // fprintf(screen,"\n\nTarget particle at...");
-    // fprintf(screen,"\nx = %16.16f",xtmp);
-    // fprintf(screen,"\ny = %16.16f",ytmp);
-    // fprintf(screen,"\nz = %16.16f",ztmp);
-    // fprintf(screen,"\ntype = %d",itype);
 
     for (jj = 0; jj < jnum; jj++) {
       j = jlist[jj];
@@ -124,8 +120,11 @@ void PairCoulLong::compute(int eflag, int vflag)
 
       if (rsq < cut_coulsq) {
         r2inv = 1.0/rsq;
+        r = sqrt(rsq);
+        fprintf(screen,"\n\nr = %16.16f",r);
+        fprintf(screen,"\ngr = %16.16f",r*g_ewald);
+        fprintf(screen,"\ncharge_prod = %16.16f",qtmp*q[j]);
         if (!ncoultablebits || rsq <= tabinnersq) {
-          r = sqrt(rsq);
           grij = g_ewald * r;
           expm2 = exp(-grij*grij);
           t = 1.0 / (1.0 + EWALD_P*grij);
@@ -153,14 +152,6 @@ void PairCoulLong::compute(int eflag, int vflag)
         f[i][0] += delx*fpair;
         f[i][1] += dely*fpair;
         f[i][2] += delz*fpair;
-
-        // fprintf(screen,"\n\nneighbour particle at...");
-        // fprintf(screen,"\nx = %16.16f",x[j][0]);
-        // fprintf(screen,"\ny = %16.16f",x[j][1]);
-        // fprintf(screen,"\nz = %16.16f",x[j][2]);
-        // fprintf(screen,"\ntype = %d",jtype);
-
-
         if (newton_pair || j < nlocal) {
           f[j][0] -= delx*fpair;
           f[j][1] -= dely*fpair;
@@ -168,19 +159,19 @@ void PairCoulLong::compute(int eflag, int vflag)
         }
 
         if (eflag) {
-          if (!ncoultablebits || rsq <= tabinnersq)
+          if (!ncoultablebits || rsq <= tabinnersq){
+            fprintf(screen,"\ndirect approx...");
             ecoul = prefactor*erfc;
+            fprintf(screen,"\necoul = %16.16f",ecoul);
+          }
           else {
+            fprintf(screen,"\ntable approx...");
             table = etable[itable] + fraction*detable[itable];
             ecoul = scale[itype][jtype] * qtmp*q[j] * table;
+            fprintf(screen,"\necoul = %16.16f",ecoul);
           }
           if (factor_coul < 1.0) ecoul -= (1.0-factor_coul)*prefactor;
         }
-        // fprintf(screen,"\necoul = %16.16f",ecoul);
-        // fprintf(screen,"\nerfc = %16.16f",erfc);
-        // fprintf(screen,"\nfx += %16.16f",delx*(fpair));
-        // fprintf(screen,"\nfy += %16.16f",dely*(fpair));
-        // fprintf(screen,"\nfz += %16.16f",delz*(fpair));
 
         if (evflag) ev_tally(i,j,nlocal,newton_pair,
                              0.0,ecoul,fpair,delx,dely,delz);
@@ -264,10 +255,15 @@ void PairCoulLong::init_style()
  if (force->kspace == NULL)
     error->all(FLERR,"Pair style requires a KSpace style");
   g_ewald = force->kspace->g_ewald;
+  fprintf(screen,"\nin coul/long init_style()...");
+    
 
   // setup force tables
 
-  if (ncoultablebits) init_tables(cut_coul,NULL);
+  if (ncoultablebits){
+    fprintf(screen,"\ninitialising coulomb tables...");
+    init_tables(cut_coul,NULL);
+  }
 }
 
 /* ----------------------------------------------------------------------
