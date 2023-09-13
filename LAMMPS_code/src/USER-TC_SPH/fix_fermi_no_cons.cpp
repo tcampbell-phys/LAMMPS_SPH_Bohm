@@ -65,7 +65,7 @@ int FixFermiNoCons::setmask()
 void FixFermiNoCons::init()
 {
 	dt = update->dt;
-	fprintf(screen,"init() dt = %f \n",dt);
+	// // fprintf(screen,"init() dt = %16.16f \n",dt);
 	dthalf = 0.5 * update->dt;
 	dt4 = 0.25 * update->dt;
 
@@ -82,10 +82,10 @@ void FixFermiNoCons::init()
 void FixFermiNoCons::setup(int /*vflag*/)
 {
 	double** v = atom->v;
-	error->message(FLERR,"Checking FixFermiNoCons::setup() is called.");
+	// error->message(FLERR,"Checking FixFermiNoCons::setup() is called.");
 
-    v_minus_quarter = v;
-    v_plus_quarter = v;
+	v_minus_quarter = v;
+	v_plus_quarter = v;
 }
 
 void FixFermiNoCons::initial_integrate(int /*vflag*/)
@@ -110,33 +110,33 @@ void FixFermiNoCons::initial_integrate(int /*vflag*/)
 	double exponent = 0.;
 	double one_plus_exp = 0.;
 
-    alpha_dot = 0.;
+	alpha_dot = 0.;
 
-    double t_current;
+	double t_current;
 
 	double ndim = 3;
 
 	t_current = temperature->compute_scalar();
-	//fprintf(screen,"alpha_plus_quarter = %f \n",alpha_plus_quarter);
+	//// fprintf(screen,"alpha_plus_quarter = %16.16f \n",alpha_plus_quarter);
 
 	beta = 1 / (boltz * t_target);
 
 	for(int i = 0; i < nlocal; ++i){
 		if (mask[i] & groupbit){
-			//fprintf(screen,"i = %d \n",i);
+			// // fprintf(screen,"i = %d \n",i);
 			particle_energy = 0.;
 			for(int j = 0; j < ndim; ++j){
 				particle_energy += (v[i][j] * v[i][j]);
-			//	fprintf(screen,"v[i][j] = %f \n",v[i][j]);
-			//	fprintf(screen,"in loop particle_energy = %f \n",particle_energy);
+			// // fprintf(screen,"v[i][j] = %16.16f \n",v[i][j]);
+			// // fprintf(screen,"in loop particle_energy = %16.16f \n",particle_energy);
 			}
 			particle_energy *= (0.5 * species_mass);
-			//fprintf(screen,"species_mass = %f \n",species_mass);
-			//fprintf(screen,"post loop particle_energy = %f \n",particle_energy);
+			//// fprintf(screen,"species_mass = %16.16f \n",species_mass);
+			// // fprintf(screen,"post loop particle_energy = %16.16f \n",particle_energy);
 			exponent = beta * (particle_energy - mu);
-			//fprintf(screen,"initial_integrate() exponent = %f \n",exponent);
+			// // fprintf(screen,"initial_integrate() exponent = %16.16f \n",exponent);
 			one_plus_exp = 1. + exp(exponent);
-			//fprintf(screen,"initial_integrate() one_plus_exp = %f \n",one_plus_exp);
+			// // fprintf(screen,"initial_integrate() one_plus_exp = %16.16f \n",one_plus_exp);
 
 			if(exponent > exp_cutoff){
 				alpha_dot += 0.5 * alpha_mass * species_mass * (2. * particle_energy * beta	-3.);
@@ -146,45 +146,46 @@ void FixFermiNoCons::initial_integrate(int /*vflag*/)
 				alpha_dot -= 0.5 * alpha_mass * species_mass * (2. * particle_energy * beta * 
 					(2. - one_plus_exp) / one_plus_exp + 3.) * (one_plus_exp - 1.) / one_plus_exp;
 			}
-			//fprintf(screen,"alpha_dot = %f \n",alpha_dot);
 		}
-    }
+		// fprintf(screen,"init alpha_dot = %16.16f \n",alpha_dot);
+  }
 	alpha_minus_quarter = alpha_plus_quarter;
 	alpha_plus_quarter = alpha_minus_quarter + alpha_dot * dthalf;
 	alpha_half = 0.5 * (alpha_minus_quarter + alpha_plus_quarter);
 
-	//fprintf(screen,"initial_integrate() alpha_half = %f \n",alpha_half);
+	//// fprintf(screen,"initial_integrate() alpha_half = %16.16f \n",alpha_half);
 
   	for(int i = 0; i < nlocal; ++i){
   		if (mask[i]&groupbit){
-			particle_energy = 0.;
-			for(int j = 0; j < ndim; ++j){
-				particle_energy += (v[i][j] * v[i][j]);
-			}
-			particle_energy *= 0.5 * species_mass;
-			exponent = beta * (particle_energy - mu);
-			one_plus_exp = 1. + exp(exponent);
+				particle_energy = 0.;
+				for(int j = 0; j < ndim; ++j){
+					particle_energy += (v[i][j] * v[i][j]);
+				}
+				particle_energy *= 0.5 * species_mass;
+				exponent = beta * (particle_energy - mu);
+				one_plus_exp = 1. + exp(exponent);
 
-			if(exponent > exp_cutoff){
-				force_multiplier = 1.;
-				friction_multiplier = 0.5 * species_mass * beta;
-			
-			}
-			else{
-				force_multiplier = one_plus_exp * (log(one_plus_exp) - exponent);
-				friction_multiplier = 0.5 * species_mass * beta * (one_plus_exp - 1.) / one_plus_exp;
-			}
-			for(int j = 0; j < ndim; ++j){
-				v_minus_quarter[i][j] = v_plus_quarter[i][j];
-	      		potential_force = f[i][j] * force_multiplier;
-	      		friction_force = - friction_multiplier * alpha_half * v[i][j] * species_mass;
-	     	 	v_plus_quarter[i][j] = v_minus_quarter[i][j] + dthalf * (potential_force + friction_force) / species_mass;
-				v[i][j] = 0.5 * (v_minus_quarter[i][j] + v_plus_quarter[i][j]);
-			    x[i][j] += dt * v_plus_quarter[i][j];
-			    //fprintf(screen,"x[i][j] pre mod = %f \n",x[i][j]);
-			    x[i][j] = fmod(x[i][j],full_box_len);
+				if(exponent > exp_cutoff){
+					force_multiplier = 1.;
+					friction_multiplier = 0.5 * species_mass * beta;
+				
+				}
+				else{
+					force_multiplier = one_plus_exp * (log(one_plus_exp) - exponent);
+					friction_multiplier = 0.5 * species_mass * beta * (one_plus_exp - 1.) / one_plus_exp;
+				}
+				for(int j = 0; j < ndim; ++j){
+					v_minus_quarter[i][j] = v_plus_quarter[i][j];
+					potential_force = f[i][j] * force_multiplier;
+					// fprintf(screen,"\ninit f[i][j] = %16.16f",f[i][j]);
+					friction_force = - friction_multiplier * alpha_half * v[i][j] * species_mass;
+					v_plus_quarter[i][j] = v_minus_quarter[i][j] + dthalf * (potential_force + friction_force) / species_mass;
+					v[i][j] = 0.5 * (v_minus_quarter[i][j] + v_plus_quarter[i][j]);
+					x[i][j] += dt * v_plus_quarter[i][j];
+			    // // fprintf(screen,"x[i][j] pre mod = %16.16f \n",x[i][j]);
+		    	// x[i][j] = fmod(x[i][j],full_box_len);
 
-			    //fprintf(screen,"x[i][j] post mod = %f \n",x[i][j]);
+			    // // fprintf(screen,"x[i][j] post mod = %16.16f \n",x[i][j]);
 			}
     	}
     }
@@ -215,12 +216,12 @@ void FixFermiNoCons::final_integrate()
 	double one_plus_exp = 0.;
 	double t_current;
 
-    alpha_dot = 0.;
+  alpha_dot = 0.;
 
 	double ndim = 3;
 
 	t_current = temperature->compute_scalar();
-	//fprintf(screen,"t_current = %f \n",t_current);
+	//// fprintf(screen,"t_current = %16.16f \n",t_current);
 	beta = 1 / (boltz * t_target);
 
 	for(int i = 0; i < nlocal; ++i){
@@ -229,14 +230,14 @@ void FixFermiNoCons::final_integrate()
 
 			for(int j = 0; j < ndim; ++j){
 				particle_energy += (v[i][j] * v[i][j]);
-				//fprintf(screen,"final_integrate() v[i][j] = %d \n",v[i][j]);
+				//// fprintf(screen,"final_integrate() v[i][j] = %d \n",v[i][j]);
 			}
 			particle_energy *= 0.5 * species_mass;
-			//fprintf(screen,"initial_integrate() particle_energy = %f \n",particle_energy);
+			//// fprintf(screen,"initial_integrate() particle_energy = %16.16f \n",particle_energy);
 			exponent = beta * (particle_energy - mu);
-			//fprintf(screen,"initial_integrate() exponent = %f \n",exponent);
+			//// fprintf(screen,"initial_integrate() exponent = %16.16f \n",exponent);
 			one_plus_exp = 1. + exp(exponent);
-			//fprintf(screen,"initial_integrate() one_plus_exp = %f \n",one_plus_exp);
+			//// fprintf(screen,"initial_integrate() one_plus_exp = %16.16f \n",one_plus_exp);
 
 			if(exponent > exp_cutoff){
 				alpha_dot += 0.5 * alpha_mass * species_mass * (2. * particle_energy * beta	-3.);
@@ -247,44 +248,52 @@ void FixFermiNoCons::final_integrate()
 					(2. - one_plus_exp) / one_plus_exp + 3.) * (one_plus_exp - 1.) / one_plus_exp;
 			}
 		}
-    }
+		// fprintf(screen,"\nfinal alpha_dot = %16.16f \n",alpha_dot);
+  }
 
 	alpha_minus_quarter = alpha_plus_quarter;
 	alpha_plus_quarter = alpha_minus_quarter + alpha_dot * dthalf;
 	alpha_half = 0.5 * (alpha_minus_quarter + alpha_plus_quarter);
 
-	//fprintf(screen,"final_integrate() alpha_half = %f \n",alpha_half);
+	//// fprintf(screen,"final_integrate() alpha_half = %16.16f \n",alpha_half);
 
   	for(int i = 0; i < nlocal; ++i){
   		if (mask[i] & groupbit){
-			particle_energy = 0.;
-			for(int j = 0; j < ndim; ++j){
-				particle_energy += (v[i][j] * v[i][j]);
-			}
-			particle_energy *= 0.5 * species_mass;
-			exponent = beta * (particle_energy - mu);
-			one_plus_exp = 1. + exp(exponent);
+				particle_energy = 0.;
+				for(int j = 0; j < ndim; ++j){
+					particle_energy += (v[i][j] * v[i][j]);
+				}
+				particle_energy *= 0.5 * species_mass;
+				exponent = beta * (particle_energy - mu);
+				// // fprintf(screen,"\nfinal exponent = %16.16f",exponent);
+				one_plus_exp = 1. + exp(exponent);
+				// // fprintf(screen,"\nfinal one_plus_exp = %16.16f",one_plus_exp);
+				
 
-			if(exponent > exp_cutoff){
-				force_multiplier = 1.;
-				friction_multiplier = 0.5 * species_mass * beta;
-			
-			}
-			else{
-				force_multiplier = one_plus_exp * (log(one_plus_exp) - exponent);
-				friction_multiplier = 0.5 * species_mass * beta * (one_plus_exp - 1.) / one_plus_exp;
-			}
-			for(int j = 0; j < ndim; ++j){
+				if(exponent > exp_cutoff){
+					force_multiplier = 1.;
+					friction_multiplier = 0.5 * species_mass * beta;
+				}
+				else{
+					force_multiplier = one_plus_exp * (log(one_plus_exp) - exponent);
+					friction_multiplier = 0.5 * species_mass * beta * (one_plus_exp - 1.) / one_plus_exp;
+				}
+				// fprintf(screen,"\nfinal force_multiplier = %16.16f",force_multiplier);
+				
+				for(int j = 0; j < ndim; ++j){
 
-				v_minus_quarter[i][j] = v_plus_quarter[i][j];
-		        potential_force = f[i][j] * force_multiplier;
-		        friction_force = - friction_multiplier * alpha_half * v[i][j] * species_mass;
-		        v_plus_quarter[i][j] = v_minus_quarter[i][j] + dthalf * (potential_force + friction_force) / species_mass;
-				v[i][j] = 0.5 * (v_minus_quarter[i][j] + v_plus_quarter[i][j]);
+					v_minus_quarter[i][j] = v_plus_quarter[i][j];
+		      potential_force = f[i][j] * force_multiplier;
+					// fprintf(screen,"\nfinal f[i][j] = %16.16f",f[i][j]);
+					// // fprintf(screen,"\nfinal potential_force = %16.16f",potential_force);
+		      friction_force = - friction_multiplier * alpha_half * v[i][j] * species_mass;
+		      // // fprintf(screen,"\nfinal friction_force = %16.16f",friction_force);
+		      v_plus_quarter[i][j] = v_minus_quarter[i][j] + dthalf * (potential_force + friction_force) / species_mass;
+					v[i][j] = 0.5 * (v_minus_quarter[i][j] + v_plus_quarter[i][j]);
+					// // fprintf(screen,"\nfinal v[i][j] = %16.16f",v[i][j]);
 	    	}
-		}
+			}
   	}	
-//  	t_current = temperature->compute_scalar();
 }
 
 /* ----------------------------------------------------------------------

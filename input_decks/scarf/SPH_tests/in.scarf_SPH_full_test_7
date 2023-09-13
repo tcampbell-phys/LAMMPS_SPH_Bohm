@@ -1,0 +1,256 @@
+# Set output directory
+
+variable out_number string 7
+
+### BACKUP SIMULATION FILES
+
+# CAREFUL - check pauli_table gamma coefficient matches gamma_factor input
+
+variable gamma_factor equal 0.1295677271971129
+variable pauli_table string pauli_gamma_Al_3point5eV_5point2gcc_FULL_PAULI_0point0.table
+
+variable outputdir string scarf_SPH_full_test_${out_number}
+shell mkdir /work4/clf/scarf734/LAMMPS/SPH_Bohm/testing/${outputdir}/
+shell cp ~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/SPH_Bohm/in.scarf_SPH_full_test_${out_number} /work4/clf/scarf734/LAMMPS/SPH_Bohm/testing/${outputdir}/
+shell cp ~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/pair_bohm_SPH_dynamic.cpp /work4/clf/scarf734/LAMMPS/SPH_Bohm/testing/${outputdir}/
+shell cp ~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/pair_bohm_SPH_dynamic.h /work4/clf/scarf734/LAMMPS/SPH_Bohm/testing/${outputdir}/
+shell cp ~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/pair_coul_long_SPH_ph.cpp /work4/clf/scarf734/LAMMPS/SPH_Bohm/testing/${outputdir}/
+shell cp ~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/pair_coul_long_SPH_ph.h /work4/clf/scarf734/LAMMPS/SPH_Bohm/testing/${outputdir}/
+log /work4/clf/scarf734/LAMMPS/SPH_Bohm/testing/${outputdir}/log.${outputdir}  
+
+### SYSTEM PARAMETERS: 
+
+### physical parameters:
+
+variable temp equal 3.5		                                        # Temperature in eV
+variable al_solid_density equal 0.00899                             # Density in # per bohr^3
+variable compression equal 1.912
+variable ion_density equal ${compression}*${al_solid_density}  		# Density in # per bohr^3
+variable num_ions equal 1000	                                        # Number of ions
+variable ion_charge equal 3			                                # Average charge/ionization
+variable ion_amu equal 26.982	                                # Atomic mass of ion
+variable electron_amu equal 0.00054857991                           # Atomic mass of electrons
+
+variable sigma_start equal 2.9                                         # Start global packet width of electrons in bohr
+
+variable num_electrons equal ${num_ions}*${ion_charge}
+variable half_num_electrons equal ${num_electrons}/2.0
+variable temptouse equal 11604*${temp}
+variable box_len equal (${num_ions}/${ion_density})^(1/3)
+variable half_box_len equal ${box_len}/2.0
+
+### simulation parameters:
+
+variable time_step_length equal 2.5e-3
+variable equi_time_steps equal 5e3
+variable data_time_steps equal 5e3
+variable dump_ts_freq equal 5e3
+variable cutoff equal 15.377                                        # cutoff for pairwise calculations
+
+units electron                                                      # use electron units (Hartree)
+newton on
+boundary p p p
+atom_style SPH     
+
+# Pair style string selection
+
+variable pair_name string bohm_SPH_dynamic
+
+variable ion_seed equal 910
+variable e_up_seed equal 707
+variable e_down_seed equal 78
+
+# thermostat parameters
+
+variable ion_vel_seed equal 7389
+variable e_down_vel_seed equal 83671
+variable e_up_vel_seed equal 76665
+
+variable i_temp_damping equal ${time_step_length}*100
+variable e_temp_damping equal ${time_step_length}*10000
+
+variable alpha_mass equal 200.0
+variable exp_cutoff equal 20.0
+variable mu equal 0.64125                                           # ensure chemical potential matches with physical parameters
+
+### NOTE - initialising particles from rest
+variable vel_t equal 1.0*${temptouse}
+
+# rdf calculation
+
+variable rdf_num_bins equal 150
+variable rdf_num_measurements equal 100
+variable rdf_output_time_step equal 500
+variable rdf_measurement_time_gap equal 1 
+
+### Setup simulation
+
+region bounding_region block 0.0 ${box_len} 0.0 ${box_len} 0.0 ${box_len}
+timestep ${time_step_length}
+
+create_box 3 bounding_region
+
+create_atoms 1 random ${num_ions} ${ion_seed} NULL
+group ion type 1
+mass 1 ${ion_amu}
+set type 1 charge 3.0
+
+create_atoms 2 random ${half_num_electrons} ${e_up_seed} NULL
+group e_up type 2
+mass 2 ${electron_amu}
+set type 2 charge -1.0
+
+create_atoms 3 random ${half_num_electrons} ${e_down_seed} NULL
+group e_down type 3
+mass 3 ${electron_amu}
+set type 3 charge -1.0
+
+group electrons type 2 3
+
+# Ensure ghost atom velocities communicated for SPH Bohm Potential:
+
+comm_modify vel yes
+
+variable bitmap_N equal 15
+
+variable pseudo_key equal 3
+
+### Dynamic Width fix
+variable dens_wid_const equal 1.1
+variable N_iter equal 1
+variable mix_fact equal 0.5
+variable tfwhm equal 4.70964*${dens_wid_const}*${box_len}/(${num_electrons}^(1/3))
+variable type_avoid equal 1 #ensure ions are not included in SPH loops (must match ion type)
+
+pair_style hybrid/overlay ${pair_name} ${cutoff} ${gamma_factor} coul/long/SPH_ph ${cutoff} 1.0 1 ${pseudo_key} ${ion_charge} ${tfwhm} table bitmap ${bitmap_N}
+
+# Set up each pair with the correct styles:
+
+pair_coeff * * coul/long/SPH_ph
+pair_coeff 2 2 ${pair_name}
+pair_coeff 2 3 ${pair_name}
+pair_coeff 3 3 ${pair_name}
+pair_coeff 2 2 table ${pauli_table} FORCE_TABLE
+pair_coeff 3 3 table ${pauli_table} FORCE_TABLE
+
+# kspace
+variable ewalds_parameter equal 3/${cutoff}
+kspace_style ewald 1.0e-4
+kspace_modify gewald ${ewalds_parameter}
+
+fix ele_dyn_wid electrons dynamic_widths ${dens_wid_const} ${N_iter} ${mix_fact} ${sigma_start} ${cutoff} ${type_avoid} ${pair_name}
+
+fix fermi_thermostat electrons fermi_nvt_no_cons ${temptouse} ${box_len} ${alpha_mass} ${electron_amu} ${exp_cutoff} ${mu}
+
+### Thermostatting
+
+fix ion_nvt ion nvt temp ${temptouse} ${temptouse} ${i_temp_damping}
+
+velocity ion create ${temptouse} ${ion_vel_seed} &
+rot yes dist gaussian
+
+velocity e_down create ${vel_t} ${e_down_vel_seed} &
+rot yes dist gaussian
+
+velocity e_up create ${vel_t} ${e_up_vel_seed} &
+rot yes dist gaussian
+
+# Randomize the starting positions of all of our particles
+
+displace_atoms all random 0.1 0.1 0.1 42
+
+# Compute group temperatures for output in logfile
+
+compute ion_temp ion temp
+
+compute e_up_temp e_up temp
+
+compute e_down_temp e_down temp
+
+# Compute group KEs for output in logfile
+
+compute e_up_ke e_up ke
+
+compute e_down_ke e_down ke
+
+# Compute pair correlation functions:
+
+compute ion_ion_rdf all rdf ${rdf_num_bins} &
+1 1
+
+compute ion_e_up_rdf all rdf ${rdf_num_bins} &
+1 2
+
+compute ion_e_down_rdf all rdf ${rdf_num_bins} &
+1 3
+
+compute e_up_e_up_rdf all rdf ${rdf_num_bins} &
+2 2
+
+compute e_up_e_down_rdf all rdf ${rdf_num_bins} &
+2 3
+
+compute e_down_e_down_rdf all rdf ${rdf_num_bins} &
+3 3
+
+fix write_ion_ion_rdf all ave/time &
+${rdf_measurement_time_gap} ${rdf_num_measurements} ${rdf_output_time_step} &
+c_ion_ion_rdf[*] file &
+/work4/clf/scarf734/LAMMPS/SPH_Bohm/testing/${outputdir}/ion_ion.rdf mode vector
+
+fix write_ion_e_up_rdf all ave/time &
+${rdf_measurement_time_gap} ${rdf_num_measurements} ${rdf_output_time_step} &
+c_ion_e_up_rdf[*] file &
+/work4/clf/scarf734/LAMMPS/SPH_Bohm/testing/${outputdir}/ion_e_up.rdf mode vector
+
+fix write_ion_e_down_rdf all ave/time &
+${rdf_measurement_time_gap} ${rdf_num_measurements} ${rdf_output_time_step} &
+c_ion_e_down_rdf[*] file &
+/work4/clf/scarf734/LAMMPS/SPH_Bohm/testing/${outputdir}/ion_e_down.rdf mode vector
+
+fix write_e_up_e_down_rdf all ave/time &
+${rdf_measurement_time_gap} ${rdf_num_measurements} ${rdf_output_time_step} &
+c_e_up_e_down_rdf[*] file &
+/work4/clf/scarf734/LAMMPS/SPH_Bohm/testing/${outputdir}/e_up_e_down.rdf mode vector
+
+fix write_e_up_e_up_rdf all ave/time &
+${rdf_measurement_time_gap} ${rdf_num_measurements} ${rdf_output_time_step} &
+c_e_up_e_up_rdf[*] file &
+/work4/clf/scarf734/LAMMPS/SPH_Bohm/testing/${outputdir}/e_up_e_up.rdf mode vector
+
+fix write_e_down_e_down_rdf all ave/time &
+${rdf_measurement_time_gap} ${rdf_num_measurements} ${rdf_output_time_step} &
+c_e_down_e_down_rdf[*] file &
+/work4/clf/scarf734/LAMMPS/SPH_Bohm/testing/${outputdir}/e_down_e_down.rdf mode vector
+
+# custom logfile output
+
+thermo_style custom step temp c_ion_temp c_e_up_temp c_e_down_temp pe ke etotal press
+
+# Minimize energy
+
+min_style cg
+minimize 1.0e-4 1.0e-5 1000 10000 
+
+reset_timestep 0
+
+# Check forces
+
+variable rhi equal 19.36
+variable rlo equal 1.001e-2
+variable write_N equal 1936
+
+# modify logfile output
+
+thermo_modify lost warn
+thermo 10
+thermo_style custom step temp c_ion_temp c_e_up_temp c_e_down_temp pe ke etotal press
+
+dump 1 all custom ${dump_ts_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/testing/${outputdir}/all_data.dump id type fx fy fz x y z rho_SPH width_SPH omega_SPH u_SPH vx vy vz
+dump_modify 1 format line "%d %d %16.16f %16.16f %16.16f %16.16f %16.16f %16.16f %16.16f %16.16f %16.16f %16.16f %16.16f %16.16f %16.16f"
+run ${equi_time_steps}
+unfix ion_nvt
+fix ion_nve ion nve
+run ${data_time_steps}
+
+quit 0

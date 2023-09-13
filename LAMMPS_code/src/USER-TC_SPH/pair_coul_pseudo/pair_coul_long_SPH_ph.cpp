@@ -750,6 +750,21 @@ void PairCoulLongSPHph::settings(int narg, char **arg)
       error->all(FLERR,"PSEUDO_ERR cutoff too short for use with SPH coulomb: cutoff must be larger than TFWHM");
     }
   }
+    if (pseudo_key==al_lda_D_key){
+    c_coeff = al_lda_D_c;
+    a_coeff = al_lda_D_a;
+    N_coeff = al_lda_D_Ncoeff;
+    if (ion_charge != al_lda_D_ion_charge){
+      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      fprintf(screen,"\n al_lda_D_ion_charge = %d \n",al_lda_D_ion_charge);
+      error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
+    }
+    if (cut_coul < ele_TFWHM){
+      fprintf(screen,"\n cut_coul = %16.16f \n",cut_coul);
+      fprintf(screen,"\n ele_TFWHM = %16.16f \n",ele_TFWHM);
+      error->all(FLERR,"PSEUDO_ERR cutoff too short for use with SPH coulomb: cutoff must be larger than TFWHM");
+    }
+  }
 }
 
 /* ----------------------------------------------------------------------

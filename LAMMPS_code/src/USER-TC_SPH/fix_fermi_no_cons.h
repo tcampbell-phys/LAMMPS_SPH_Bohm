@@ -37,11 +37,10 @@ class FixFermiNoCons : public Fix {
 	double mu;
 	double** v_minus_quarter;
 	double** v_plus_quarter;
-    char *id_temp;
+  char *id_temp;
 
-    class Compute *temperature,*pressure;
-
-    int tcomputeflag;
+  class Compute *temperature,*pressure;
+  int tcomputeflag;
 
 };
 
