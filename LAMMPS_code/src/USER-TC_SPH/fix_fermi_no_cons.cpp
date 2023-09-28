@@ -69,6 +69,7 @@ void FixFermiNoCons::init()
 	dthalf = 0.5 * update->dt;
 	dt4 = 0.25 * update->dt;
 
+	// to do: call boltz correct to units not just electron value
 	boltz = 3.16681e-6;
 
 	int icompute = modify->find_compute(id_temp);
