@@ -38,7 +38,9 @@ class PairFilinovTriplet : public Pair {
   double boltz_val;
   double hbar_val;
   double e_mass;
-  double **cut
+  double **cut;
+
+  virtual void allocate();
 };
 
 }

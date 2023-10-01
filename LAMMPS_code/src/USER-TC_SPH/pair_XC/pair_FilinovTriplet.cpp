@@ -2,7 +2,7 @@
 Thomas Campbell (Oxford)
 ------------------------------------------------------------------------- */
 
-#include "pair_FilinovSinglet.h"
+#include "pair_FilinovTriplet.h"
 #include "domain.h"
 #include <mpi.h>
 #include <cmath>
@@ -68,8 +68,6 @@ void PairFilinovTriplet::compute(int eflag, int vflag)
   double for_pre_fact = (2 * boltz_val * targ_temp * boltz_val * targ_temp * e_mass)/(hbar_val * hbar_val);
   double exp_fact = (boltz_val * targ_temp * e_mass)/(hbar_val * hbar_val);
 
-  fpair = for_pre_fact*exp(-exp_fact*rsq)/(1-exp(-exp_fact*rsq));
-
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
     xtmp = x[i][0];
@@ -90,6 +88,8 @@ void PairFilinovTriplet::compute(int eflag, int vflag)
       jtype = type[j];
 
       if (rsq < cutsq[itype][jtype]) {
+
+        fpair = for_pre_fact*exp(-exp_fact*rsq)/(1-exp(-exp_fact*rsq));
 
         f[i][0] += fpair*(delx);
         f[i][1] += fpair*(dely);

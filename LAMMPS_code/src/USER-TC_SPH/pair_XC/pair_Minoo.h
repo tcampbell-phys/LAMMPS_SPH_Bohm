@@ -39,7 +39,9 @@ class PairMinoo : public Pair {
   double hbar_val;
   double e_mass;
   double ln_two = 0.6931471805599453;
-  double **cut
+  double **cut;
+
+  virtual void allocate();
 };
 
 }
