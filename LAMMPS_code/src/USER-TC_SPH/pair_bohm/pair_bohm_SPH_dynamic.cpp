@@ -94,7 +94,7 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
   hbar = hplanck/(2*M_PI);
 
   // Bohm pressure prefactor
-  f_prefactor = (hbar*hbar)/(4*e_mass);
+  f_prefactor = force->hhmrr2e * (hbar*hbar)/(4*e_mass);
 
   int *ilist,*jlist,*numneigh,**firstneigh;
 
@@ -582,7 +582,6 @@ int PairBohmSPHDynamic::pack_forward_comm(int n, int *list, double *buf,
       buf[m++] = dyz_rho[j];
       buf[m++] = dzz_rho[j];
     }
-    return m;
   }
   if (commflag == 1){
     double *u_SPH = atom->u_SPH;
@@ -590,8 +589,8 @@ int PairBohmSPHDynamic::pack_forward_comm(int n, int *list, double *buf,
       j = list[i];
       buf[m++] = u_SPH[j];
     }
-    return m;
   }
+  return m;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -637,15 +636,14 @@ int PairBohmSPHDynamic::pack_reverse_comm(int n, int first, double *buf)
       buf[m++] = dyz_rho[i];
       buf[m++] = dzz_rho[i];
     }
-    return m;
   }
   if (commflag == 1){
     double *u_SPH = atom->u_SPH; 
     for (i = first; i < last; i++){
       buf[m++] = u_SPH[i];
     }
-    return m;
   }
+  return m;
 }
 
 /* ---------------------------------------------------------------------- */

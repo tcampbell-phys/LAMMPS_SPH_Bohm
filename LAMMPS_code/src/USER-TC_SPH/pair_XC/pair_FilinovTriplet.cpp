@@ -65,8 +65,8 @@ void PairFilinovTriplet::compute(int eflag, int vflag)
   firstneigh = list->firstneigh;
 
   double pot_pre_fact = - boltz_val * targ_temp;
-  double for_pre_fact = (2 * boltz_val * targ_temp * boltz_val * targ_temp * e_mass)/(hbar_val * hbar_val);
-  double exp_fact = (boltz_val * targ_temp * e_mass)/(hbar_val * hbar_val);
+  double for_pre_fact = (2 * boltz_val * targ_temp * boltz_val * targ_temp)/(hh_me);
+  double exp_fact = (boltz_val * targ_temp)/(hh_me);
 
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
@@ -139,6 +139,8 @@ void PairFilinovTriplet::settings(int narg, char **arg)
   cut_global = force->numeric(FLERR,arg[0]);
   targ_temp = force->numeric(FLERR,arg[1]);
   e_mass = force->numeric(FLERR,arg[2]);
+
+  hh_me = force->hhmrr2e * hbar_val * hbar_val/e_mass;
 
   // reset cutoffs that have been explicitly set
 

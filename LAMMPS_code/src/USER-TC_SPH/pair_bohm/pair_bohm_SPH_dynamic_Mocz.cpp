@@ -99,7 +99,7 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
   hbar = hplanck/(2*M_PI);
 
   // Bohm pressure prefactor
-  f_prefactor = (hbar*hbar)/(4*e_mass);
+  f_prefactor = force->hhmrr2e * (hbar*hbar)/(4*e_mass);
 
   int *ilist,*jlist,*numneigh,**firstneigh;
 
@@ -314,15 +314,6 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
     // 3D Gaussian prefactor
     gauss_pre_i = pi_fact*(1./(h_i*h_i*h_i));
 
-    // // fprintf(screen,"\nParticle at...\n");
-    // // fprintf(screen,"x = %16.16f\n",xtmp);
-    // // fprintf(screen,"y = %16.16f\n",ytmp);
-    // // fprintf(screen,"z = %16.16f\n",ztmp);
-
-    // // fprintf(screen,"dx_rho_SPH = %16.16f\n",dx_rho_SPH[i]);
-    // // fprintf(screen,"dy_rho_SPH = %16.16f\n",dy_rho_SPH[i]);
-    // // fprintf(screen,"dz_rho_SPH = %16.16f\n",dz_rho_SPH[i]);
-
     Pixx = gamma_factor*f_prefactor*((dx_rho_SPH[i]*dx_rho_SPH[i])/rho_SPH[i] - dxx_rho[i]);
     Pixy = gamma_factor*f_prefactor*((dx_rho_SPH[i]*dy_rho_SPH[i])/rho_SPH[i] - dxy_rho[i]);
     Pixz = gamma_factor*f_prefactor*((dx_rho_SPH[i]*dz_rho_SPH[i])/rho_SPH[i] - dxz_rho[i]);
@@ -331,14 +322,6 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
     Pizz = gamma_factor*f_prefactor*((dz_rho_SPH[i]*dz_rho_SPH[i])/rho_SPH[i] - dzz_rho[i]);
 
     u_prefact_i = (dt/(rho_i2*omega_i));
-
-    // fprintf(screen,"\nBohm h_i = %16.16f",h_i);
-
-    // fprintf(screen,"\nBohm omega_i = %16.16f",omega_i);
-
-    // fprintf(screen,"\nBohm rho_i2 = %16.16f",rho_i2);
-
-    // fprintf(screen,"\nBohm Pixx = %16.16f",Pixx);
 
     for (jj = 0; jj < jnum; jj++) {
       j = jlist[jj];
@@ -614,17 +597,15 @@ int PairBohmSPHDynamicMocz::pack_forward_comm(int n, int *list, double *buf,
       buf[m++] = dyz_rho[j];
       buf[m++] = dzz_rho[j];
     }
-    return m;
   }
   if (commflag == 1){
     double *u_SPH = atom->u_SPH;
-    // // fprintf(screen,"In u_SPH pack forward comm loop...");
     for (i = 0; i < n; i++) {
       j = list[i];
       buf[m++] = u_SPH[j];
     }
-    return m;
   }
+  return m;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -647,7 +628,6 @@ void PairBohmSPHDynamicMocz::unpack_forward_comm(int n, int first, double *buf)
   }
   if (commflag == 1){
     double *u_SPH = atom->u_SPH;
-    // // fprintf(screen,"In u_SPH unpack forward comm loop...");
     for (i = first; i < last; i++){
       u_SPH[i] = buf[m++];
     }
@@ -672,7 +652,6 @@ int PairBohmSPHDynamicMocz::pack_reverse_comm(int n, int first, double *buf)
       buf[m++] = dyz_rho[i];
       buf[m++] = dzz_rho[i];
     }
-    return m;
   }
   if (commflag == 1){
     double *u_SPH = atom->u_SPH;
@@ -680,8 +659,8 @@ int PairBohmSPHDynamicMocz::pack_reverse_comm(int n, int first, double *buf)
     for (i = first; i < last; i++){
       buf[m++] = u_SPH[i];
     }
-    return m;
   }
+  return m;
 }
 
 /* ---------------------------------------------------------------------- */

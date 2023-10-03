@@ -71,7 +71,7 @@ void PairCoulCut::compute(int eflag, int vflag)
   numneigh = list->numneigh;
   firstneigh = list->firstneigh;
 
-  //fprintf(screen,"qqrd2e = %f \n",qqrd2e);
+  // fprintf(screen,"\nqqrd2e = %f \n",qqrd2e);
 
   // loop over neighbors of my atoms
 
@@ -88,7 +88,6 @@ void PairCoulCut::compute(int eflag, int vflag)
     for (jj = 0; jj < jnum; jj++) {
       j = jlist[jj];
       factor_coul = special_coul[sbmask(j)];
-      //fprintf(screen,"factor_coul = %f \n",factor_coul);
       j &= NEIGHMASK;
 
       delx = xtmp - x[j][0];
@@ -101,12 +100,12 @@ void PairCoulCut::compute(int eflag, int vflag)
         r2inv = 1.0/rsq;
         rinv = sqrt(r2inv);
         forcecoul = qqrd2e * scale[itype][jtype] * qtmp*q[j]*rinv;
-        //fprintf(screen,"scale[itype][jtype] = %f \n",scale[itype][jtype]);
         fpair = factor_coul*forcecoul * r2inv;
 
         f[i][0] += delx*fpair;
         f[i][1] += dely*fpair;
         f[i][2] += delz*fpair;
+        
         if (newton_pair || j < nlocal) {
           f[j][0] -= delx*fpair;
           f[j][1] -= dely*fpair;
@@ -115,7 +114,6 @@ void PairCoulCut::compute(int eflag, int vflag)
 
         if (eflag)
           ecoul = factor_coul * qqrd2e * scale[itype][jtype] * qtmp*q[j]*rinv;
-
         if (evflag) ev_tally(i,j,nlocal,newton_pair,
                              0.0,ecoul,fpair,delx,dely,delz);
       }

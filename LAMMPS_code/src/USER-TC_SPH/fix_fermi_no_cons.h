@@ -21,19 +21,16 @@ class FixFermiNoCons : public Fix {
   //double compute_scalar();
 
  protected:
-	double dt;
-	double dthalf;
-	double dt4;
+	double dtf;
+	double dtv,dtv_2;
 	double alpha_mass;
 	double species_mass;
 	double exp_cutoff;
 	double t_target;
-	double full_box_len;
 	double alpha_half;
 	double alpha_minus_quarter;
 	double alpha_plus_quarter;
 	double alpha_dot;
-	double boltz;
 	double mu;
 	double** v_minus_quarter;
 	double** v_plus_quarter;

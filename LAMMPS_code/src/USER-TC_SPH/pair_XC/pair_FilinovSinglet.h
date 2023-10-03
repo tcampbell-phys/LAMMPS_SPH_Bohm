@@ -37,6 +37,7 @@ class PairFilinovSinglet : public Pair {
   double targ_temp; //Kelvin for units electron
   double boltz_val;
   double hbar_val;
+  double hh_me;
   double e_mass;
   double **cut;
 
