@@ -89,8 +89,8 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
   int i,j,ii,jj,k,inum,jnum,itable,itype,jtype;
   double qtmp,xtmp,ytmp,ztmp,delx,dely,delz,ecoul,fpair;
   double fraction,table;
-  double r,r2inv,forcecoul,factor_coul;
-  double grij,expm2,prefactor,t,erfc;
+  double r,r2inv,forcecoul,factor_coul,coul_prefact,energy_table;
+  double grij,expm2,prefactor,t,erfc,erfc_der;
   int *ilist,*jlist,*numneigh,**firstneigh;
   double rsq;
 
@@ -174,12 +174,6 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
     jlist = firstneigh[i];
     jnum = numneigh[i];
 
-    // fprintf(screen,"\nitype = %d",itype);
-    // fprintf(screen,"\npos: ");
-    // fprintf(screen,"\nx = %16.16f",x[i][0]);
-    // fprintf(screen,"\ny = %16.16f",x[i][1]);
-    // fprintf(screen,"\nz = %16.16f",x[i][2]);
-
     imass = mass[itype];
     if (itype != ion_species) {
       h_i = width_SPH[i];
@@ -203,34 +197,44 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
 
       if (rsq < cutsq[itype][jtype]) {
 
+        r2inv = 1.0/rsq;
         r = sqrt(rsq);
-        grij = g_ewald * r;
-        expm2 = exp(-grij*grij);
-        t = 1.0 / (1.0 + EWALD_P*grij);
-        erfc = t * (A1+t*(A2+t*(A3+t*(A4+t*A5)))) * expm2;
+        // use standard coul/long force loop to extract erfc and hence erf terms
+        if (!ncoultablebits || rsq <= tabinnersq) {
+          grij = g_ewald * r;
+          expm2 = exp(-grij*grij);
+          t = 1.0 / (1.0 + EWALD_P*grij);
+          erfc = t * (A1+t*(A2+t*(A3+t*(A4+t*A5)))) * expm2;
+        } else {
+          union_int_float_t rsq_lookup;
+          rsq_lookup.f = rsq;
+          itable = rsq_lookup.i & ncoulmask;
+          itable >>= ncoulshiftbits;
+          fraction = (rsq_lookup.f - rtable[itable]) * drtable[itable];
+          energy_table = etable[itable] + fraction*detable[itable];
+          erfc = r * energy_table / (qqrd2e);
+        }
 
         if (itype != ion_species) {
           // electron target
           if (jtype != ion_species){
             // electron neighbour
             eff_width = pow((h2_i + width_SPH[j]*width_SPH[j]),0.5);
-            theta_coul[i] += erfc*factor_coul*h2_i*scale[itype][jtype]*fact_i*q[j]*exp(-rsq/(2*eff_width*eff_width))/(eff_width*eff_width*eff_width);
+            theta_coul[i] += erfc*h2_i*scale[itype][jtype]*fact_i*q[j]*exp(-rsq/(2*eff_width*eff_width))/(eff_width*eff_width*eff_width);
           
             if (newton_pair || j < nlocal) {
-              theta_coul[j] += erfc*factor_coul*scale[itype][jtype]*theta_const*((qtmp*q[j])/(rho_SPH[j]*omega_SPH[j]))*(width_SPH[j]*width_SPH[j]/(eff_width*eff_width*eff_width))*exp(-rsq/(2*eff_width*eff_width));
+              theta_coul[j] += erfc*scale[itype][jtype]*theta_const*((qtmp*q[j])/(rho_SPH[j]*omega_SPH[j]))*(width_SPH[j]*width_SPH[j]/(eff_width*eff_width*eff_width))*exp(-rsq/(2*eff_width*eff_width));
             }
-            // fprintf(screen,"\ntheta_coul[i] = %16.16f",theta_coul[i]);
           }
 
           if (jtype == ion_species){
             // ion neighbour
-            prefact = factor_coul*scale[itype][jtype]*fact_chi;
+            prefact = scale[itype][jtype]*fact_chi;
              for (k = 0; k < N_coeff; k++){
               mu_k = 2*h2_i*a_coeff[k] + 1;
               beta_k = a_coeff[k]/mu_k;
               chi_coul_ei[i] += prefact*c_coeff[k]*2*h_i*a_coeff[k]*exp(-beta_k*rsq)*pow(mu_k,-2.5)*(2*rsq*beta_k - 3);
             }
-            // fprintf(screen,"\nchi_coul_ei[i] = %16.16f",chi_coul_ei[i]);
           }
         }
 
@@ -239,13 +243,12 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
           if (jtype != ion_species){
             // electron neighbour
             if (newton_pair || j < nlocal) {
-              prefact = factor_coul*scale[itype][jtype]*(width_SPH[j]/(3*rho_SPH[j]*omega_SPH[j]));
+              prefact = scale[itype][jtype]*(width_SPH[j]/(3*rho_SPH[j]*omega_SPH[j]));
               for (k = 0; k < N_coeff; k++){
                 mu_k = 2*width_SPH[j]*width_SPH[j]*a_coeff[k] + 1;
                 beta_k = a_coeff[k]/mu_k;
                 chi_coul_ei[j] += prefact*c_coeff[k]*2*width_SPH[j]*a_coeff[k]*exp(-beta_k*rsq)*pow(mu_k,-2.5)*(2*rsq*beta_k - 3);
               }
-              // fprintf(screen,"\nchi_coul_ei[j] = %16.16f",chi_coul_ei[j]);
             }
           }
         }
@@ -269,11 +272,7 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
     jlist = firstneigh[i];
     jnum = numneigh[i];
 
-    // fprintf(screen,"\nitype = %d",itype);
-    // fprintf(screen,"\npos: ");
-    // fprintf(screen,"\nx = %16.16f",x[i][0]);
-    // fprintf(screen,"\ny = %16.16f",x[i][1]);
-    // fprintf(screen,"\nz = %16.16f",x[i][2]);
+    imass = mass[itype];
 
     if (itype != ion_species) {
       // electron target
@@ -304,12 +303,31 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
 
       if (rsq < cut_coulsq) {
 
+        coul_prefact = qqrd2e*scale[itype][jtype]*qtmp*q[j];
+
         r2inv = 1.0/rsq;
         r = sqrt(rsq);
-        grij = g_ewald * r;
-        expm2 = exp(-grij*grij);
-        t = 1.0 / (1.0 + EWALD_P*grij);
-        erfc = t * (A1+t*(A2+t*(A3+t*(A4+t*A5)))) * expm2;
+        prefactor = coul_prefact/r;
+        // use standard coul/long force loop to extract erfc and hence erf terms
+        if (!ncoultablebits || rsq <= tabinnersq) {
+          grij = g_ewald * r;
+          expm2 = exp(-grij*grij);
+          t = 1.0 / (1.0 + EWALD_P*grij);
+          erfc = t * (A1+t*(A2+t*(A3+t*(A4+t*A5)))) * expm2;
+          forcecoul = prefactor * (erfc + EWALD_F*grij*expm2);
+          erfc_der = EWALD_F*grij*expm2/r;
+        } else {
+          union_int_float_t rsq_lookup;
+          rsq_lookup.f = rsq;
+          itable = rsq_lookup.i & ncoulmask;
+          itable >>= ncoulshiftbits;
+          fraction = (rsq_lookup.f - rtable[itable]) * drtable[itable];
+          table = ftable[itable] + fraction*dftable[itable];
+          forcecoul = scale[itype][jtype] * qtmp*q[j] * table;
+          energy_table = etable[itable] + fraction*detable[itable];
+          erfc = r * energy_table / (qqrd2e);
+          erfc_der = table/(qqrd2e) - erfc/r;
+        }
 
         if (jtype != ion_species){
 
@@ -324,6 +342,10 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
             ecoul = 0.;
             force_fact = 0.;
 
+            // WARNING: This ion-electron interaction needs editing. To be compatible with native 
+            // LAMMPS ewald decomposition, pseudopotential input should be for the entire ion-electron
+            // coulomb interaction, and then have an appropriate erfc factor applied in this loop.
+
             for (k = 0; k < N_coeff; k++){
               mu_k = 2*h_j*h_j*a_coeff[k] + 1;
               beta_k = a_coeff[k]/mu_k;
@@ -332,9 +354,9 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
               force_fact += 2 * c_coeff[k] * beta_k * mu_k_min3_2 * exp(-beta_k*rsq);
             }
 
-            ecoul *= factor_coul * qqrd2e * scale[itype][jtype];
-            force_fact *= factor_coul * qqrd2e * scale[itype][jtype];
-            // fprintf(screen,"\ne-i force_fact = %16.16f",force_fact);
+            ecoul *=  qqrd2e * scale[itype][jtype];
+            force_fact *=  qqrd2e * scale[itype][jtype];
+
             f[i][0] += delx*force_fact;
             f[i][1] += dely*force_fact;
             f[i][2] += delz*force_fact;
@@ -353,12 +375,11 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
 
             // electron target
 
-            ecoul = factor_coul * qqrd2e*scale[itype][jtype]*qtmp*q[j]*erf(r/(sqrt2*eff_width))/r;
+            ecoul = qqrd2e*scale[itype][jtype]*qtmp*q[j]*erf(r/(sqrt2*eff_width))/r;
 
             eff_width = pow((h2_i + width_SPH[j]*width_SPH[j]),0.5);
 
-            force_fact = ecoul*EWALD_F*g_ewald*expm2/r + erfc*factor_coul*qqrd2e*scale[itype][jtype]*(qtmp*q[j])*(erf(r/(sqrt2*eff_width))/(r*r*r) - (sqrt2/sqrt_pi)*(exp(-rsq/(2*eff_width*eff_width))/(eff_width*rsq)));
-            // fprintf(screen,"\ne-e force_fact = %16.16f",force_fact);
+            force_fact = ecoul*erfc_der/r + erfc*qqrd2e*scale[itype][jtype]*(qtmp*q[j])*(erf(r/(sqrt2*eff_width))/(r*r*r) - (sqrt2/sqrt_pi)*(exp(-rsq/(2*eff_width*eff_width))/(eff_width*rsq)));
             
             f[i][0] += delx*force_fact;
             f[i][1] += dely*force_fact;
@@ -412,6 +433,10 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
             ecoul = 0.;
             force_fact = 0.;
 
+            // WARNING: This ion-electron interaction needs editing. To be compatible with native 
+            // LAMMPS ewald decomposition, pseudopotential input should be for the entire ion-electron
+            // coulomb interaction, and then have an appropriate erfc factor applied in this loop.
+
             for (k = 0; k < N_coeff; k++){
               mu_k = 2*h2_i*a_coeff[k] + 1;
               beta_k = a_coeff[k]/mu_k;
@@ -419,9 +444,8 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
               ecoul += c_coeff[k] * mu_k_min3_2 * exp(-beta_k*rsq);
               force_fact += 2 * c_coeff[k] * beta_k * mu_k_min3_2 * exp(-beta_k*rsq);
             }
-            ecoul *= factor_coul * qqrd2e * scale[itype][jtype];
-            force_fact *= factor_coul * qqrd2e * scale[itype][jtype];
-            // fprintf(screen,"\ni-e force_fact = %16.16f",force_fact);
+            ecoul *=  qqrd2e * scale[itype][jtype];
+            force_fact *= qqrd2e * scale[itype][jtype];
             
             f[i][0] += delx*force_fact;
             f[i][1] += dely*force_fact;
@@ -440,12 +464,7 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
 
             // ion target
 
-            prefactor = qqrd2e * scale[itype][jtype] * qtmp*q[j]/r;
-            forcecoul = prefactor * (erfc + EWALD_F*grij*expm2);
-            
-            fpair = factor_coul * forcecoul * r2inv;
-            // fprintf(screen,"\ni-i force_fact = %16.16f",fpair);
-            
+            fpair = forcecoul * r2inv;
 
             f[i][0] += delx*fpair;
             f[i][1] += dely*fpair;
@@ -457,7 +476,7 @@ void PairCoulLongSPH::compute(int eflag, int vflag)
               f[j][2] -= delz*fpair;
 
             }
-            if (eflag) ecoul = factor_coul * qqrd2e * scale[itype][jtype] * qtmp*q[j]/r;
+            if (eflag) ecoul = qqrd2e * scale[itype][jtype] * qtmp*q[j]/r;
             
             if (evflag) ev_tally(i,j,nlocal,newton_pair,
                                 0.0,ecoul*erfc,fpair,delx,dely,delz);

@@ -107,12 +107,6 @@ void PairCoulLongPseudo::compute(int eflag, int vflag)
     jlist = firstneigh[i];
     jnum = numneigh[i];
 
-    // fprintf(screen,"\n\nTarget particle at...");
-    // fprintf(screen,"\nx = %16.16f",xtmp);
-    // fprintf(screen,"\ny = %16.16f",ytmp);
-    // fprintf(screen,"\nz = %16.16f",ztmp);
-    // fprintf(screen,"\ntype = %d",itype);
-
     for (jj = 0; jj < jnum; jj++) {
       j = jlist[jj];
       factor_coul = special_coul[sbmask(j)];
@@ -130,19 +124,22 @@ void PairCoulLongPseudo::compute(int eflag, int vflag)
 
           // electron neighbour
           if (itype == ion_species){
-            // fprintf(screen,"\nrsq = %16.16f",rsq);
-            // fprintf(screen,"\ndx = %16.16f",delx);
+            
             // ion target
             ecoul = 0.;
             force_fact = 0.;
+
+            // WARNING: This ion-electron interaction needs editing. To be compatible with native 
+            // LAMMPS ewald decomposition, pseudopotential input should be for the entire ion-electron
+            // coulomb interaction, and then have an appropriate erfc factor applied in this loop.
+
             for (k = 0; k < N_coeff; k++){
               ecoul += c_coeff[k] * exp(-a_coeff[k]*rsq);
               force_fact += 2 * c_coeff[k] * a_coeff[k] * exp(-a_coeff[k]*rsq);
             }
-            ecoul *= factor_coul * qqrd2e * scale[itype][jtype];
-            force_fact *= factor_coul * qqrd2e * scale[itype][jtype];
-            // fprintf(screen,"\necoul = %16.16f",ecoul);
-            // fprintf(screen,"\nfx = %16.16f",force_fact*delx);
+            ecoul *= qqrd2e * scale[itype][jtype];
+            force_fact *= qqrd2e * scale[itype][jtype];
+            
             f[i][0] += delx*force_fact;
             f[i][1] += dely*force_fact;
             f[i][2] += delz*force_fact;
@@ -162,22 +159,23 @@ void PairCoulLongPseudo::compute(int eflag, int vflag)
           // ion neighbour
 
           if (itype != ion_species){
-            // fprintf(screen,"\nrsq = %16.16f",rsq);
-            // fprintf(screen,"\ndx = %16.16f",delx);
 
             // electron target
             ecoul = 0.;
             force_fact = 0.;
+
+            // WARNING: This ion-electron interaction needs editing. To be compatible with native 
+            // LAMMPS ewald decomposition, pseudopotential input should be for the entire ion-electron
+            // coulomb interaction, and then have an appropriate erfc factor applied in this loop.
 
             for (k = 0; k < N_coeff; k++){
               ecoul += c_coeff[k] * exp(-a_coeff[k]*rsq);
               force_fact += 2 * c_coeff[k] * a_coeff[k] * exp(-a_coeff[k]*rsq);
             }
             
-            ecoul *= factor_coul * qqrd2e * scale[itype][jtype];
-            force_fact *= factor_coul * qqrd2e * scale[itype][jtype];
-            // fprintf(screen,"\necoul = %16.16f",ecoul);
-            // fprintf(screen,"\nfx = %16.16f",force_fact*delx);
+            ecoul *= qqrd2e * scale[itype][jtype];
+            force_fact *= qqrd2e * scale[itype][jtype];
+
             f[i][0] += delx*force_fact;
             f[i][1] += dely*force_fact;
             f[i][2] += delz*force_fact;
@@ -199,8 +197,7 @@ void PairCoulLongPseudo::compute(int eflag, int vflag)
           if (itype == ion_species){
 
             // ion target
-        // currently set cut_coulsq to cut_coulsq to avoid use of table
-            if (!ncoultablebits || rsq <= cut_coulsq) {
+            if (!ncoultablebits || rsq <= tabinnersq) {
               r = sqrt(rsq);
               grij = g_ewald * r;
               expm2 = exp(-grij*grij);
@@ -230,13 +227,6 @@ void PairCoulLongPseudo::compute(int eflag, int vflag)
             f[i][1] += dely*fpair;
             f[i][2] += delz*fpair;
 
-            // fprintf(screen,"\n\nneighbour particle at...");
-            // fprintf(screen,"\nx = %16.16f",x[j][0]);
-            // fprintf(screen,"\ny = %16.16f",x[j][1]);
-            // fprintf(screen,"\nz = %16.16f",x[j][2]);
-            // fprintf(screen,"\ntype = %d",jtype);
-
-
             if (newton_pair || j < nlocal) {
               f[j][0] -= delx*fpair;
               f[j][1] -= dely*fpair;
@@ -252,11 +242,6 @@ void PairCoulLongPseudo::compute(int eflag, int vflag)
               }
               if (factor_coul < 1.0) ecoul -= (1.0-factor_coul)*prefactor;
             }
-        // fprintf(screen,"\necoul = %16.16f",ecoul);
-        // fprintf(screen,"\nerfc = %16.16f",erfc);
-        // fprintf(screen,"\nfx += %16.16f",delx*(fpair));
-        // fprintf(screen,"\nfy += %16.16f",dely*(fpair));
-        // fprintf(screen,"\nfz += %16.16f",delz*(fpair));
 
             if (evflag) ev_tally(i,j,nlocal,newton_pair,
                              0.0,ecoul,fpair,delx,dely,delz);
@@ -269,7 +254,7 @@ void PairCoulLongPseudo::compute(int eflag, int vflag)
           if (itype != ion_species){
 
             // electron target
-            if (!ncoultablebits || rsq <= cut_coulsq) {
+            if (!ncoultablebits || rsq <= tabinnersq) {
               r = sqrt(rsq);
               grij = g_ewald * r;
               expm2 = exp(-grij*grij);
@@ -299,13 +284,6 @@ void PairCoulLongPseudo::compute(int eflag, int vflag)
             f[i][1] += dely*fpair;
             f[i][2] += delz*fpair;
 
-            // fprintf(screen,"\n\nneighbour particle at...");
-            // fprintf(screen,"\nx = %16.16f",x[j][0]);
-            // fprintf(screen,"\ny = %16.16f",x[j][1]);
-            // fprintf(screen,"\nz = %16.16f",x[j][2]);
-            // fprintf(screen,"\ntype = %d",jtype);
-
-
             if (newton_pair || j < nlocal) {
               f[j][0] -= delx*fpair;
               f[j][1] -= dely*fpair;
@@ -321,11 +299,6 @@ void PairCoulLongPseudo::compute(int eflag, int vflag)
               }
               if (factor_coul < 1.0) ecoul -= (1.0-factor_coul)*prefactor;
             }
-        // fprintf(screen,"\necoul = %16.16f",ecoul);
-        // fprintf(screen,"\nerfc = %16.16f",erfc);
-        // fprintf(screen,"\nfx += %16.16f",delx*(fpair));
-        // fprintf(screen,"\nfy += %16.16f",dely*(fpair));
-        // fprintf(screen,"\nfz += %16.16f",delz*(fpair));
 
             if (evflag) ev_tally(i,j,nlocal,newton_pair,
                              0.0,ecoul,fpair,delx,dely,delz);

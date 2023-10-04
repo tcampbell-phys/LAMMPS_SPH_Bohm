@@ -188,7 +188,6 @@ void PairCoulLongSPHph::compute(int eflag, int vflag)
     for (jj = 0; jj < jnum; jj++) {
       j = jlist[jj];
       factor_coul = special_coul[sbmask(j)];
-      
       j &= NEIGHMASK;
 
       delx = xtmp - x[j][0];
@@ -245,16 +244,6 @@ void PairCoulLongSPHph::compute(int eflag, int vflag)
 
   // loop over neighbors of my atoms
 
-  double e_fx_dyn, e_fy_dyn, e_fz_dyn;
-  double ie_fx, ie_fy, ie_fz;
-  double ei_fx, ei_fy, ei_fz;
-  double ee_ij_fx, ee_ij_fy, ee_ij_fz;
-  double ee_ji_fx, ee_ji_fy, ee_ji_fz;
-
-  double force_limit = 1000;
-  double dyn_fact_limit = 4000000;
-
-
   for (ii = 0; ii < inum; ii++) {
 
     i = ilist[ii];
@@ -269,7 +258,6 @@ void PairCoulLongSPHph::compute(int eflag, int vflag)
     imass = mass[itype];
 
     if (itype != ion_species) {
-      // fprintf(screen,"\n\ne target...");
       // electron target
 
       h_i = width_SPH[i];
@@ -277,43 +265,13 @@ void PairCoulLongSPHph::compute(int eflag, int vflag)
       hm2_i = 1/h2_i;
 
       gauss_pre_i = pi_fact*(1/(h_i*h_i*h_i));
-      // fprintf(screen,"\ne fx self = %16.16f",-(theta_coul[i]+chi_coul_ei[i])*dx_rho_SPH[i]);
-      // fprintf(screen,"\ne fy self = %16.16f",-(theta_coul[i]+chi_coul_ei[i])*dy_rho_SPH[i]);
-      // fprintf(screen,"\ne fz self = %16.16f",-(theta_coul[i]+chi_coul_ei[i])*dz_rho_SPH[i]);
-
-      e_fx_dyn = -(theta_coul[i]+chi_coul_ei[i])*dx_rho_SPH[i];
-      e_fy_dyn = -(theta_coul[i]+chi_coul_ei[i])*dy_rho_SPH[i];
-      e_fz_dyn = -(theta_coul[i]+chi_coul_ei[i])*dz_rho_SPH[i];
-
-      // if (e_fx_dyn > force_limit || e_fy_dyn > force_limit || e_fz_dyn > force_limit){
-      //   fprintf(screen,"\n\nWARNING: large force in e dyn...");
-      //   fprintf(screen,"\ne x = %16.16f",xtmp);
-      //   fprintf(screen,"\ne y = %16.16f",ytmp);
-      //   fprintf(screen,"\ne z = %16.16f",ztmp);
-      //   fprintf(screen,"\ne_fx_dyn = %16.16f",e_fx_dyn);
-      //   fprintf(screen,"\ne_fy_dyn = %16.16f",e_fy_dyn);
-      //   fprintf(screen,"\ne_fz_dyn = %16.16f",e_fz_dyn);
-      // }
 
       // ele-ele and ion-ele SPH dynamic terms
       f[i][0] += -(theta_coul[i]+chi_coul_ei[i])*dx_rho_SPH[i];
       f[i][1] += -(theta_coul[i]+chi_coul_ei[i])*dy_rho_SPH[i];
       f[i][2] += -(theta_coul[i]+chi_coul_ei[i])*dz_rho_SPH[i];
-
-      // if (theta_coul[i] > dyn_fact_limit || chi_coul_ei[i] > dyn_fact_limit){
-      //   fprintf(screen,"\n\nWARNING: large dynamic electron factor in e dyn...");
-      //   fprintf(screen,"\ne x = %16.16f",xtmp);
-      //   fprintf(screen,"\ne y = %16.16f",ytmp);
-      //   fprintf(screen,"\ne z = %16.16f",ztmp);
-      //   fprintf(screen,"\ntheta_coul[i] = %16.16f",theta_coul[i]);
-      //   fprintf(screen,"\nchi_coul_ei[i] = %16.16f",chi_coul_ei[i]);
-      // }
     
     }
-    else{
-      // fprintf(screen,"\n\ni target...");
-    }
-
 
     for (jj = 0; jj < jnum; jj++) {
       j = jlist[jj];
@@ -327,17 +285,13 @@ void PairCoulLongSPHph::compute(int eflag, int vflag)
       jtype = type[j];
 
       if (rsq < cut_coulsq) {
-        // fprintf(screen,"\nrsq = %16.16f",rsq);
 
         coul_prefact = qqrd2e*scale[itype][jtype]*qtmp*q[j];
 
         r2inv = 1.0/rsq;
         r = sqrt(rsq);
-        // // fprintf(screen,"\n\ng = %16.16f",g_ewald);
-        // // fprintf(screen,"\nr = %16.16f",r);
-        // // fprintf(screen,"\ncharge_prod = %16.16f",qtmp*q[j]);
         prefactor = coul_prefact/r;
-        //use standard coul/long force loop to extract erfc and hence erf terms
+        // use standard coul/long force loop to extract erfc and hence erf terms
         if (!ncoultablebits || rsq <= tabinnersq) {
           grij = g_ewald * r;
           expm2 = exp(-grij*grij);
@@ -361,14 +315,6 @@ void PairCoulLongSPHph::compute(int eflag, int vflag)
 
         fpair_erf = -fpair + prefactor*r2inv;
         ecoul_erf = -ecoul_erfc + prefactor;
-
-        // // fprintf(screen,"\nfpair erfc = %16.16f",fpair);
-        // // fprintf(screen,"\nfpair erf = %16.16f",fpair_erf);
-        // // fprintf(screen,"\nfpair = %16.16f",prefactor*r2inv);
-
-        // // fprintf(screen,"\necoul erfc = %16.16f",ecoul_erfc);
-        // // fprintf(screen,"\necoul erf = %16.16f",ecoul_erf);
-        // // fprintf(screen,"\necoul = %16.16f",prefactor);
 
         if (jtype != ion_species){
 
@@ -398,30 +344,10 @@ void PairCoulLongSPHph::compute(int eflag, int vflag)
             ecoul -= ecoul_erf;
 
             force_fact *=  qqrd2e * scale[itype][jtype];
-
-            // ie_fx = delx*force_fact;
-            // ie_fy = dely*force_fact;
-            // ie_fz = delz*force_fact;
-
-            // if (ie_fx > force_limit || ie_fy > force_limit || ie_fz > force_limit){
-            //   fprintf(screen,"\n\nWARNING: large force in i-e interaction...");
-            //   fprintf(screen,"\ni x = %16.16f",xtmp);
-            //   fprintf(screen,"\ni y = %16.16f",ytmp);
-            //   fprintf(screen,"\ni z = %16.16f",ztmp);
-            //   fprintf(screen,"\ne x = %16.16f",x[j][0]);
-            //   fprintf(screen,"\ne y = %16.16f",x[j][1]);
-            //   fprintf(screen,"\ne z = %16.16f",x[j][2]);
-            //   fprintf(screen,"\nie_fx = %16.16f",ie_fx);
-            //   fprintf(screen,"\nie_fy = %16.16f",ie_fy);
-            //   fprintf(screen,"\nie_fz = %16.16f",ie_fz);
-            // }
             
             f[i][0] += delx*force_fact;
             f[i][1] += dely*force_fact;
             f[i][2] += delz*force_fact;
-
-            // fprintf(screen,"\ni-e coul = %16.16f",ecoul);
-            // fprintf(screen,"\ni-e fact = %16.16f",force_fact);
 
             // remove erf coul forces
 
@@ -429,20 +355,10 @@ void PairCoulLongSPHph::compute(int eflag, int vflag)
             f[i][1] -= (dely)*fpair_erf;
             f[i][2] -= (delz)*fpair_erf;
 
-            // fprintf(screen,"\ni-e fx = %16.16f",delx*force_fact);
-            // fprintf(screen,"\ni-e fy = %16.16f",dely*force_fact);
-            // fprintf(screen,"\ni-e fz = %16.16f",delz*force_fact);
-
-
             if (newton_pair || j < nlocal) {
               f[j][0] -= delx*force_fact;
               f[j][1] -= dely*force_fact;
               f[j][2] -= delz*force_fact;
-
-              // fprintf(screen,"\ne-i fx = %16.16f",-delx*force_fact);
-              // fprintf(screen,"\ne-i fy = %16.16f",-dely*force_fact);
-              // fprintf(screen,"\ne-i fz = %16.16f",-delz*force_fact);
-
 
               f[j][0] += delx*fpair_erf;
               f[j][1] += dely*fpair_erf;
@@ -457,13 +373,13 @@ void PairCoulLongSPHph::compute(int eflag, int vflag)
 
             // electron target
 
-            // ecoul = qqrd2e*scale[itype][jtype]*qtmp*q[j]*erf(r/(sqrt2*eff_width))/r;
+            eff_width = pow((h2_i + width_SPH[j]*width_SPH[j]),0.5);
+
+            ecoul = coul_prefact*erf(r/(sqrt2*eff_width))/r;
             
             // remove erf coul
 
             ecoul -= ecoul_erf;
-
-            eff_width = pow((h2_i + width_SPH[j]*width_SPH[j]),0.5);
 
             force_fact = coul_prefact*(erf(r/(sqrt2*eff_width))/(r*r*r) - (sqrt2/sqrt_pi)*(exp(-rsq/(2*eff_width*eff_width))/(eff_width*rsq)));
             
@@ -482,35 +398,6 @@ void PairCoulLongSPHph::compute(int eflag, int vflag)
             f[i][0] += (delx)*ji_fact;
             f[i][1] += (dely)*ji_fact;
             f[i][2] += (delz)*ji_fact;
-
-            // fprintf(screen,"\ne-e ji fx = %16.16f",delx*(force_fact+ji_fact));
-            // fprintf(screen,"\ne-e ji fy = %16.16f",dely*(force_fact+ji_fact));
-            // fprintf(screen,"\ne-e ji fz = %16.16f",delz*(force_fact+ji_fact));
-
-            // ee_ji_fx = delx*(force_fact+ji_fact);
-            // ee_ji_fy = dely*(force_fact+ji_fact);
-            // ee_ji_fz = delz*(force_fact+ji_fact);
-
-            // if (ee_ji_fx > force_limit || ee_ji_fy > force_limit || ee_ji_fz > force_limit){
-            //   fprintf(screen,"\n\nWARNING: large force in e-e ji interaction...");
-            //   fprintf(screen,"\ne i x = %16.16f",xtmp);
-            //   fprintf(screen,"\ne i y = %16.16f",ytmp);
-            //   fprintf(screen,"\ne i z = %16.16f",ztmp);
-            //   fprintf(screen,"\ne j x = %16.16f",x[j][0]);
-            //   fprintf(screen,"\ne j y = %16.16f",x[j][1]);
-            //   fprintf(screen,"\ne j z = %16.16f",x[j][2]);
-            //   fprintf(screen,"\ne-e rsq = %16.16f",rsq);
-            //   fprintf(screen,"\nh_i = %16.16f",h_i);
-            //   fprintf(screen,"\nh_j = %16.16f",h_j);
-            //   fprintf(screen,"\nee_ji_fx = %16.16f",ee_ji_fx);
-            //   fprintf(screen,"\nee_ji_fy = %16.16f",ee_ji_fy);
-            //   fprintf(screen,"\nee_ji_fz = %16.16f",ee_ji_fz);
-            //   fprintf(screen,"\nee force_fact = %16.16f",force_fact);
-            //   fprintf(screen,"\nee ji_fact = %16.16f",ji_fact);
-            //   fprintf(screen,"\nee m_gauss_ji = %16.16f",m_gauss_ji);
-            //   fprintf(screen,"\nee theta_coul[j] = %16.16f",theta_coul[j]);
-            //   fprintf(screen,"\nee chi_coul_ei[j] = %16.16f",chi_coul_ei[j]);
-            // }
 
             // remove erf coul forces
 
@@ -532,44 +419,12 @@ void PairCoulLongSPHph::compute(int eflag, int vflag)
               m_gauss_ij = jmass*gauss_pre_i*exp(-(rsq)*hm2_i/2);
 
               ij_fact = hm2_i*m_gauss_ij*(theta_coul[i]+chi_coul_ei[i]);
-
-              // ee_ij_fx = delx*(force_fact+ij_fact);
-              // ee_ij_fy = dely*(force_fact+ij_fact);
-              // ee_ij_fz = delz*(force_fact+ij_fact);
-
-              // if (ee_ij_fx > force_limit || ee_ij_fy > force_limit || ee_ij_fz > force_limit){
-              //   fprintf(screen,"\n\nWARNING: large force in e-e ij (newton) interaction...");
-              //   fprintf(screen,"\ne i x = %16.16f",xtmp);
-              //   fprintf(screen,"\ne i y = %16.16f",ytmp);
-              //   fprintf(screen,"\ne i z = %16.16f",ztmp);
-              //   fprintf(screen,"\ne j x = %16.16f",x[j][0]);
-              //   fprintf(screen,"\ne j y = %16.16f",x[j][1]);
-              //   fprintf(screen,"\ne j z = %16.16f",x[j][2]);
-              //   fprintf(screen,"\nh_i = %16.16f",h_i);
-              //   fprintf(screen,"\nh_j = %16.16f",h_j);
-              //   fprintf(screen,"\nee_ij_fx = %16.16f",ee_ij_fx);
-              //   fprintf(screen,"\nee_ij_fy = %16.16f",ee_ij_fy);
-              //   fprintf(screen,"\nee_ij_fz = %16.16f",ee_ij_fz);
-              //   fprintf(screen,"\nee force_fact = %16.16f",force_fact);
-              //   fprintf(screen,"\nee ij_fact = %16.16f",ij_fact);
-              // }
               
               f[j][0] -= (delx)*ij_fact;
               f[j][1] -= (dely)*ij_fact;
               f[j][2] -= (delz)*ij_fact;
 
-              // fprintf(screen,"\ne-e ij fx = %16.16f",-delx*(force_fact+ij_fact));
-              // fprintf(screen,"\ne-e ij fy = %16.16f",-dely*(force_fact+ij_fact));
-              // fprintf(screen,"\ne-e ij fz = %16.16f",-delz*(force_fact+ij_fact));
-
-
             }
-
-            if (eflag) ecoul = factor_coul * qqrd2e*scale[itype][jtype]*qtmp*q[j]*erf(r/(sqrt2*eff_width))/r;
-            
-
-            // fprintf(screen,"\ne-e coul = %16.16f",ecoul);
-            // fprintf(screen,"\ne-e fact = %16.16f",force_fact + 0.5*(ij_fact+ji_fact));
 
             // dynamic coulomb-SPH force expression is not pairwise symmetric
             // use of ev_tally not accurate for pressure evaluation - edit in future.
@@ -600,9 +455,6 @@ void PairCoulLongSPHph::compute(int eflag, int vflag)
             ecoul *=  qqrd2e * scale[itype][jtype];
             force_fact *=  qqrd2e * scale[itype][jtype];
 
-            // fprintf(screen,"\ne-i coul = %16.16f",ecoul);
-            // fprintf(screen,"\ne-i fact = %16.16f",force_fact);
-
             // remove erf coul
 
             ecoul -= ecoul_erf;
@@ -610,28 +462,6 @@ void PairCoulLongSPHph::compute(int eflag, int vflag)
             f[i][0] += delx*force_fact;
             f[i][1] += dely*force_fact;
             f[i][2] += delz*force_fact;
-
-            ei_fx = delx*force_fact;
-            ei_fy = dely*force_fact;
-            ei_fz = delz*force_fact;
-
-            // if (ie_fx > force_limit || ie_fy > force_limit || ie_fz > force_limit){
-            //   fprintf(screen,"\n\nWARNING: large force in e-i interaction...");
-            //   fprintf(screen,"\ne x = %16.16f",xtmp);
-            //   fprintf(screen,"\ne y = %16.16f",ytmp);
-            //   fprintf(screen,"\ne z = %16.16f",ztmp);
-            //   fprintf(screen,"\ni x = %16.16f",x[j][0]);
-            //   fprintf(screen,"\ni y = %16.16f",x[j][1]);
-            //   fprintf(screen,"\ni z = %16.16f",x[j][2]);
-            //   fprintf(screen,"\nie_fx = %16.16f",ie_fx);
-            //   fprintf(screen,"\nie_fy = %16.16f",ie_fy);
-            //   fprintf(screen,"\nie_fz = %16.16f",ie_fz);
-            // }
-
-            // fprintf(screen,"\ne-i fx = %16.16f",delx*force_fact);
-            // fprintf(screen,"\ne-i fy = %16.16f",dely*force_fact);
-            // fprintf(screen,"\ne-i fz = %16.16f",delz*force_fact);
-
 
             // remove erf coul forces
 
@@ -643,11 +473,6 @@ void PairCoulLongSPHph::compute(int eflag, int vflag)
               f[j][0] -= delx*force_fact;
               f[j][1] -= dely*force_fact;
               f[j][2] -= delz*force_fact;
-
-              // fprintf(screen,"\ni-e fx = %16.16f",-delx*force_fact);
-              // fprintf(screen,"\ni-e fy = %16.16f",-dely*force_fact);
-              // fprintf(screen,"\ni-e fz = %16.16f",-delz*force_fact);
-
 
               f[j][0] += delx*fpair_erf;
               f[j][1] += dely*fpair_erf;
@@ -661,33 +486,15 @@ void PairCoulLongSPHph::compute(int eflag, int vflag)
 
             // ion target
 
-            // fprintf(screen,"\ni-i forcecoul = %16.16f",forcecoul);
-            // fprintf(screen,"\ni-i factor_coul = %16.16f",factor_coul);
-
             f[i][0] += delx*fpair;
             f[i][1] += dely*fpair;
             f[i][2] += delz*fpair;
-
-            // fprintf(screen,"\ni-i fx = %16.16f",delx*fpair);
-            // fprintf(screen,"\ni-i fy = %16.16f",dely*fpair);
-            // fprintf(screen,"\ni-i fz = %16.16f",delz*fpair);
-
 
             if (newton_pair || j < nlocal) {
               f[j][0] -= delx*fpair;
               f[j][1] -= dely*fpair;
               f[j][2] -= delz*fpair;
-
-
-              // fprintf(screen,"\ni-i fx = %16.16f",-delx*fpair);
-              // fprintf(screen,"\ni-i fy = %16.16f",-dely*fpair);
-              // fprintf(screen,"\ni-i fz = %16.16f",-delz*fpair);
-
-
             }
-
-            // fprintf(screen,"\ni-i coul = %16.16f",factor_coul * qqrd2e * scale[itype][jtype] * qtmp*q[j]/r);
-            // fprintf(screen,"\ni-i fact = %16.16f",fpair);
 
             if (evflag) ev_tally(i,j,nlocal,newton_pair,
                                 0.0,ecoul_erfc,fpair,delx,dely,delz);
