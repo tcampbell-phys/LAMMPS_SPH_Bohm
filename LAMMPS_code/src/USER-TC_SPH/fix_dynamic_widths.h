@@ -34,6 +34,7 @@ class FixDynamicWidths : public Fix {
   int type_avoid;
   double cutsquared;
   double commflag;
+  double assignment_flag;
   char *pair_name;
   void FixedPointIterator();
   double Gauss_Width_Deriv(double pre_fact, double wid, double sep_sq);

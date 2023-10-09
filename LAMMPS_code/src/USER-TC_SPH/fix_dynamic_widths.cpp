@@ -43,7 +43,6 @@ FixDynamicWidths::FixDynamicWidths(LAMMPS *lmp, int narg, char **arg):
   cut_global = force->numeric(FLERR,arg[7]);
   // type not involved in SPH loop
   type_avoid = force->numeric(FLERR,arg[8]);
-  // fprintf(screen,"type_avoid = %d\n",type_avoid);
   pair_name = strdup(arg[9]);
 
   cutsquared = cut_global*cut_global;
@@ -52,6 +51,8 @@ FixDynamicWidths::FixDynamicWidths(LAMMPS *lmp, int narg, char **arg):
   comm_reverse = 1; 
 
   commflag = 0;
+
+  assignment_flag = 1;
 
 }
 
@@ -80,20 +81,20 @@ void FixDynamicWidths::init()
   int nlocal = atom->nlocal;
   int nall = nlocal + atom->nghost;
 
-  // fprintf(screen,"\nIn fix init function...\n");
-
-  // assign all particles same initial width
-  for(int i = 0; i < nall; ++i){
-    width_SPH[i] = start_width;
-    u_SPH[i] = 0.0;
+  // assign all particles same initial width if initialising for the first time
+  if (assignment_flag == 1){
+    for(int i = 0; i < nall; ++i){
+      width_SPH[i] = start_width;
+      u_SPH[i] = 0.0;
+    }
   }
+  assignment_flag = 0;
 
   pair = force->pair;
   // If a hybrid style is used we need to acces the correct sub-style.
   PairHybrid *hybrid_pair = dynamic_cast<PairHybrid*> (pair);
 
   if (hybrid_pair) {
-    // fprintf(screen,"hybrid_pair neighbour list on...\n");
     // The pair style is a hybrid style.
     if (!pair_name) error->all(FLERR,"When a hybrid pair-style is used, 'pair_name' must be set for the lagrangian solver.");
     int nstyles = hybrid_pair->nstyles;
@@ -113,20 +114,17 @@ void FixDynamicWidths::init()
 
 void FixDynamicWidths::setup_pre_force(int)
 {
-  // fprintf(screen,"\nIn fix setup_pre_force function...\n");
   FixedPointIterator();
 }
 
 void FixDynamicWidths::min_pre_force(int)
 {
-  // fprintf(screen,"\nIn fix min_pre_force function...\n");
   FixedPointIterator();
 }
 
 
 void FixDynamicWidths::setup_post_neighbor()
 {
-  // fprintf(screen,"\nIn fix setup_post_neighbor function...\n");
   // inherit neighbour lists from pair style
   
   FixedPointIterator();
