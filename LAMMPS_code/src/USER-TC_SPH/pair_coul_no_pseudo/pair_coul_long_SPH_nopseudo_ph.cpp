@@ -503,11 +503,18 @@ void PairCoulLongNopseudoSPHph::allocate()
 
 void PairCoulLongNopseudoSPHph::settings(int narg, char **arg)
 {
-  if (narg != 3) error->all(FLERR,"Illegal pair_style command");
+  if (narg != 4) error->all(FLERR,"Illegal pair_style command");
 
   cut_coul = force->numeric(FLERR,arg[0]);
   ke_in = force->numeric(FLERR,arg[1]);
   ion_species = force->numeric(FLERR,arg[2]);
+  ele_TFWHM = force->numeric(FLERR,arg[3]);
+
+  if (cut_coul < ele_TFWHM){
+    fprintf(screen,"\n cut_coul = %16.16f \n",cut_coul);
+    fprintf(screen,"\n ele_TFWHM = %16.16f \n",ele_TFWHM);
+    error->all(FLERR,"coul/long/SPH_nopseudo_ph ERROR: cutoff too short for use with SPH coulomb. Cutoff must be larger than TFWHM");
+  }
 }
 
 /* ----------------------------------------------------------------------
