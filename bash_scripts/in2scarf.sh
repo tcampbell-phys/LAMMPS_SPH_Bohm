@@ -15,7 +15,11 @@
 #scp  fix_fermi_no_cons.cpp scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/lammps-3Mar20/src/
 #scp  fix_fermi_no_cons.h scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/lammps-3Mar20/src/
 
-rsync ../input_decks/scarf/SPH_tests/in.* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/SPH_Bohm/
+# rsync ../input_decks/scarf/SPH_tests/in.* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/SPH_Bohm/
+# rsync ../input_decks/scarf/Al_research/3_5eV_5_2gcc/in.* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/Al_research/3_5eV_5_2gcc/
+# rsync ../input_decks/scarf/Al_research/0_5eV_2_7gcc/in.* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/Al_research/0_5eV_2_7gcc/
+# rsync ../input_decks/scarf/Al_research/1_1eV_3_4gcc/in.* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/Al_research/1_1eV_3_4gcc/
+rsync ../input_decks/scarf/Be_research/in.* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/Be_research/
 # scp ../LAMMPS_code/src/USER-TC_SPH/*.cpp scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 # scp ../LAMMPS_code/src/USER-TC_SPH/*.h scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 # scp ../LAMMPS_code/src/USER-TC_SPH/pair_coul_pseudo/* scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
@@ -24,7 +28,7 @@ rsync ../input_decks/scarf/SPH_tests/in.* scarf734@ui1.scarf.rl.ac.uk:~/mywork/L
 # scp ../LAMMPS_code/src/USER-TC_SPH/pair_XC/* scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 # scp ../LAMMPS_code/src/USER-TC_SPH/update* scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 # scp ../LAMMPS_code/src/USER-TC_SPH/fix_fermi_no_cons.* scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
-scp ../LAMMPS_code/src/USER-TC_SPH/fix_dynamic_widths.* scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
+# scp ../LAMMPS_code/src/USER-TC_SPH/fix_dynamic_widths.* scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 # scp ../LAMMPS_code/src/pair_coul_cut.cpp scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 # scp ../LAMMPS_code/src/compute_temp.cpp scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 # scp ../LAMMPS_code/src/fix_nve.cpp scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
