@@ -532,7 +532,7 @@ void PairCoulLongSPHph::allocate()
 
 void PairCoulLongSPHph::settings(int narg, char **arg)
 {
-  if (narg != 6) error->all(FLERR,"Illegal pair_style command");
+  if (narg != 7) error->all(FLERR,"Illegal pair_style command");
 
   cut_coul = force->numeric(FLERR,arg[0]);
   ke_in = force->numeric(FLERR,arg[1]);
@@ -540,52 +540,78 @@ void PairCoulLongSPHph::settings(int narg, char **arg)
   pseudo_key = force->numeric(FLERR,arg[3]);
   ion_charge = force->numeric(FLERR,arg[4]);
   ele_TFWHM = force->numeric(FLERR,arg[5]);
+  N_elements_per_electron = force->numeric(FLERR,arg[6]);
 
   // check input parameters match selected Pseudopotential parameters
   if (pseudo_key==al_lda_A_key){
     c_coeff = al_lda_A_c;
     a_coeff = al_lda_A_a;
     N_coeff = al_lda_A_Ncoeff;
+    fprintf(screen,"\nUsing pseudopotential 'A' parameters from coul/long/SPH_ph header file...");
     if (ion_charge != al_lda_A_ion_charge){
       fprintf(screen,"\n ion_charge = %d \n",ion_charge);
       fprintf(screen,"\n al_lda_A_ion_charge = %d \n",al_lda_A_ion_charge);
       error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
-    }
-    if (cut_coul < ele_TFWHM){
-      fprintf(screen,"\n cut_coul = %16.16f \n",cut_coul);
-      fprintf(screen,"\n ele_TFWHM = %16.16f \n",ele_TFWHM);
-      error->all(FLERR,"PSEUDO_ERR cutoff too short for use with SPH coulomb: cutoff must be larger than TFWHM");
     }
   }
   if (pseudo_key==al_lda_D_key){
     c_coeff = al_lda_D_c;
     a_coeff = al_lda_D_a;
     N_coeff = al_lda_D_Ncoeff;
+    fprintf(screen,"\nUsing pseudopotential 'D' parameters from coul/long/SPH_ph header file...");
     if (ion_charge != al_lda_D_ion_charge){
       fprintf(screen,"\n ion_charge = %d \n",ion_charge);
       fprintf(screen,"\n al_lda_D_ion_charge = %d \n",al_lda_D_ion_charge);
       error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
     }
-    if (cut_coul < ele_TFWHM){
-      fprintf(screen,"\n cut_coul = %16.16f \n",cut_coul);
-      fprintf(screen,"\n ele_TFWHM = %16.16f \n",ele_TFWHM);
-      error->all(FLERR,"PSEUDO_ERR cutoff too short for use with SPH coulomb: cutoff must be larger than TFWHM");
-    }
   }
-  if (pseudo_key==al_gga_A_key){
-    c_coeff = al_gga_A_c;
-    a_coeff = al_gga_A_a;
-    N_coeff = al_gga_A_Ncoeff;
-    if (ion_charge != al_gga_A_ion_charge){
+  if (pseudo_key==al_gga_E_key){
+    c_coeff = al_gga_E_c;
+    a_coeff = al_gga_E_a;
+    N_coeff = al_gga_E_Ncoeff;
+    fprintf(screen,"\nUsing pseudopotential 'E' parameters from coul/long/SPH_ph header file...");
+    if (ion_charge != al_gga_E_ion_charge){
       fprintf(screen,"\n ion_charge = %d \n",ion_charge);
-      fprintf(screen,"\n al_gga_A_ion_charge = %d \n",al_gga_A_ion_charge);
+      fprintf(screen,"\n al_gga_E_ion_charge = %d \n",al_gga_E_ion_charge);
       error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
     }
-    if (cut_coul < ele_TFWHM){
-      fprintf(screen,"\n cut_coul = %16.16f \n",cut_coul);
-      fprintf(screen,"\n ele_TFWHM = %16.16f \n",ele_TFWHM);
-      error->all(FLERR,"PSEUDO_ERR cutoff too short for use with SPH coulomb: cutoff must be larger than TFWHM");
+  }
+  if (pseudo_key==al_gga_F_key){
+    c_coeff = al_gga_F_c;
+    a_coeff = al_gga_F_a;
+    N_coeff = al_gga_F_Ncoeff;
+    fprintf(screen,"\nUsing scaled pseudopotential 'F' parameters from coul/long/SPH_ph header file...");
+    if (N_elements_per_electron != al_gga_F_Nepe){
+      fprintf(screen,"\n al_gga_F_Nepe = %d \n",al_gga_F_Nepe);
+      error->all(FLERR,"PSEUDO_ERR requested scaled pseudopotential parameters do not match input: N elements per electron. ");
+    
     }
+    if (ion_charge != al_gga_F_ion_charge){
+      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      fprintf(screen,"\n al_gga_F_ion_charge = %d \n",al_gga_F_ion_charge);
+      error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
+    }
+  }
+  if (pseudo_key==al_gga_G_key){
+    c_coeff = al_gga_G_c;
+    a_coeff = al_gga_G_a;
+    N_coeff = al_gga_G_Ncoeff;
+    fprintf(screen,"\nUsing scaled pseudopotential 'G' parameters from coul/long/SPH_ph header file...");
+    if (N_elements_per_electron != al_gga_G_Nepe){
+      fprintf(screen,"\n al_gga_G_Nepe = %d \n",al_gga_G_Nepe);
+      error->all(FLERR,"PSEUDO_ERR requested scaled pseudopotential parameters do not match input: N elements per electron. ");
+    
+    }
+    if (ion_charge != al_gga_G_ion_charge){
+      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      fprintf(screen,"\n al_gga_G_ion_charge = %d \n",al_gga_G_ion_charge);
+      error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
+    }
+  }
+  if (cut_coul < ele_TFWHM){
+    fprintf(screen,"\n cut_coul = %16.16f \n",cut_coul);
+    fprintf(screen,"\n ele_TFWHM = %16.16f \n",ele_TFWHM);
+    error->all(FLERR,"PSEUDO_ERR cutoff too short for use with SPH coulomb: cutoff must be larger than TFWHM");
   }
 }
 

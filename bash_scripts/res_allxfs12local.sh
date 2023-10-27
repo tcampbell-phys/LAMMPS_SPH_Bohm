@@ -1,0 +1,4 @@
+#!/bin/bash
+
+rsync -azv --exclude='*_corr.*' --exclude='*_h.*' --exclude='*_x.*'  --exclude='*_nk.*' --exclude='*_F.*' --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' campbellt@allxfs1.physics.ox.ac.uk:/data/gregori/campbellt/LAMMPS/SPH_Bohm/Al_research/ ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/allxfs1/Al_research/
+# rsync -azv --exclude='*_corr.*' --exclude='*_h.*' --exclude='*_x.*'  --exclude='*_nk.*' --exclude='*_F.*' --exclude='log.*' --exclude='*.rdf' --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' campbellt@allxfs1.physics.ox.ac.uk:/data/gregori/campbellt/LAMMPS/SPH_Bohm/Be_research/ ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/allxfs1/Be_research/
