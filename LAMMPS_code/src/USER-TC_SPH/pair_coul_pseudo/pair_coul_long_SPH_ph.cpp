@@ -608,6 +608,54 @@ void PairCoulLongSPHph::settings(int narg, char **arg)
       error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
     }
   }
+  if (pseudo_key==al_gga_H_key){
+    c_coeff = al_gga_H_c;
+    a_coeff = al_gga_H_a;
+    N_coeff = al_gga_H_Ncoeff;
+    fprintf(screen,"\nUsing scaled pseudopotential 'H' parameters from coul/long/SPH_ph header file...");
+    if (N_elements_per_electron != al_gga_H_Nepe){
+      fprintf(screen,"\n al_gga_H_Nepe = %d \n",al_gga_H_Nepe);
+      error->all(FLERR,"PSEUDO_ERR requested scaled pseudopotential parameters do not match input: N elements per electron. ");
+    
+    }
+    if (ion_charge != al_gga_H_ion_charge){
+      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      fprintf(screen,"\n al_gga_H_ion_charge = %d \n",al_gga_H_ion_charge);
+      error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
+    }
+  }
+  if (pseudo_key==al_gga_I_key){
+    c_coeff = al_gga_I_c;
+    a_coeff = al_gga_I_a;
+    N_coeff = al_gga_I_Ncoeff;
+    fprintf(screen,"\nUsing scaled pseudopotential 'I' parameters from coul/long/SPH_ph header file...");
+    if (N_elements_per_electron != al_gga_I_Nepe){
+      fprintf(screen,"\n al_gga_I_Nepe = %d \n",al_gga_I_Nepe);
+      error->all(FLERR,"PSEUDO_ERR requested scaled pseudopotential parameters do not match input: N elements per electron. ");
+    
+    }
+    if (ion_charge != al_gga_I_ion_charge){
+      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      fprintf(screen,"\n al_gga_I_ion_charge = %d \n",al_gga_I_ion_charge);
+      error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
+    }
+  }
+  if (pseudo_key==al_gga_J_key){
+    c_coeff = al_gga_J_c;
+    a_coeff = al_gga_J_a;
+    N_coeff = al_gga_J_Ncoeff;
+    fprintf(screen,"\nUsing scaled pseudopotential 'J' parameters from coul/long/SPH_ph header file...");
+    if (N_elements_per_electron != al_gga_J_Nepe){
+      fprintf(screen,"\n al_gga_J_Nepe = %d \n",al_gga_J_Nepe);
+      error->all(FLERR,"PSEUDO_ERR requested scaled pseudopotential parameters do not match input: N elements per electron. ");
+    
+    }
+    if (ion_charge != al_gga_J_ion_charge){
+      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      fprintf(screen,"\n al_gga_J_ion_charge = %d \n",al_gga_J_ion_charge);
+      error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
+    }
+  }
   if (cut_coul < ele_TFWHM){
     fprintf(screen,"\n cut_coul = %16.16f \n",cut_coul);
     fprintf(screen,"\n ele_TFWHM = %16.16f \n",ele_TFWHM);
