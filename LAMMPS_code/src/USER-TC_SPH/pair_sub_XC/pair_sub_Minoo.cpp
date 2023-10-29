@@ -89,7 +89,7 @@ void PairSubMinoo::compute(int eflag, int vflag)
 
       if (rsq < cutsq[itype][jtype]) {
 
-        fpair = for_pre_fact*exp(-exp_fact*rsq)/N_elements_per_electron;
+        fpair = for_pre_fact*exp(-exp_fact*rsq)/N_elements_per_electron_sq;
 
         f[i][0] += (delx)*fpair;
         f[i][1] += (dely)*fpair;
@@ -102,8 +102,8 @@ void PairSubMinoo::compute(int eflag, int vflag)
               f[j][2] -= delz*fpair;
 
         }
-        if (eflag) eXC = pot_pre_fact*exp(-exp_fact*rsq)/N_elements_per_electron;
-        // fprintf(screen,"\neXC = %16.16f",eXC);
+        if (eflag) eXC = pot_pre_fact*exp(-exp_fact*rsq)/N_elements_per_electron_sq;
+        
         if (evflag) ev_tally(i,j,nlocal,newton_pair,
                              0.0,eXC,fpair,delx,dely,delz);
       }
@@ -141,6 +141,8 @@ void PairSubMinoo::settings(int narg, char **arg)
   targ_temp = force->numeric(FLERR,arg[1]);
   e_mass = force->numeric(FLERR,arg[2]);
   N_elements_per_electron = force->numeric(FLERR,arg[3]);
+
+  N_elements_per_electron_sq = N_elements_per_electron*N_elements_per_electron;
 
   hh_me = force-> hhmrr2e * hbar_val * hbar_val / e_mass;
 
