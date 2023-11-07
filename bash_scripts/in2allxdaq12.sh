@@ -1,6 +1,7 @@
 #!/bin/bash
 
 rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/analyse_structure.py campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
+rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/analyse_structure_fast.py campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
 rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/lammps_python_lib/ campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/lammps_python_lib/
 rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/svensson_lib/ campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/svensson_lib/
 # rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/activate_python_env.sh campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
