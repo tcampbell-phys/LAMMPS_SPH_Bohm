@@ -656,6 +656,22 @@ void PairCoulLongSPHph::settings(int narg, char **arg)
       error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
     }
   }
+  if (pseudo_key==al_gga_K_key){
+    c_coeff = al_gga_K_c;
+    a_coeff = al_gga_K_a;
+    N_coeff = al_gga_K_Ncoeff;
+    fprintf(screen,"\nUsing scaled pseudopotential 'K' parameters from coul/long/SPH_ph header file...");
+    if (N_elements_per_electron != al_gga_K_Nepe){
+      fprintf(screen,"\n al_gga_K_Nepe = %d \n",al_gga_K_Nepe);
+      error->all(FLERR,"PSEUDO_ERR requested scaled pseudopotential parameters do not match input: N elements per electron. ");
+    
+    }
+    if (ion_charge != al_gga_K_ion_charge){
+      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      fprintf(screen,"\n al_gga_K_ion_charge = %d \n",al_gga_K_ion_charge);
+      error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
+    }
+  }
   if (cut_coul < ele_TFWHM){
     fprintf(screen,"\n cut_coul = %16.16f \n",cut_coul);
     fprintf(screen,"\n ele_TFWHM = %16.16f \n",ele_TFWHM);

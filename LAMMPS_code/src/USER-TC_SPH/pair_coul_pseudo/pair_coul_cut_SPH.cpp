@@ -71,7 +71,8 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
 
   ecoul = 0.0;
   ev_init(eflag,vflag);
-
+  
+  int *tagid = atom->tag;
   double **x = atom->x;
   double **f = atom->f;
   double *q = atom->q;
@@ -254,6 +255,15 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
       f[i][2] += -(theta_coul[i]+chi_coul_ei[i])*dz_rho_SPH[i];
    
     }
+    if (tagid[i]== 4) {
+      fprintf(screen,"\ntarget tag = %d",tagid[i]);
+      fprintf(screen,"\ntarget x = %16.16f",xtmp);
+      fprintf(screen,"\ntarget y = %16.16f",ytmp);
+      fprintf(screen,"\ntarget z = %16.16f",ztmp);
+      fprintf(screen,"\ndynamic h force x = %16.16f",-(theta_coul[i]+chi_coul_ei[i])*dx_rho_SPH[i]);
+      fprintf(screen,"\ndynamic h force y = %16.16f",-(theta_coul[i]+chi_coul_ei[i])*dy_rho_SPH[i]);
+      fprintf(screen,"\ndynamic h force z = %16.16f",-(theta_coul[i]+chi_coul_ei[i])*dz_rho_SPH[i]);
+    }
     else{
       // // fprintf(screen,"\n\ni target...");
     }
@@ -274,6 +284,12 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
       if (rsq < cutsq[itype][jtype]) {
 
         // // fprintf(screen,"\nrsq = %16.16f",rsq);
+        if (tagid[i]== 4) {
+          fprintf(screen,"\n\nneighbour tag = %d",tagid[j]);
+          fprintf(screen,"\ndelx = %16.16f",delx);
+          fprintf(screen,"\ndely = %16.16f",dely);
+          fprintf(screen,"\ndelz = %16.16f",delz);
+        }
 
         if (jtype != ion_species){
 
@@ -294,6 +310,7 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
               ecoul += c_coeff[k] * mu_k_min3_2 * exp(-beta_k*rsq);
               force_fact += 2 * c_coeff[k] * beta_k * mu_k_min3_2 * exp(-beta_k*rsq);
             }
+
             ecoul *= factor_coul * qqrd2e * scale[itype][jtype];
             force_fact *= factor_coul * qqrd2e * scale[itype][jtype];
 
@@ -301,17 +318,25 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
             f[i][1] += dely*force_fact;
             f[i][2] += delz*force_fact;
 
-            // // fprintf(screen,"\ni-e coul = %16.16f",ecoul);
-            // // fprintf(screen,"\ni-e fact = %16.16f",force_fact);
+            
 
-            // // fprintf(screen,"\ni-e fx = %16.16f",delx*force_fact);
-            // // fprintf(screen,"\ni-e fy = %16.16f",dely*force_fact);
-            // // fprintf(screen,"\ni-e fz = %16.16f",delz*force_fact);
+            // fprintf(screen,"\ni-e fx = %16.16f",delx*force_fact);
+            // fprintf(screen,"\ni-e fy = %16.16f",dely*force_fact);
+            // fprintf(screen,"\ni-e fz = %16.16f",delz*force_fact);
 
             if (newton_pair || j < nlocal) {
               f[j][0] -= delx*force_fact;
               f[j][1] -= dely*force_fact;
               f[j][2] -= delz*force_fact;
+
+              if (tagid[j]== 4) {
+                fprintf(screen,"\nion neighbour...");
+                fprintf(screen,"\ndelx = %16.16f",-delx);
+                fprintf(screen,"\ndely = %16.16f",-dely);
+                fprintf(screen,"\ndelz = %16.16f",-delz);
+                fprintf(screen,"\nrsq = %16.16f",rsq);
+                fprintf(screen,"\nforce_fact = %16.16f",force_fact);
+              }
 
               // // fprintf(screen,"\ne-i fx = %16.16f",-delx*force_fact);
               // // fprintf(screen,"\ne-i fy = %16.16f",-dely*force_fact);
@@ -340,6 +365,15 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
             m_gauss_ji = imass*gauss_pre_j*exp(-(rsq)*hm2_j/2);
             ji_fact = hm2_j*m_gauss_ji*(theta_coul[j]+chi_coul_ei[j]);
 
+            if (tagid[i]== 4) {
+              fprintf(screen,"\nelectron neighbour...");
+              fprintf(screen,"\nrsq = %16.16f",rsq);
+              fprintf(screen,"\nforce_fact = %16.16f",force_fact);
+              fprintf(screen,"\nji_fact = %16.16f",ji_fact);
+              
+            }
+
+
             // ele-ele and ion-ele SPH dynamic width terms
 
             f[i][0] += (delx)*ji_fact;
@@ -360,6 +394,15 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
               f[j][1] -= dely*force_fact;
               f[j][2] -= delz*force_fact;
 
+              if (tagid[j]== 4) {
+                fprintf(screen,"\nele neighbour...");
+                fprintf(screen,"\ndelx = %16.16f",-delx);
+                fprintf(screen,"\ndely = %16.16f",-dely);
+                fprintf(screen,"\ndelz = %16.16f",-delz);
+                fprintf(screen,"\nrsq = %16.16f",rsq);
+                fprintf(screen,"\nforce_fact = %16.16f",force_fact);
+              }
+
               jmass = mass[jtype];
               m_gauss_ij = jmass*gauss_pre_i*exp(-(rsq)*hm2_i/2);
 
@@ -368,6 +411,10 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
               f[j][0] -= (delx)*ij_fact;
               f[j][1] -= (dely)*ij_fact;
               f[j][2] -= (delz)*ij_fact;
+
+              if (tagid[i]== 4) {
+                fprintf(screen,"\nij_fact = %16.16f",ij_fact);
+              }
 
               // // fprintf(screen,"\ne-e ij fx = %16.16f",-delx*(force_fact+ij_fact));
               // // fprintf(screen,"\ne-e ij fy = %16.16f",-dely*(force_fact+ij_fact));
@@ -378,6 +425,9 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
 
             if (eflag) ecoul = factor_coul * qqrd2e*scale[itype][jtype]*qtmp*q[j]*erf(rsqrt/(sqrt2*eff_width))/rsqrt;
             
+            if (tagid[i]== 4) {
+              fprintf(screen,"\necoul = %16.16f",ecoul);
+            }
             // // fprintf(screen,"\ne-e coul = %16.16f",ecoul);
             // // fprintf(screen,"\ne-e fact = %16.16f",force_fact + 0.5*(ij_fact+ji_fact));
 
@@ -406,11 +456,16 @@ void PairCoulCutSPH::compute(int eflag, int vflag)
               ecoul += c_coeff[k] * mu_k_min3_2 * exp(-beta_k*rsq);
               force_fact += 2 * c_coeff[k] * beta_k * mu_k_min3_2 * exp(-beta_k*rsq);
             }
+
             ecoul *= factor_coul * qqrd2e * scale[itype][jtype];
             force_fact *= factor_coul * qqrd2e * scale[itype][jtype];
 
-            // // fprintf(screen,"\ne-i coul = %16.16f",ecoul);
-            // // fprintf(screen,"\ne-i fact = %16.16f",force_fact);
+            if (tagid[i]== 4) {
+              fprintf(screen,"\nion neighbour...");
+              fprintf(screen,"\nrsq = %16.16f",rsq);
+              fprintf(screen,"\nforce_fact = %16.16f",force_fact);
+              fprintf(screen,"\necoul = %16.16f",ecoul);
+            }
 
             f[i][0] += delx*force_fact;
             f[i][1] += dely*force_fact;
@@ -563,6 +618,17 @@ void PairCoulCutSPH::settings(int narg, char **arg)
     if (ion_charge != al_lda_D_ion_charge){
       // // fprintf(screen,"\n ion_charge = %d \n",ion_charge);
       // // fprintf(screen,"\n al_lda_D_ion_charge = %d \n",al_lda_D_ion_charge);
+      error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
+    }
+  }
+  if (pseudo_key==al_gga_E_key){
+    c_coeff = al_gga_E_c;
+    a_coeff = al_gga_E_a;
+    N_coeff = al_gga_E_Ncoeff;
+    fprintf(screen,"\nUsing pseudopotential 'E' parameters from coul/cut/SPH_ph header file...");
+    if (ion_charge != al_gga_E_ion_charge){
+      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      fprintf(screen,"\n al_gga_E_ion_charge = %d \n",al_gga_E_ion_charge);
       error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
     }
   }

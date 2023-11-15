@@ -3,7 +3,7 @@
 ### SLURM job submissions
 
 start_string="in.placeholder"
-base_input="in.scarf_Al_3_5eV_5_2gcc_gga_fil_"
+base_input="in.scarf_Al_3_5eV_5_2gcc_gga_min_"
 
 echo "Number range start: "
 read start
