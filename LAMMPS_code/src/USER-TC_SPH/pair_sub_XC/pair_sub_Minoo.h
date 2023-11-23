@@ -38,6 +38,7 @@ class PairSubMinoo : public Pair {
   double boltz_val;
   double N_elements_per_electron;
   double N_elements_per_electron_sq;
+  int tag_ele_start;
   double hbar_val;
   double hh_me;
   double e_mass;

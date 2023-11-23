@@ -56,6 +56,7 @@ class PairCoulLongNopseudoSPHphsub : public Pair {
   double ele_TFWHM; // twice the full width half maximum of the average electron in SPH system
   int N_epe;
   int ion_species; // label which species are point charges
+  int tag_ele_start;
   double **scale;
 
   // per-atom arrays

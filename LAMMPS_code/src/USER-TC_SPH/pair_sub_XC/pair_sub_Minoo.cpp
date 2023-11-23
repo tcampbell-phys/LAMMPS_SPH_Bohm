@@ -68,6 +68,10 @@ void PairSubMinoo::compute(int eflag, int vflag)
   double for_pre_fact = (2 * boltz_val * targ_temp * boltz_val * targ_temp)/(hh_me);
   double exp_fact = (boltz_val * targ_temp)/(hh_me * ln_two);
 
+  int *tagid = atom->tag;
+  int lo_lim_lev;
+  int hi_lim_lev;
+
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
     xtmp = x[i][0];
@@ -76,6 +80,13 @@ void PairSubMinoo::compute(int eflag, int vflag)
     itype = type[i];
     jlist = firstneigh[i];
     jnum = numneigh[i];
+
+    // fprintf(screen,"\n\ncomm tag[i] = %d",tagid[i]);
+    // fprintf(screen,"\ni = %d",i);
+    lo_lim_lev = floor((tagid[i]-tag_ele_start)/N_elements_per_electron)*N_elements_per_electron + tag_ele_start;
+    hi_lim_lev = lo_lim_lev + N_elements_per_electron;
+    // fprintf(screen,"\nlo_lim_lev = %d",lo_lim_lev);
+    // fprintf(screen,"\nhi_lim_lev = %d",hi_lim_lev);
 
     for (jj = 0; jj < jnum; jj++) {
       j = jlist[jj];
@@ -86,6 +97,15 @@ void PairSubMinoo::compute(int eflag, int vflag)
       delz = ztmp - x[j][2];
       rsq = delx*delx + dely*dely + delz*delz;
       jtype = type[j];
+
+      // fprintf(screen,"\nj = %d",j);
+      // fprintf(screen,"\ncomm tag[j] = %d",tagid[j]);
+      if ( tagid[j] < hi_lim_lev ){
+        if ( tagid[j] >= lo_lim_lev ){
+          // fprintf(screen,"\nskipping...");
+          continue;
+        }
+      }
 
       if (rsq < cutsq[itype][jtype]) {
 
@@ -107,6 +127,7 @@ void PairSubMinoo::compute(int eflag, int vflag)
         if (evflag) ev_tally(i,j,nlocal,newton_pair,
                              0.0,eXC,fpair,delx,dely,delz);
       }
+      // fprintf(screen,"\nincluded..");
     }
   }
 }
@@ -135,12 +156,13 @@ void PairSubMinoo::allocate()
 
 void PairSubMinoo::settings(int narg, char **arg)
 {
-  if (narg != 4) error->all(FLERR,"Illegal pair_style command");
+  if (narg != 5) error->all(FLERR,"Illegal pair_style command");
 
   cut_global = force->numeric(FLERR,arg[0]);
   targ_temp = force->numeric(FLERR,arg[1]);
   e_mass = force->numeric(FLERR,arg[2]);
   N_elements_per_electron = force->numeric(FLERR,arg[3]);
+  tag_ele_start = force->numeric(FLERR,arg[4]);
 
   N_elements_per_electron_sq = N_elements_per_electron*N_elements_per_electron;
 

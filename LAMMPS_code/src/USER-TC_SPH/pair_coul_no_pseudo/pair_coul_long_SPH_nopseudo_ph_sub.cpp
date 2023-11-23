@@ -23,6 +23,7 @@
 #include <mpi.h>
 #include <cmath>
 #include <cstring>
+#include "group.h"
 #include "atom.h"
 #include "comm.h"
 #include "force.h"
@@ -166,7 +167,6 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
   theta_const = qqrd2e*sqrt2/(sqrt_pi*3);
 
   double pi_fact = 1/(sqrt2*sqrt_pi*sqrt2*sqrt_pi*sqrt2*sqrt_pi);
-
   // compute communicated properties
 
   for (ii = 0; ii < inum; ii++) {
@@ -181,11 +181,15 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
 
     imass = mass[itype];
     if (itype != ion_species) {
-      fprintf(screen,"\n\ncomm tag[i] = %d",tagid[i]);
-      lo_lim_lev = floor(tagid[i]/N_epe)*N_epe;
+
+      // identify self-interaction particles
+
+      // fprintf(screen,"\n\ncomm tag[i] = %d",tagid[i]);
+      lo_lim_lev = floor((tagid[i]-tag_ele_start)/N_epe)*N_epe + tag_ele_start;
       hi_lim_lev = lo_lim_lev + N_epe;
-      fprintf(screen,"\nlo_lim_lev = %d",lo_lim_lev);
-      fprintf(screen,"\nhi_lim_lev = %d",hi_lim_lev);
+      // fprintf(screen,"\nlo_lim_lev = %d",lo_lim_lev);
+      // fprintf(screen,"\nhi_lim_lev = %d",hi_lim_lev);
+
       h_i = width_SPH[i];
       h2_i = h_i*h_i;
 
@@ -204,13 +208,18 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
       rsq = delx*delx + dely*dely + delz*delz;
       jtype = type[j];
 
-      
+      // skip self-interactions
+
       if (itype != ion_species) {
-        fprintf(screen,"\ncomm tag[j] = %d",tagid[j]);
-        if ( ( ( tagid[j] < hi_lim_lev ) == 0 ) && ( ( tagid[j] > lo_lim_lev ) == 0 )){
-          fprintf(screen,"\ncontinuing...");
+        // fprintf(screen,"\ncomm tag[j] = %d",tagid[j]);
+        if ( tagid[j] < hi_lim_lev ){
+          if ( tagid[j] >= lo_lim_lev ){
+            // fprintf(screen,"\nskipping...");
+            continue;
+          }
         }
       }
+      // fprintf(screen,"\nincluding..");
 
       if (rsq < cutsq[itype][jtype]) {
 
@@ -261,18 +270,17 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
     jlist = firstneigh[i];
     jnum = numneigh[i];
 
-    fprintf(screen,"\n\nforce tag[i] = %d",tagid[i]);
-    fprintf(screen,"\nN_epe = %d",N_epe);
-    
-    fprintf(screen,"\nfloor(tagid[i]/N_epe) = %f",floor(tagid[i]/N_epe));
-    lo_lim_lev = floor(tagid[i]/N_epe)*N_epe;
-    hi_lim_lev = lo_lim_lev + N_epe;
-    fprintf(screen,"\nlo_lim_lev = %d",lo_lim_lev);
-    fprintf(screen,"\nhi_lim_lev = %d",hi_lim_lev);
-
     imass = mass[itype];
 
     if (itype != ion_species) {
+
+      // identify self-interaction particles
+      // fprintf(screen,"\n\ncomm tag[i] = %d",tagid[i]);
+      lo_lim_lev = floor((tagid[i]-tag_ele_start)/N_epe)*N_epe + tag_ele_start;
+      hi_lim_lev = lo_lim_lev + N_epe;
+      // fprintf(screen,"\nlo_lim_lev = %d",lo_lim_lev);
+      // fprintf(screen,"\nhi_lim_lev = %d",hi_lim_lev);
+
       // electron target
 
       h_i = width_SPH[i];
@@ -298,11 +306,6 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
       delz = ztmp - x[j][2];
       rsq = delx*delx + dely*dely + delz*delz;
       jtype = type[j];
-
-      fprintf(screen,"\nforce tag[j] = %d",tagid[j]);
-      if ( (tagid[j] < hi_lim_lev) && (tagid[j] >= lo_lim_lev)){
-        fprintf(screen,"\ncontinuing...");
-      }
 
       if (rsq < cut_coulsq) {
 
@@ -383,31 +386,9 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
 
             // electron target
 
-            eff_width = pow((h2_i + width_SPH[j]*width_SPH[j]),0.5);
+            // remove kspace contributions
 
-            ecoul = coul_prefact*erf(r/(sqrt2*eff_width))/r;
-
-            // remove erf coul
-
-            ecoul -= ecoul_erf;
-
-            force_fact = coul_prefact*(erf(r/(sqrt2*eff_width))/(r*r*r) - (sqrt2/sqrt_pi)*(exp(-rsq/(2*eff_width*eff_width))/(eff_width*rsq)));
-
-            f[i][0] += delx*force_fact;
-            f[i][1] += dely*force_fact;
-            f[i][2] += delz*force_fact;
-
-            h_j = width_SPH[j];
-            hm2_j = 1/(h_j*h_j);
-            gauss_pre_j = pi_fact*(1/(h_j*h_j*h_j));
-            m_gauss_ji = imass*gauss_pre_j*exp(-(rsq)*hm2_j/2);
-            ji_fact = hm2_j*m_gauss_ji*(theta_coul[j]+theta_coul_ei[j]);
-
-            // ele-ele and ion-ele SPH dynamic width terms
-
-            f[i][0] += (delx)*ji_fact;
-            f[i][1] += (dely)*ji_fact;
-            f[i][2] += (delz)*ji_fact;
+            ecoul = -ecoul_erf;
 
             // remove erf coul forces
 
@@ -416,30 +397,63 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
             f[i][2] -= (delz)*fpair_erf;
 
             if (newton_pair || j < nlocal) {
-
-              f[j][0] -= delx*force_fact;
-              f[j][1] -= dely*force_fact;
-              f[j][2] -= delz*force_fact;
-
               f[j][0] += delx*fpair_erf;
               f[j][1] += dely*fpair_erf;
               f[j][2] += delz*fpair_erf;
+            }
+            full_factor = - fpair_erf;
 
-              jmass = mass[jtype];
-              m_gauss_ij = jmass*gauss_pre_i*exp(-(rsq)*hm2_i/2);
+            // skip self-interactions
+            // fprintf(screen,"\nforce tag[j] = %d",tagid[j]);
+            if ( tagid[j] >= hi_lim_lev || tagid[j] < lo_lim_lev ){
+              // fprintf(screen,"\ncomputing e-e interactions...");
 
-              ij_fact = hm2_i*m_gauss_ij*(theta_coul[i]+theta_coul_ei[i]);
-              
-              f[j][0] -= (delx)*ij_fact;
-              f[j][1] -= (dely)*ij_fact;
-              f[j][2] -= (delz)*ij_fact;
+              eff_width = pow((h2_i + width_SPH[j]*width_SPH[j]),0.5);
+
+              ecoul += coul_prefact*erf(r/(sqrt2*eff_width))/r;
+
+              force_fact = coul_prefact*(erf(r/(sqrt2*eff_width))/(r*r*r) - (sqrt2/sqrt_pi)*(exp(-rsq/(2*eff_width*eff_width))/(eff_width*rsq)));
+
+              f[i][0] += delx*force_fact;
+              f[i][1] += dely*force_fact;
+              f[i][2] += delz*force_fact;
+
+              h_j = width_SPH[j];
+              hm2_j = 1/(h_j*h_j);
+              gauss_pre_j = pi_fact*(1/(h_j*h_j*h_j));
+              m_gauss_ji = imass*gauss_pre_j*exp(-(rsq)*hm2_j/2);
+              ji_fact = hm2_j*m_gauss_ji*(theta_coul[j]+theta_coul_ei[j]);
+
+              // ele-ele and ion-ele SPH dynamic width terms
+
+              f[i][0] += (delx)*ji_fact;
+              f[i][1] += (dely)*ji_fact;
+              f[i][2] += (delz)*ji_fact;
+
+              if (newton_pair || j < nlocal) {
+
+                f[j][0] -= delx*force_fact;
+                f[j][1] -= dely*force_fact;
+                f[j][2] -= delz*force_fact;
+
+                jmass = mass[jtype];
+                m_gauss_ij = jmass*gauss_pre_i*exp(-(rsq)*hm2_i/2);
+
+                ij_fact = hm2_i*m_gauss_ij*(theta_coul[i]+theta_coul_ei[i]);
+                
+                f[j][0] -= (delx)*ij_fact;
+                f[j][1] -= (dely)*ij_fact;
+                f[j][2] -= (delz)*ij_fact;
+
+              }
+
+              full_factor = force_fact - fpair_erf + 0.5*(ij_fact+ji_fact);
 
             }
 
             // dynamic coulomb-SPH force expression is not pairwise symmetric
             // use of ev_tally not accurate for pressure evaluation - edit in future.
             
-            full_factor = force_fact - fpair_erf + 0.5*(ij_fact+ji_fact);
             if (evflag) ev_tally_xyz(i,j,nlocal,newton_pair,0.0,ecoul,
                         full_factor*delx - 0.5*(theta_coul[i]+theta_coul_ei[i])*dx_rho_SPH[i] + 0.5*(theta_coul[j]+theta_coul_ei[j])*dx_rho_SPH[j],full_factor*dely - 0.5*(theta_coul[i]+theta_coul_ei[i])*dy_rho_SPH[i] + 0.5*(theta_coul[j]+theta_coul_ei[j])*dy_rho_SPH[j],full_factor*delz - 0.5*(theta_coul[i]+theta_coul_ei[i])*dz_rho_SPH[i] + 0.5*(theta_coul[j]+theta_coul_ei[j])*dz_rho_SPH[j],delx,dely,delz);
           }
@@ -526,6 +540,7 @@ void PairCoulLongNopseudoSPHphsub::allocate()
   memory->create(cutsq,n+1,n+1,"pair:cutsq");
 
   memory->create(scale,n+1,n+1,"pair:scale");
+  
 }
 
 /* ----------------------------------------------------------------------
@@ -534,19 +549,20 @@ void PairCoulLongNopseudoSPHphsub::allocate()
 
 void PairCoulLongNopseudoSPHphsub::settings(int narg, char **arg)
 {
-  if (narg != 5) error->all(FLERR,"Illegal pair_style command, incorrect number of arguments.");
+  if (narg != 6) error->all(FLERR,"Illegal pair_style command, incorrect number of arguments.");
 
   cut_coul = force->numeric(FLERR,arg[0]);
   ke_in = force->numeric(FLERR,arg[1]);
   ion_species = force->numeric(FLERR,arg[2]);
   ele_TFWHM = force->numeric(FLERR,arg[3]);
   N_epe = force->numeric(FLERR,arg[4]);
+  tag_ele_start = force->numeric(FLERR,arg[5]);
 
-  // if (cut_coul < ele_TFWHM){
-  //   fprintf(screen,"\n cut_coul = %16.16f \n",cut_coul);
-  //   fprintf(screen,"\n ele_TFWHM = %16.16f \n",ele_TFWHM);
-  //   error->all(FLERR,"coul/long/SPH_nopseudo_ph ERROR: cutoff too short for use with SPH coulomb. Cutoff must be larger than TFWHM");
-  // }
+  if (cut_coul < ele_TFWHM){
+    fprintf(screen,"\n cut_coul = %16.16f \n",cut_coul);
+    fprintf(screen,"\n ele_TFWHM = %16.16f \n",ele_TFWHM);
+    error->all(FLERR,"coul/long/SPH_nopseudo_ph ERROR: cutoff too short for use with SPH coulomb. Cutoff must be larger than TFWHM");
+  }
 }
 
 /* ----------------------------------------------------------------------
@@ -596,6 +612,7 @@ void PairCoulLongNopseudoSPHphsub::init_style()
   // setup force tables
 
   if (ncoultablebits) init_tables(cut_coul,NULL);
+
 }
 
 /* ----------------------------------------------------------------------
