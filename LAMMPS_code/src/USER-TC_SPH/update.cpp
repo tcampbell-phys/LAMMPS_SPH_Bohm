@@ -237,7 +237,7 @@ void Update::set_units(const char *style)
     force->qe2f = 1.94469051e-10;
     force->vxmu2f = 3.39893149e1;
     force->xxt2kmu = 3.13796367e-2;
-    force->e_mass = 0.0;    // not yet set
+    force->e_mass = 0.0005485799091; // set by T. Campbell (electron rest mass in Daltons)
     force->hhmrr2e = 0.937582899; // set by T. Campbell
     force->mvh2r = 0.0;
     force->angstrom = 1.88972612;
