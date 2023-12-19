@@ -565,13 +565,42 @@ void FixDynamicWidthsCoM::CoM_Calculator()
     x_mu[ele_num_i] += cos(theta_val);
     x_tau[ele_num_i] += sin(theta_val);
 
+    if (ele_num_i == 0){
+      fprintf(screen,"\n\nLAMMPS x = %16.16f",x[i][0]);
+      fprintf(screen,"\nID = %d",tagid[i]);
+      fprintf(screen,"\ntheta_x = %16.16f",theta_val);
+      fprintf(screen,"\nx_mu cont = %16.16f",cos(theta_val));
+      fprintf(screen,"\nx_mu = %16.16f",x_mu[ele_num_i]);
+      fprintf(screen,"\nx_tau cont = %16.16f",sin(theta_val));
+      fprintf(screen,"\nx_tau = %16.16f",x_tau[ele_num_i]);
+    }
+
     theta_val = x[i][1]*two_pi_over_len;
     y_mu[ele_num_i] += cos(theta_val);
     y_tau[ele_num_i] += sin(theta_val);
 
+    if (ele_num_i == 0){
+      fprintf(screen,"\ny = %16.16f",x[i][1]);
+      fprintf(screen,"\ntheta_y = %16.16f",theta_val);
+      fprintf(screen,"\ny_mu cont = %16.16f",cos(theta_val));
+      fprintf(screen,"\ny_mu = %16.16f",y_mu[ele_num_i]);
+      fprintf(screen,"\ny_tau cont = %16.16f",sin(theta_val));
+      fprintf(screen,"\ny_tau = %16.16f",y_tau[ele_num_i]);
+    }
+
     theta_val = x[i][2]*two_pi_over_len;
     z_mu[ele_num_i] += cos(theta_val);
     z_tau[ele_num_i] += sin(theta_val);
+
+    if (ele_num_i == 0){
+      fprintf(screen,"\nz = %16.16f",x[i][2]);
+      fprintf(screen,"\ntheta_z = %16.16f",theta_val);
+      fprintf(screen,"\nz_mu cont = %16.16f",cos(theta_val));
+      fprintf(screen,"\nz_mu = %16.16f",z_mu[ele_num_i]);
+      fprintf(screen,"\nz_tau cont = %16.16f",sin(theta_val));
+      fprintf(screen,"\nz_tau = %16.16f",z_tau[ele_num_i]);
+    }
+
 
     // fprintf(screen,"\nCheckpoint A");
     // fprintf(screen,"\ni = %d",i);
@@ -589,13 +618,41 @@ void FixDynamicWidthsCoM::CoM_Calculator()
         x_mu[ele_num_j] += cos(theta_val);
         x_tau[ele_num_j] += sin(theta_val);
 
+        if (ele_num_j == 0){
+          fprintf(screen,"\n\nLAMMPS x = %16.16f",x[j][0]);
+          fprintf(screen,"\nID = %d",tagid[j]);
+          fprintf(screen,"\ntheta_x = %16.16f",theta_val);
+          fprintf(screen,"\nx_mu cont = %16.16f",cos(theta_val));
+          fprintf(screen,"\nx_mu = %16.16f",x_mu[ele_num_j]);
+          fprintf(screen,"\nx_tau cont = %16.16f",sin(theta_val));
+          fprintf(screen,"\nx_tau = %16.16f",x_tau[ele_num_j]);
+        }
+
         theta_val = x[j][1]*two_pi_over_len;
         y_mu[ele_num_j] += cos(theta_val);
         y_tau[ele_num_j] += sin(theta_val);
 
+        if (ele_num_j == 0){
+          fprintf(screen,"\ny = %16.16f",x[j][1]);
+          fprintf(screen,"\ntheta_y = %16.16f",theta_val);
+          fprintf(screen,"\ny_mu cont = %16.16f",cos(theta_val));
+          fprintf(screen,"\ny_mu = %16.16f",y_mu[ele_num_j]);
+          fprintf(screen,"\ny_tau cont = %16.16f",sin(theta_val));
+          fprintf(screen,"\ny_tau = %16.16f",y_tau[ele_num_j]);
+        }
+
         theta_val = x[i][2]*two_pi_over_len;
         z_mu[ele_num_j] += cos(theta_val);
         z_tau[ele_num_j] += sin(theta_val);
+
+        if (ele_num_j == 0){
+          fprintf(screen,"\nz = %16.16f",x[j][2]);
+          fprintf(screen,"\ntheta_z = %16.16f",theta_val);
+          fprintf(screen,"\nz_mu cont = %16.16f",cos(theta_val));
+          fprintf(screen,"\nz_mu = %16.16f",z_mu[ele_num_j]);
+          fprintf(screen,"\nz_tau cont = %16.16f",sin(theta_val));
+          fprintf(screen,"\nz_tau = %16.16f",z_tau[ele_num_j]);
+        }
       }
       // fprintf(screen,"\nCheckpoint B");
       // fprintf(screen,"\nj = %d",j);
@@ -617,10 +674,26 @@ void FixDynamicWidthsCoM::CoM_Calculator()
     ele_num_i = floor((tagid[i]-tag_ele_start)/N_elements_per_electron);
     theta_ave = atan2(-x_tau[ele_num_i]/N_elements_per_electron,-x_mu[ele_num_i]/N_elements_per_electron) + M_PI;
     x_COM[i] = theta_ave/two_pi_over_len;
+    if (ele_num_i == 0){
+      fprintf(screen,"\n\nLAMMPS x = %16.16f",x[i][0]);
+      fprintf(screen,"\nID = %d",tagid[i]);
+      fprintf(screen,"\ntheta_ave_x = %16.16f",theta_ave);
+      fprintf(screen,"\nx_COM = %16.16f",x_COM[i]);
+    }
     theta_ave = atan2(-y_tau[ele_num_i]/N_elements_per_electron,-y_mu[ele_num_i]/N_elements_per_electron) + M_PI;
     y_COM[i] = theta_ave/two_pi_over_len;
+    if (ele_num_i == 0){
+      fprintf(screen,"\ny = %16.16f",x[i][1]);
+      fprintf(screen,"\ntheta_ave_y = %16.16f",theta_ave);
+      fprintf(screen,"\ny_COM = %16.16f",y_COM[i]);
+    }
     theta_ave = atan2(-z_tau[ele_num_i]/N_elements_per_electron,-z_mu[ele_num_i]/N_elements_per_electron) + M_PI;
     z_COM[i] = theta_ave/two_pi_over_len;
+    if (ele_num_i == 0){
+      fprintf(screen,"\nz = %16.16f",x[i][2]);
+      fprintf(screen,"\ntheta_ave_z = %16.16f",theta_ave);
+      fprintf(screen,"\nz_COM = %16.16f",z_COM[i]);
+    }
 
     // fprintf(screen,"\nCheckpoint C");
 
@@ -634,11 +707,27 @@ void FixDynamicWidthsCoM::CoM_Calculator()
       if (newton_pair || j < nlocal) {
         ele_num_j = floor((tagid[j]-tag_ele_start)/N_elements_per_electron);
         theta_ave = atan2(-x_tau[ele_num_j]/N_elements_per_electron,-x_mu[ele_num_j]/N_elements_per_electron) + M_PI;
-        x_COM[j] = theta_ave/two_pi_over_len;;
+        x_COM[j] = theta_ave/two_pi_over_len;
+        if (ele_num_j == 0){
+          fprintf(screen,"\n\nLAMMPS x = %16.16f",x[j][0]);
+          fprintf(screen,"\nID = %d",tagid[j]);
+          fprintf(screen,"\ntheta_ave_x = %16.16f",theta_ave);
+          fprintf(screen,"\nx_COM = %16.16f",x_COM[j]);
+        }
         theta_ave = atan2(-y_tau[ele_num_j]/N_elements_per_electron,-y_mu[ele_num_j]/N_elements_per_electron) + M_PI;
-        y_COM[j] = theta_ave/two_pi_over_len;;
+        y_COM[j] = theta_ave/two_pi_over_len;
+        if (ele_num_j == 0){
+          fprintf(screen,"\ny = %16.16f",x[j][1]);
+          fprintf(screen,"\ntheta_ave_y = %16.16f",theta_ave);
+          fprintf(screen,"\ny_COM = %16.16f",y_COM[j]);
+        }
         theta_ave = atan2(-z_tau[ele_num_j]/N_elements_per_electron,-z_mu[ele_num_j]/N_elements_per_electron) + M_PI;
-        z_COM[j] = theta_ave/two_pi_over_len;;
+        z_COM[j] = theta_ave/two_pi_over_len;
+        if (ele_num_j == 0){
+          fprintf(screen,"\nz = %16.16f",x[j][2]);
+          fprintf(screen,"\ntheta_ave_z = %16.16f",theta_ave);
+          fprintf(screen,"\nz_COM = %16.16f",z_COM[j]);
+        }
       }
       // fprintf(screen,"\nCheckpoint D");
     }
@@ -653,7 +742,36 @@ void FixDynamicWidthsCoM::CoM_Calculator()
 
   // fprintf(screen,"\nCheckpoint E");
 
-
+  // for (ii = 0; ii < inum; ii++) {
+  //   i = ilist[ii];
+  //   if (type[i] == type_avoid){
+  //     continue;
+  //   }
+  //   ele_num_i = floor((tagid[i]-tag_ele_start)/N_elements_per_electron);
+  //   theta_ave = atan2(-x_tau[ele_num_i]/N_elements_per_electron,-x_mu[ele_num_i]/N_elements_per_electron) + M_PI;
+  //   x_COM[i] = theta_ave/two_pi_over_len;
+  //   theta_ave = atan2(-y_tau[ele_num_i]/N_elements_per_electron,-y_mu[ele_num_i]/N_elements_per_electron) + M_PI;
+  //   y_COM[i] = theta_ave/two_pi_over_len;
+  //   theta_ave = atan2(-z_tau[ele_num_i]/N_elements_per_electron,-z_mu[ele_num_i]/N_elements_per_electron) + M_PI;
+  //   z_COM[i] = theta_ave/two_pi_over_len;
+  
+  //   for (jj = 0; jj < jnum; jj++) {
+  //     j = jlist[jj];
+  //     j &= NEIGHMASK;
+  //     if (type[j] == type_avoid){
+  //       continue;
+  //     }
+  //     if (newton_pair || j < nlocal) {
+  //       ele_num_j = floor((tagid[j]-tag_ele_start)/N_elements_per_electron);
+  //       theta_ave = atan2(-x_tau[ele_num_j]/N_elements_per_electron,-x_mu[ele_num_j]/N_elements_per_electron) + M_PI;
+  //       x_COM[j] = theta_ave/two_pi_over_len;;
+  //       theta_ave = atan2(-y_tau[ele_num_j]/N_elements_per_electron,-y_mu[ele_num_j]/N_elements_per_electron) + M_PI;
+  //       y_COM[j] = theta_ave/two_pi_over_len;;
+  //       theta_ave = atan2(-z_tau[ele_num_j]/N_elements_per_electron,-z_mu[ele_num_j]/N_elements_per_electron) + M_PI;
+  //       z_COM[j] = theta_ave/two_pi_over_len;;
+  //     }
+  //   }
+  // }
 }
 
 int FixDynamicWidthsCoM::pack_forward_comm(int n, int *list, double *buf,
