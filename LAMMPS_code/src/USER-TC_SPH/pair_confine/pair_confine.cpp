@@ -22,8 +22,7 @@ using namespace LAMMPS_NS;
 
 PairConfine::PairConfine(LAMMPS *lmp) : Pair(lmp)
 {
-  boltz_val = force->boltz;
-  hbar_val = (force->hplanck)/(2*M_PI);
+  
 }
 
 /* ---------------------------------------------------------------------- */
