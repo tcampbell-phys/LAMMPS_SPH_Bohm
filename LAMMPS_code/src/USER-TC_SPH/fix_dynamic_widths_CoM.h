@@ -52,6 +52,8 @@ class FixDynamicWidthsCoM : public Fix {
   double *y_tau;
   double *z_mu;
   double *z_tau;
+  // int *N_neigh;
+  // int **neigh_indices;
 
   void FixedPointIterator();
   void CoM_Calculator();

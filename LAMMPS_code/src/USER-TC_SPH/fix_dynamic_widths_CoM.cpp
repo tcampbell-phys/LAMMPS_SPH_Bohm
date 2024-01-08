@@ -61,13 +61,6 @@ FixDynamicWidthsCoM::FixDynamicWidthsCoM(LAMMPS *lmp, int narg, char **arg):
   z_mu = NULL;
   z_tau = NULL;
 
-  // memory->create(x_mu,N_electrons,"fix:x_mu");
-  // memory->create(x_tau,N_electrons,"fix:x_tau");
-  // memory->create(y_mu,N_electrons,"fix:y_mu");
-  // memory->create(y_tau,N_electrons,"fix:y_tau");
-  // memory->create(z_mu,N_electrons,"fix:z_mu");
-  // memory->create(z_tau,N_electrons,"fix:z_tau");
-  // // fprintf(screen,"\nAssigned memory to CoM variables...\n");
   comm_forward = 1;
   comm_reverse = 1; 
 
@@ -75,22 +68,12 @@ FixDynamicWidthsCoM::FixDynamicWidthsCoM(LAMMPS *lmp, int narg, char **arg):
   nmax = 0;
 
   assignment_flag = 1;
-
-
-
 }
 
 FixDynamicWidthsCoM::~FixDynamicWidthsCoM()
 {
   //free pair_name variable
   free(pair_name);
-  // memory->destroy(x_mu);
-  // memory->destroy(x_tau);
-  // memory->destroy(y_mu);
-  // memory->destroy(y_tau);
-  // memory->destroy(z_mu);
-  // memory->destroy(z_tau);
-
 }
 
 int FixDynamicWidthsCoM::setmask()
@@ -159,7 +142,6 @@ void FixDynamicWidthsCoM::min_pre_force(int)
 void FixDynamicWidthsCoM::setup_post_neighbor()
 {
   // inherit neighbour lists from pair style
-  
   FixedPointIterator();
   CoM_Calculator();
 }
@@ -396,7 +378,7 @@ void FixDynamicWidthsCoM::FixedPointIterator()
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
 
-    // // fprintf(screen,"\nrho_SPH[%d] = %16.16f",i,rho_SPH[i]);
+    // // // fprintf(screen,"\nrho_SPH[%d] = %16.16f",i,rho_SPH[i]);
 
     xtmp = x[i][0];
     ytmp = x[i][1];
@@ -469,7 +451,7 @@ double FixDynamicWidthsCoM::Gauss_Width_Deriv(double pre_fact, double wid, doubl
 
 void FixDynamicWidthsCoM::CoM_Calculator()
 {
-  int i,j,ii,jj,inum,jnum,itype,jtype;
+  int i,j,ii,jj,inum,jnum,itype,jtype,a;
   int *ilist,*jlist,*numneigh,**firstneigh;
 	double **x = atom->x;
   double *x_COM = atom->x_COM;
@@ -483,23 +465,21 @@ void FixDynamicWidthsCoM::CoM_Calculator()
   int nall = nlocal + atom->nghost;
   int newton_pair = force->newton_pair;
 
+  double xtmp,ytmp,ztmp,delx,dely,delz;
+  double rsq;
+
   int *tagid = atom->tag;
-  int lo_lim_lev;
-  int hi_lim_lev;
-  int ele_num_i;
-  int ele_num_j;
 
   list = pair->list;
+
+  int ntimestep = update->ntimestep;
 	
   inum = list->inum;
   ilist = list->ilist;
   numneigh = list->numneigh;
   firstneigh = list->firstneigh;
 
-  double theta_val;
   double theta_ave;
-
-  // assign memory to CoM coords
 
   if (atom->nmax > nmax) {
     // delete and create new memory arrays for any per-particle variables that need communicating.
@@ -518,92 +498,52 @@ void FixDynamicWidthsCoM::CoM_Calculator()
     memory->create(y_tau,nmax,"fix:y_tau");
     memory->create(z_mu,nmax,"fix:z_mu");
     memory->create(z_tau,nmax,"fix:z_tau");
-
-  // fprintf(screen,"\nAssigned memory for CoM variables...");
   }
-
 
   // clear all CoM coords
 
-  for(i = 0; i < N_electrons; i++){
-    x_mu[i] = 0.0;
-    x_tau[i] = 0.0;
-    y_mu[i] = 0.0;
-    y_tau[i] = 0.0;
-    z_mu[i] = 0.0;
-    x_tau[i] = 0.0;
-  }
-  // fprintf(screen,"\nCleared CoM variables...");
-  
-
   if (newton_pair) {
     for (i = 0; i < nall; i++){
-      x_COM[i] = 0.0;
-      y_COM[i] = 0.0;
-      z_COM[i] = 0.0;
+      x_mu[i] = 0.0;
+      x_tau[i] = 0.0;
+      y_mu[i] = 0.0;
+      y_tau[i] = 0.0;
+      z_mu[i] = 0.0;
+      z_tau[i] = 0.0;
     }
   } 
   else{
     for (i = 0; i < nlocal; i++){
-      x_COM[i] = 0.0;
-      y_COM[i] = 0.0;
-      z_COM[i] = 0.0;
+      x_mu[i] = 0.0;
+      x_tau[i] = 0.0;
+      y_mu[i] = 0.0;
+      y_tau[i] = 0.0;
+      z_mu[i] = 0.0;
+      z_tau[i] = 0.0;
     }
   }
-  // fprintf(screen,"\nCleared CoM values...");
-  
 
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
+    jlist = firstneigh[i];
+    jnum = numneigh[i];
 
     if (type[i] == type_avoid){
       continue;
     }
-    ele_num_i = floor((tagid[i]-tag_ele_start)/N_elements_per_electron);
 
-    theta_val = x[i][0]*two_pi_over_len;
-    x_mu[ele_num_i] += cos(theta_val);
-    x_tau[ele_num_i] += sin(theta_val);
+    xtmp = x[i][0];
+    ytmp = x[i][1];
+    ztmp = x[i][2];
 
-    if (ele_num_i == 0){
-      fprintf(screen,"\n\nLAMMPS x = %16.16f",x[i][0]);
-      fprintf(screen,"\nID = %d",tagid[i]);
-      fprintf(screen,"\ntheta_x = %16.16f",theta_val);
-      fprintf(screen,"\nx_mu cont = %16.16f",cos(theta_val));
-      fprintf(screen,"\nx_mu = %16.16f",x_mu[ele_num_i]);
-      fprintf(screen,"\nx_tau cont = %16.16f",sin(theta_val));
-      fprintf(screen,"\nx_tau = %16.16f",x_tau[ele_num_i]);
-    }
+    x_mu[i] += cos(xtmp*two_pi_over_len);
+    x_tau[i] += sin(xtmp*two_pi_over_len);
 
-    theta_val = x[i][1]*two_pi_over_len;
-    y_mu[ele_num_i] += cos(theta_val);
-    y_tau[ele_num_i] += sin(theta_val);
+    y_mu[i] += cos(ytmp*two_pi_over_len);
+    y_tau[i] += sin(ytmp*two_pi_over_len);
 
-    if (ele_num_i == 0){
-      fprintf(screen,"\ny = %16.16f",x[i][1]);
-      fprintf(screen,"\ntheta_y = %16.16f",theta_val);
-      fprintf(screen,"\ny_mu cont = %16.16f",cos(theta_val));
-      fprintf(screen,"\ny_mu = %16.16f",y_mu[ele_num_i]);
-      fprintf(screen,"\ny_tau cont = %16.16f",sin(theta_val));
-      fprintf(screen,"\ny_tau = %16.16f",y_tau[ele_num_i]);
-    }
-
-    theta_val = x[i][2]*two_pi_over_len;
-    z_mu[ele_num_i] += cos(theta_val);
-    z_tau[ele_num_i] += sin(theta_val);
-
-    if (ele_num_i == 0){
-      fprintf(screen,"\nz = %16.16f",x[i][2]);
-      fprintf(screen,"\ntheta_z = %16.16f",theta_val);
-      fprintf(screen,"\nz_mu cont = %16.16f",cos(theta_val));
-      fprintf(screen,"\nz_mu = %16.16f",z_mu[ele_num_i]);
-      fprintf(screen,"\nz_tau cont = %16.16f",sin(theta_val));
-      fprintf(screen,"\nz_tau = %16.16f",z_tau[ele_num_i]);
-    }
-
-
-    // fprintf(screen,"\nCheckpoint A");
-    // fprintf(screen,"\ni = %d",i);
+    z_mu[i] += cos(ztmp*two_pi_over_len);
+    z_tau[i] += sin(ztmp*two_pi_over_len);
 
     for (jj = 0; jj < jnum; jj++) {
       j = jlist[jj];
@@ -611,51 +551,43 @@ void FixDynamicWidthsCoM::CoM_Calculator()
       if (type[j] == type_avoid){
         continue;
       }
-      if (newton_pair || j < nlocal) {
-        ele_num_j = floor((tagid[j]-tag_ele_start)/N_elements_per_electron);
+      
+      if (floor((tagid[i]-tag_ele_start)/N_elements_per_electron) == floor((tagid[j]-tag_ele_start)/N_elements_per_electron)){
 
-        theta_val = x[j][0]*two_pi_over_len;
-        x_mu[ele_num_j] += cos(theta_val);
-        x_tau[ele_num_j] += sin(theta_val);
+        delx = x[j][0] - xtmp;
+        dely = x[j][1] - ytmp;
+        delz = x[j][2] - ztmp;
 
-        if (ele_num_j == 0){
-          fprintf(screen,"\n\nLAMMPS x = %16.16f",x[j][0]);
-          fprintf(screen,"\nID = %d",tagid[j]);
-          fprintf(screen,"\ntheta_x = %16.16f",theta_val);
-          fprintf(screen,"\nx_mu cont = %16.16f",cos(theta_val));
-          fprintf(screen,"\nx_mu = %16.16f",x_mu[ele_num_j]);
-          fprintf(screen,"\nx_tau cont = %16.16f",sin(theta_val));
-          fprintf(screen,"\nx_tau = %16.16f",x_tau[ele_num_j]);
-        }
+        rsq = delx*delx + dely*dely + delz*delz;
 
-        theta_val = x[j][1]*two_pi_over_len;
-        y_mu[ele_num_j] += cos(theta_val);
-        y_tau[ele_num_j] += sin(theta_val);
+        if (rsq < cutsquared){
 
-        if (ele_num_j == 0){
-          fprintf(screen,"\ny = %16.16f",x[j][1]);
-          fprintf(screen,"\ntheta_y = %16.16f",theta_val);
-          fprintf(screen,"\ny_mu cont = %16.16f",cos(theta_val));
-          fprintf(screen,"\ny_mu = %16.16f",y_mu[ele_num_j]);
-          fprintf(screen,"\ny_tau cont = %16.16f",sin(theta_val));
-          fprintf(screen,"\ny_tau = %16.16f",y_tau[ele_num_j]);
-        }
+          // i particle adds j particle to i CoM coords
 
-        theta_val = x[i][2]*two_pi_over_len;
-        z_mu[ele_num_j] += cos(theta_val);
-        z_tau[ele_num_j] += sin(theta_val);
+          x_mu[i] += cos(x[j][0]*two_pi_over_len);
+          x_tau[i] += sin(x[j][0]*two_pi_over_len);
 
-        if (ele_num_j == 0){
-          fprintf(screen,"\nz = %16.16f",x[j][2]);
-          fprintf(screen,"\ntheta_z = %16.16f",theta_val);
-          fprintf(screen,"\nz_mu cont = %16.16f",cos(theta_val));
-          fprintf(screen,"\nz_mu = %16.16f",z_mu[ele_num_j]);
-          fprintf(screen,"\nz_tau cont = %16.16f",sin(theta_val));
-          fprintf(screen,"\nz_tau = %16.16f",z_tau[ele_num_j]);
+          y_mu[i] += cos(x[j][1]*two_pi_over_len);
+          y_tau[i] += sin(x[j][1]*two_pi_over_len);
+
+          z_mu[i] += cos(x[j][2]*two_pi_over_len);
+          z_tau[i] += sin(x[j][2]*two_pi_over_len);
+
+          if (newton_pair || j < nlocal) {
+
+            // j particle adds i particle to j CoM coords
+          
+            x_mu[j] += cos(xtmp*two_pi_over_len);
+            x_tau[j] += sin(xtmp*two_pi_over_len);
+            
+            y_mu[j] += cos(ytmp*two_pi_over_len);
+            y_tau[j] += sin(ytmp*two_pi_over_len);
+
+            z_mu[j] += cos(ztmp*two_pi_over_len);
+            z_tau[j] += sin(ztmp*two_pi_over_len);
+          }
         }
       }
-      // fprintf(screen,"\nCheckpoint B");
-      // fprintf(screen,"\nj = %d",j);
     }
   }
   commflag = 4;
@@ -664,114 +596,24 @@ void FixDynamicWidthsCoM::CoM_Calculator()
   if (newton_pair){
     comm->reverse_comm_fix(this);
   }
-  comm->forward_comm_fix(this);
 
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
     if (type[i] == type_avoid){
       continue;
     }
-    ele_num_i = floor((tagid[i]-tag_ele_start)/N_elements_per_electron);
-    theta_ave = atan2(-x_tau[ele_num_i]/N_elements_per_electron,-x_mu[ele_num_i]/N_elements_per_electron) + M_PI;
-    x_COM[i] = theta_ave/two_pi_over_len;
-    if (ele_num_i == 0){
-      fprintf(screen,"\n\nLAMMPS x = %16.16f",x[i][0]);
-      fprintf(screen,"\nID = %d",tagid[i]);
-      fprintf(screen,"\ntheta_ave_x = %16.16f",theta_ave);
-      fprintf(screen,"\nx_COM = %16.16f",x_COM[i]);
-    }
-    theta_ave = atan2(-y_tau[ele_num_i]/N_elements_per_electron,-y_mu[ele_num_i]/N_elements_per_electron) + M_PI;
-    y_COM[i] = theta_ave/two_pi_over_len;
-    if (ele_num_i == 0){
-      fprintf(screen,"\ny = %16.16f",x[i][1]);
-      fprintf(screen,"\ntheta_ave_y = %16.16f",theta_ave);
-      fprintf(screen,"\ny_COM = %16.16f",y_COM[i]);
-    }
-    theta_ave = atan2(-z_tau[ele_num_i]/N_elements_per_electron,-z_mu[ele_num_i]/N_elements_per_electron) + M_PI;
-    z_COM[i] = theta_ave/two_pi_over_len;
-    if (ele_num_i == 0){
-      fprintf(screen,"\nz = %16.16f",x[i][2]);
-      fprintf(screen,"\ntheta_ave_z = %16.16f",theta_ave);
-      fprintf(screen,"\nz_COM = %16.16f",z_COM[i]);
-    }
-
-    // fprintf(screen,"\nCheckpoint C");
-
-
-    for (jj = 0; jj < jnum; jj++) {
-      j = jlist[jj];
-      j &= NEIGHMASK;
-      if (type[j] == type_avoid){
-        continue;
-      }
-      if (newton_pair || j < nlocal) {
-        ele_num_j = floor((tagid[j]-tag_ele_start)/N_elements_per_electron);
-        theta_ave = atan2(-x_tau[ele_num_j]/N_elements_per_electron,-x_mu[ele_num_j]/N_elements_per_electron) + M_PI;
-        x_COM[j] = theta_ave/two_pi_over_len;
-        if (ele_num_j == 0){
-          fprintf(screen,"\n\nLAMMPS x = %16.16f",x[j][0]);
-          fprintf(screen,"\nID = %d",tagid[j]);
-          fprintf(screen,"\ntheta_ave_x = %16.16f",theta_ave);
-          fprintf(screen,"\nx_COM = %16.16f",x_COM[j]);
-        }
-        theta_ave = atan2(-y_tau[ele_num_j]/N_elements_per_electron,-y_mu[ele_num_j]/N_elements_per_electron) + M_PI;
-        y_COM[j] = theta_ave/two_pi_over_len;
-        if (ele_num_j == 0){
-          fprintf(screen,"\ny = %16.16f",x[j][1]);
-          fprintf(screen,"\ntheta_ave_y = %16.16f",theta_ave);
-          fprintf(screen,"\ny_COM = %16.16f",y_COM[j]);
-        }
-        theta_ave = atan2(-z_tau[ele_num_j]/N_elements_per_electron,-z_mu[ele_num_j]/N_elements_per_electron) + M_PI;
-        z_COM[j] = theta_ave/two_pi_over_len;
-        if (ele_num_j == 0){
-          fprintf(screen,"\nz = %16.16f",x[j][2]);
-          fprintf(screen,"\ntheta_ave_z = %16.16f",theta_ave);
-          fprintf(screen,"\nz_COM = %16.16f",z_COM[j]);
-        }
-      }
-      // fprintf(screen,"\nCheckpoint D");
-    }
+    x_COM[i] = (atan2(-x_tau[i]/N_elements_per_electron,-x_mu[i]/N_elements_per_electron) + M_PI)/two_pi_over_len;
+    y_COM[i] = (atan2(-y_tau[i]/N_elements_per_electron,-y_mu[i]/N_elements_per_electron) + M_PI)/two_pi_over_len;
+    z_COM[i] = (atan2(-z_tau[i]/N_elements_per_electron,-z_mu[i]/N_elements_per_electron) + M_PI)/two_pi_over_len;
+    // if (tagid[i] == 801){
+    //   fprintf(screen,"\n\ntimestep %d \n\nx_COM = %16.16f \ny_COM = %16.16f \nz_COM = %16.16f",ntimestep,x_COM[i],y_COM[i],z_COM[i]);
+    // }
   }
   commflag = 5;
   comm_forward = 3;
-  comm_reverse = 3; 
-  if (newton_pair){
-    comm->reverse_comm_fix(this);
-  }
+  comm_reverse = 3;
+
   comm->forward_comm_fix(this);
-
-  // fprintf(screen,"\nCheckpoint E");
-
-  // for (ii = 0; ii < inum; ii++) {
-  //   i = ilist[ii];
-  //   if (type[i] == type_avoid){
-  //     continue;
-  //   }
-  //   ele_num_i = floor((tagid[i]-tag_ele_start)/N_elements_per_electron);
-  //   theta_ave = atan2(-x_tau[ele_num_i]/N_elements_per_electron,-x_mu[ele_num_i]/N_elements_per_electron) + M_PI;
-  //   x_COM[i] = theta_ave/two_pi_over_len;
-  //   theta_ave = atan2(-y_tau[ele_num_i]/N_elements_per_electron,-y_mu[ele_num_i]/N_elements_per_electron) + M_PI;
-  //   y_COM[i] = theta_ave/two_pi_over_len;
-  //   theta_ave = atan2(-z_tau[ele_num_i]/N_elements_per_electron,-z_mu[ele_num_i]/N_elements_per_electron) + M_PI;
-  //   z_COM[i] = theta_ave/two_pi_over_len;
-  
-  //   for (jj = 0; jj < jnum; jj++) {
-  //     j = jlist[jj];
-  //     j &= NEIGHMASK;
-  //     if (type[j] == type_avoid){
-  //       continue;
-  //     }
-  //     if (newton_pair || j < nlocal) {
-  //       ele_num_j = floor((tagid[j]-tag_ele_start)/N_elements_per_electron);
-  //       theta_ave = atan2(-x_tau[ele_num_j]/N_elements_per_electron,-x_mu[ele_num_j]/N_elements_per_electron) + M_PI;
-  //       x_COM[j] = theta_ave/two_pi_over_len;;
-  //       theta_ave = atan2(-y_tau[ele_num_j]/N_elements_per_electron,-y_mu[ele_num_j]/N_elements_per_electron) + M_PI;
-  //       y_COM[j] = theta_ave/two_pi_over_len;;
-  //       theta_ave = atan2(-z_tau[ele_num_j]/N_elements_per_electron,-z_mu[ele_num_j]/N_elements_per_electron) + M_PI;
-  //       z_COM[j] = theta_ave/two_pi_over_len;;
-  //     }
-  //   }
-  // }
 }
 
 int FixDynamicWidthsCoM::pack_forward_comm(int n, int *list, double *buf,
