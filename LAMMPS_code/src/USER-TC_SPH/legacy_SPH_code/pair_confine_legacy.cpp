@@ -22,42 +22,36 @@ using namespace LAMMPS_NS;
 
 PairConfine::PairConfine(LAMMPS *lmp) : Pair(lmp)
 {
-  boltz_val = force->boltz;
-  hbar_val = (force->hplanck)/(2*M_PI);
+  fprintf(screen,"\nconfine constructor...");
 }
 
 /* ---------------------------------------------------------------------- */
 
 PairConfine::~PairConfine()
 {
-  if (allocated) {
-    memory->destroy(setflag);
-    memory->destroy(cutsq);
-
-    memory->destroy(cut);
-  }
+  fprintf(screen,"\nconfine destructor...");
 }
 
 /* ---------------------------------------------------------------------- */
 
 void PairConfine::compute(int eflag, int vflag)
 {
-  int i,ii,inum,itype;
+  fprintf(screen,"\nconfine compute...");
+  int i,ii,inum;
+  double e_confine;
   double delx,dely,delz;
   int *ilist;
-
   ev_init(eflag,vflag);
 
   double **x = atom->x;
   double **f = atom->f;
-
-  double e_confine;
-
+  fprintf(screen,"A");
   double *x_COM = atom->x_COM;
   double *y_COM = atom->y_COM;
   double *z_COM = atom->z_COM;
-
-  double x_COM_use,y_COM_use,z_COM_use;
+  fprintf(screen,"B");
+  int nlocal = atom->nlocal;
+  int newton_pair = force->newton_pair;
 
   inum = list->inum;
   ilist = list->ilist;
@@ -65,42 +59,20 @@ void PairConfine::compute(int eflag, int vflag)
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
 
-    // Choose correct projection of Centre of Mass
-
-    if (x[i][0]-x_COM[i] > half_box_len){
-      x_COM_use = x_COM[i] + box_len;
-    } else if (x[i][0]-x_COM[i] < -half_box_len){
-      x_COM_use = x_COM[i] - box_len;
-    } else{
-      x_COM_use = x_COM[i];
-    }
-    if (x[i][1]-y_COM[i] > half_box_len){
-      y_COM_use = y_COM[i] + box_len;
-    } else if (x[i][1]-y_COM[i] < -half_box_len){
-      y_COM_use = y_COM[i] - box_len;
-    } else{
-      y_COM_use = y_COM[i];
-    }
-    if (x[i][2]-z_COM[i] > half_box_len){
-      z_COM_use = z_COM[i] + box_len;
-    } else if (x[i][2]-z_COM[i] < -half_box_len){
-      z_COM_use = z_COM[i] - box_len;
-    } else{
-      z_COM_use = z_COM[i];
-    }
-
-    delx = x[i][0]-x_COM_use;
-    dely = x[i][1]-y_COM_use;
-    delz = x[i][2]-z_COM_use;
+    delx = x[i][0]-x_COM[i];
+    dely = x[i][1]-y_COM[i];
+    delz = x[i][2]-z_COM[i];
 
     f[i][0] += -2*strength*(delx);
     f[i][1] += -2*strength*(dely);
     f[i][2] += -2*strength*(delz);
 
-    if (eflag) eng_vdwl += strength*(delx*delx + dely*dely + delz*delz);
+    if (eflag) e_confine = strength*(delx*delx + dely*dely + delz*delz);
+    if (evflag) ev_tally(i,0,nlocal,1,
+                          e_confine,0.0,0.0,0.0,0.0,0.0);
+
   }
 }
-
 /* ----------------------------------------------------------------------
    allocate all arrays
 ------------------------------------------------------------------------- */
@@ -108,15 +80,6 @@ void PairConfine::compute(int eflag, int vflag)
 void PairConfine::allocate()
 {
   allocated = 1;
-  int n = atom->ntypes;
-
-  memory->create(setflag,n+1,n+1,"pair:setflag");
-  for (int i = 1; i <= n; i++)
-    for (int j = i; j <= n; j++)
-      setflag[i][j] = 0;
-
-  memory->create(cutsq,n+1,n+1,"pair:cutsq");
-  memory->create(cut,n+1,n+1,"pair:cut");
 }
 
 /* ----------------------------------------------------------------------
@@ -125,22 +88,11 @@ void PairConfine::allocate()
 
 void PairConfine::settings(int narg, char **arg)
 {
-  if (narg != 3) error->all(FLERR,"Illegal pair_style command");
-
+  fprintf(screen,"\nconfine settings A...");
+  if (narg != 1) error->all(FLERR,"Illegal pair_style command");
+  fprintf(screen,"\nconfine settings B...");
   strength = force->numeric(FLERR,arg[0]);
-  cut_global = force->numeric(FLERR,arg[1]);
-  box_len = force->numeric(FLERR,arg[2]);
-
-  half_box_len = box_len/2;
-
-  // reset cutoffs that have been explicitly set
-
-  if (allocated) {
-    int i,j;
-    for (i = 1; i <= atom->ntypes; i++)
-      for (j = i; j <= atom->ntypes; j++)
-        if (setflag[i][j]) cut[i][j] = cut_global;
-  }
+  fprintf(screen,"\nconfine settings C...");
 }
 
 /* ----------------------------------------------------------------------
@@ -149,26 +101,9 @@ void PairConfine::settings(int narg, char **arg)
 
 void PairConfine::coeff(int narg, char **arg)
 {
+  fprintf(screen,"\nconfine coeff...");
   if (narg != 2) error->all(FLERR,"Incorrect args for pair coefficients");
   if (!allocated) allocate();
-
-  int ilo,ihi,jlo,jhi;
-  force->bounds(FLERR,arg[0],atom->ntypes,ilo,ihi);
-  force->bounds(FLERR,arg[1],atom->ntypes,jlo,jhi);
-
-  double cut_one = cut_global;
-  if (narg == 3) cut_one = force->numeric(FLERR,arg[2]);
-
-  int count = 0;
-  for (int i = ilo; i <= ihi; i++) {
-    for (int j = MAX(jlo,i); j <= jhi; j++) {
-      cut[i][j] = cut_one;
-      setflag[i][j] = 1;
-      count++;
-    }
-  }
-
-  if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients");
 }
 
 /* ----------------------------------------------------------------------
@@ -177,6 +112,7 @@ void PairConfine::coeff(int narg, char **arg)
 
 void PairConfine::init_style()
 {
+  fprintf(screen,"\nconfine init_style...");
   neighbor->request(this,instance_me);
 }
 
@@ -186,10 +122,8 @@ void PairConfine::init_style()
 
 double PairConfine::init_one(int i, int j)
 {
-  if (setflag[i][j] == 0)
-    cut[i][j] = mix_distance(cut[i][i],cut[j][j]);
-
-  return cut[i][j];
+  fprintf(screen,"\nconfine init_one...");
+  return strength;
 }
 
 /* ----------------------------------------------------------------------
@@ -198,13 +132,11 @@ double PairConfine::init_one(int i, int j)
 
 void PairConfine::write_restart(FILE *fp)
 {
+  fprintf(screen,"\nconfine write_restart...");
   write_restart_settings(fp);
 
-  for (int i = 1; i <= atom->ntypes; i++)
-    for (int j = i; j <= atom->ntypes; j++) {
-      fwrite(&setflag[i][j],sizeof(int),1,fp);
-      if (setflag[i][j]) fwrite(&cut[i][j],sizeof(double),1,fp);
-    }
+  fwrite(&strength,sizeof(int),1,fp);
+      
 }
 
 /* ----------------------------------------------------------------------
@@ -213,21 +145,13 @@ void PairConfine::write_restart(FILE *fp)
 
 void PairConfine::read_restart(FILE *fp)
 {
+  fprintf(screen,"\nconfine read_restart...");
+  
   read_restart_settings(fp);
 
-  allocate();
-
-  int i,j;
   int me = comm->me;
-  for (i = 1; i <= atom->ntypes; i++)
-    for (j = i; j <= atom->ntypes; j++) {
-      if (me == 0) utils::sfread(FLERR,&setflag[i][j],sizeof(int),1,fp,NULL,error);
-      MPI_Bcast(&setflag[i][j],1,MPI_INT,0,world);
-      if (setflag[i][j]) {
-        if (me == 0) utils::sfread(FLERR,&cut[i][j],sizeof(double),1,fp,NULL,error);
-        MPI_Bcast(&cut[i][j],1,MPI_DOUBLE,0,world);
-      }
-    }
+  if (me == 0) utils::sfread(FLERR,&strength,sizeof(int),1,fp,NULL,error);
+  MPI_Bcast(&strength,1,MPI_INT,0,world);
 }
 
 /* ----------------------------------------------------------------------
@@ -236,9 +160,9 @@ void PairConfine::read_restart(FILE *fp)
 
 void PairConfine::write_restart_settings(FILE *fp)
 {
-  fwrite(&cut_global,sizeof(double),1,fp);
-  fwrite(&offset_flag,sizeof(int),1,fp);
-  fwrite(&mix_flag,sizeof(int),1,fp);
+  fprintf(screen,"\nconfine write_restart_settings...");
+  
+  fwrite(&strength,sizeof(double),1,fp);
 }
 
 /* ----------------------------------------------------------------------
@@ -247,21 +171,19 @@ void PairConfine::write_restart_settings(FILE *fp)
 
 void PairConfine::read_restart_settings(FILE *fp)
 {
+  fprintf(screen,"\nconfine read_restart_settings...");
+  
   if (comm->me == 0) {
-    utils::sfread(FLERR,&cut_global,sizeof(double),1,fp,NULL,error);
-    utils::sfread(FLERR,&offset_flag,sizeof(int),1,fp,NULL,error);
-    utils::sfread(FLERR,&mix_flag,sizeof(int),1,fp,NULL,error);
+    utils::sfread(FLERR,&strength,sizeof(double),1,fp,NULL,error);
   }
-  MPI_Bcast(&cut_global,1,MPI_DOUBLE,0,world);
-  MPI_Bcast(&offset_flag,1,MPI_INT,0,world);
-  MPI_Bcast(&mix_flag,1,MPI_INT,0,world);
+  MPI_Bcast(&strength,1,MPI_DOUBLE,0,world);
 }
+
+/* ---------------------------------------------------------------------- */
 
 void *PairConfine::extract(const char *str, int &dim)
 {
-  if (strcmp(str,"cut_global") == 0) {
-    dim = 2;
-    return (void *) &cut;
-  }
+  fprintf(screen,"\nconfine extract...");
+  
   return NULL;
 }

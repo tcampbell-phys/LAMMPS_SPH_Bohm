@@ -29,18 +29,11 @@ class PairConfine : public Pair {
   void read_restart(FILE *);
   virtual void write_restart_settings(FILE *);
   virtual void read_restart_settings(FILE *);
+  // virtual double single(int, int, int, int, double, double, double, double &);
   virtual void *extract(const char *, int &);
 
  protected:
-  double strength;
-  double box_len;
-  double half_box_len;
-
-  double cut_global;
-  double boltz_val;
-  double hbar_val;
-  double **cut;
-
+  double strength; // strength of confining potential (units Energy/(Length^2))
   virtual void allocate();
 };
 
