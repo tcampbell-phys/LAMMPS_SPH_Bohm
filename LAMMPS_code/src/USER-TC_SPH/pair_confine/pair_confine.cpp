@@ -24,6 +24,7 @@ PairConfine::PairConfine(LAMMPS *lmp) : Pair(lmp)
 {
   boltz_val = force->boltz;
   hbar_val = (force->hplanck)/(2*M_PI);
+  fprintf(screen,"\nIn pair_confine with correct forcing term...");
 }
 
 /* ---------------------------------------------------------------------- */
@@ -53,6 +54,9 @@ void PairConfine::compute(int eflag, int vflag)
 
   double e_confine;
 
+  int *tagid = atom->tag;
+  // int ntimestep = update->ntimestep;
+
   double *x_COM = atom->x_COM;
   double *y_COM = atom->y_COM;
   double *z_COM = atom->z_COM;
@@ -68,34 +72,48 @@ void PairConfine::compute(int eflag, int vflag)
     // Choose correct projection of Centre of Mass
 
     if (x[i][0]-x_COM[i] > half_box_len){
+      // fprintf(screen,"\nBasic Ax");
       x_COM_use = x_COM[i] + box_len;
     } else if (x[i][0]-x_COM[i] < -half_box_len){
+      // fprintf(screen,"\nBasic Bx");
       x_COM_use = x_COM[i] - box_len;
     } else{
       x_COM_use = x_COM[i];
     }
     if (x[i][1]-y_COM[i] > half_box_len){
+      // fprintf(screen,"\nBasic Ay");
       y_COM_use = y_COM[i] + box_len;
     } else if (x[i][1]-y_COM[i] < -half_box_len){
+      // fprintf(screen,"\nBasic By");
       y_COM_use = y_COM[i] - box_len;
     } else{
       y_COM_use = y_COM[i];
     }
     if (x[i][2]-z_COM[i] > half_box_len){
+      // fprintf(screen,"\nBasic Az");
       z_COM_use = z_COM[i] + box_len;
     } else if (x[i][2]-z_COM[i] < -half_box_len){
+      // fprintf(screen,"\nBasic Bz");
       z_COM_use = z_COM[i] - box_len;
     } else{
       z_COM_use = z_COM[i];
     }
 
+    // if (ntimestep < 10){
+    //   if (tagid[i] == 1){
+    //     fprintf(screen,"\nx_COM[i] = %16.16f \nx_COM_use = %16.16f \nx[i][0] = %16.16f \ndelx = %16.16f",x_COM[i],x_COM_use,x[i][0]);
+    //     fprintf(screen,"\ny_COM[i] = %16.16f \ny_COM_use = %16.16f \nx[i][1] = %16.16f \ndely = %16.16f",y_COM[i],y_COM_use,x[i][1]);
+    //     fprintf(screen,"\nz_COM[i] = %16.16f \nz_COM_use = %16.16f \nx[i][2] = %16.16f \ndelz = %16.16f",z_COM[i],z_COM_use,x[i][2]);
+    //   }
+    // }
+
     delx = x[i][0]-x_COM_use;
     dely = x[i][1]-y_COM_use;
     delz = x[i][2]-z_COM_use;
 
-    f[i][0] += -2*strength*(delx);
-    f[i][1] += -2*strength*(dely);
-    f[i][2] += -2*strength*(delz);
+    f[i][0] += -2*force_factor*strength*(delx);
+    f[i][1] += -2*force_factor*strength*(dely);
+    f[i][2] += -2*force_factor*strength*(delz);
 
     if (eflag) eng_vdwl += strength*(delx*delx + dely*dely + delz*delz);
   }
@@ -125,11 +143,16 @@ void PairConfine::allocate()
 
 void PairConfine::settings(int narg, char **arg)
 {
-  if (narg != 3) error->all(FLERR,"Illegal pair_style command");
+  if (narg != 4) error->all(FLERR,"Illegal pair_style command");
 
   strength = force->numeric(FLERR,arg[0]);
   cut_global = force->numeric(FLERR,arg[1]);
   box_len = force->numeric(FLERR,arg[2]);
+  N_epe = force->numeric(FLERR,arg[3]);
+  // fprintf(screen,"\nN_epe = %f",N_epe);
+
+  force_factor = (N_epe-1.0)/N_epe;
+  fprintf(screen,"\nforce_factor = %8.8f",force_factor);
 
   half_box_len = box_len/2;
 

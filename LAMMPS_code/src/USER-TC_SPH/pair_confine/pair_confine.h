@@ -35,7 +35,9 @@ class PairConfine : public Pair {
   double strength;
   double box_len;
   double half_box_len;
+  double N_epe;
 
+  double force_factor;
   double cut_global;
   double boltz_val;
   double hbar_val;
