@@ -19,11 +19,11 @@
      in the real space calculations.
 ------------------------------------------------------------------------- */
 
-#include "pair_coul_long_SPH_nopseudo_ph_sub.h"
+#include "pair_coul_long_SPH_ph_sub.h"
+#include "domain.h"
 #include <mpi.h>
 #include <cmath>
 #include <cstring>
-#include "group.h"
 #include "atom.h"
 #include "comm.h"
 #include "force.h"
@@ -46,7 +46,7 @@ using namespace LAMMPS_NS;
 
 /* ---------------------------------------------------------------------- */
 
-PairCoulLongNopseudoSPHphsub::PairCoulLongNopseudoSPHphsub(LAMMPS *lmp) : Pair(lmp)
+PairCoulLongSPHphsub::PairCoulLongSPHphsub(LAMMPS *lmp) : Pair(lmp)
 {
   ewaldflag = pppmflag = 1;
   ftable = NULL;
@@ -59,7 +59,7 @@ PairCoulLongNopseudoSPHphsub::PairCoulLongNopseudoSPHphsub(LAMMPS *lmp) : Pair(l
   numforce = 0;
 
   theta_coul = NULL;
-  theta_coul_ei = NULL;
+  chi_coul_ei = NULL;
 
   comm_forward = 2;
   comm_reverse = 2;
@@ -67,7 +67,7 @@ PairCoulLongNopseudoSPHphsub::PairCoulLongNopseudoSPHphsub(LAMMPS *lmp) : Pair(l
 
 /* ---------------------------------------------------------------------- */
 
-PairCoulLongNopseudoSPHphsub::~PairCoulLongNopseudoSPHphsub()
+PairCoulLongSPHphsub::~PairCoulLongSPHphsub()
 {
   if (copymode) return;
 
@@ -76,7 +76,7 @@ PairCoulLongNopseudoSPHphsub::~PairCoulLongNopseudoSPHphsub()
     memory->destroy(cutsq);
 
     memory->destroy(theta_coul);
-    memory->destroy(theta_coul_ei);
+    memory->destroy(chi_coul_ei);
 
     memory->destroy(scale);
   }
@@ -86,9 +86,9 @@ PairCoulLongNopseudoSPHphsub::~PairCoulLongNopseudoSPHphsub()
 
 /* ---------------------------------------------------------------------- */
 
-void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
+void PairCoulLongSPHphsub::compute(int eflag, int vflag)
 {
-  int i,j,ii,jj,inum,jnum,itable,itype,jtype;
+  int i,j,ii,jj,k,inum,jnum,itable,itype,jtype;
   double qtmp,xtmp,ytmp,ztmp,delx,dely,delz,ecoul,fpair,ecoul_erfc,ecoul_erf,fpair_erf;
   double fraction,table,energy_table;
   double r,r2inv,forcecoul,factor_coul,coul_prefact;
@@ -116,7 +116,7 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
   double *dy_rho_SPH = atom->dy_rho_SPH;
   double *dz_rho_SPH = atom->dz_rho_SPH;
 
-  double rho_i, omega_i, fact_i;
+  double rho_i, omega_i, fact_i, fact_chi, mu_k, mu_k_min3_2, beta_k, prefact;
 
   double eff_width;
   double force_fact;
@@ -142,23 +142,23 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
   if (atom->nmax > nmax) {
     // delete and create new memory arrays for any per-particle variables that need communicating.
     memory->destroy(theta_coul);
-    memory->destroy(theta_coul_ei);
+    memory->destroy(chi_coul_ei);
     nmax = atom->nmax;
     memory->create(theta_coul,nmax,"pair:theta_coul");
-    memory->create(theta_coul_ei,nmax,"pair:theta_coul_ei");
+    memory->create(chi_coul_ei,nmax,"pair:chi_coul_ei");
   }
   // zero out per-atom arrays
 
   if (newton_pair) {
     for (i = 0; i < nall; i++){
       theta_coul[i] = 0.0;
-      theta_coul_ei[i] = 0.0;
+      chi_coul_ei[i] = 0.0;
     }
   } 
   else{
     for (i = 0; i < nlocal; i++){
       theta_coul[i] = 0.0;
-      theta_coul_ei[i] = 0.0;
+      chi_coul_ei[i] = 0.0;
     }
   }
 
@@ -191,12 +191,13 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
       h2_i = h_i*h_i;
 
       fact_i = (theta_const*qtmp)/(rho_SPH[i]*omega_SPH[i]);
+      fact_chi = h_i/(3*rho_SPH[i]*omega_SPH[i]);
     }
 
     for (jj = 0; jj < jnum; jj++) {
       j = jlist[jj];
       factor_coul = special_coul[sbmask(j)];
-      
+
       j &= NEIGHMASK;
 
       delx = xtmp - x[j][0];
@@ -231,7 +232,12 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
 
           if (jtype == ion_species){
             // ion neighbour
-            theta_coul_ei[i] += scale[itype][jtype]*fact_i*q[j]*exp(-rsq/(2*h2_i))/(h_i);
+            prefact = scale[itype][jtype]*fact_chi;
+             for (k = 0; k < N_coeff; k++){
+              mu_k = 2*h2_i*a_coeff[k] + 1;
+              beta_k = a_coeff[k]/mu_k;
+              chi_coul_ei[i] += prefact*c_coeff[k]*2*h_i*a_coeff[k]*exp(-beta_k*rsq)*pow(mu_k,-2.5)*(2*rsq*beta_k - 3);
+            }
           }
         }
 
@@ -240,7 +246,12 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
           if (jtype != ion_species){
             // electron neighbour
             if (newton_pair || j < nlocal) {
-              theta_coul_ei[j] += scale[itype][jtype]*theta_const*((qtmp*q[j])/(rho_SPH[j]*omega_SPH[j]))*(1/width_SPH[j])*exp(-rsq/(2*width_SPH[j]*width_SPH[j]));
+              prefact = scale[itype][jtype]*(width_SPH[j]/(3*rho_SPH[j]*omega_SPH[j]));
+              for (k = 0; k < N_coeff; k++){
+                mu_k = 2*width_SPH[j]*width_SPH[j]*a_coeff[k] + 1;
+                beta_k = a_coeff[k]/mu_k;
+                chi_coul_ei[j] += prefact*c_coeff[k]*2*width_SPH[j]*a_coeff[k]*exp(-beta_k*rsq)*pow(mu_k,-2.5)*(2*rsq*beta_k - 3);
+              }
             }
           }
         }
@@ -279,9 +290,9 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
 
       gauss_pre_i = pi_fact*(1/(h_i*h_i*h_i));
       // ele-ele and ion-ele SPH dynamic terms
-      f[i][0] += -(theta_coul[i]+theta_coul_ei[i])*dx_rho_SPH[i];
-      f[i][1] += -(theta_coul[i]+theta_coul_ei[i])*dy_rho_SPH[i];
-      f[i][2] += -(theta_coul[i]+theta_coul_ei[i])*dz_rho_SPH[i];
+      f[i][0] += -(theta_coul[i]+chi_coul_ei[i])*dx_rho_SPH[i];
+      f[i][1] += -(theta_coul[i]+chi_coul_ei[i])*dy_rho_SPH[i];
+      f[i][2] += -(theta_coul[i]+chi_coul_ei[i])*dz_rho_SPH[i];
     
     }
 
@@ -290,7 +301,7 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
       j = jlist[jj];
       factor_coul = special_coul[sbmask(j)];
       j &= NEIGHMASK;
-    
+
       delx = xtmp - x[j][0];
       dely = ytmp - x[j][1];
       delz = ztmp - x[j][2];
@@ -339,15 +350,25 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
           if (itype == ion_species){
 
             // ion target
+            ecoul = 0.;
+            force_fact = 0.;
 
-            ecoul = coul_prefact*erf(r/(sqrt2*h_j))/r;
+            for (k = 0; k < N_coeff; k++){
+              mu_k = 2*h_j*h_j*a_coeff[k] + 1;
+              beta_k = a_coeff[k]/mu_k;
+              mu_k_min3_2 = pow(mu_k,-1.5);
+              ecoul += c_coeff[k] * mu_k_min3_2 * exp(-beta_k*rsq);
+              force_fact += 2 * c_coeff[k] * beta_k * mu_k_min3_2 * exp(-beta_k*rsq);
+            }
+
+            ecoul *=  qqrd2e * scale[itype][jtype];
 
             // remove erf coul
 
             ecoul -= ecoul_erf;
-            
-            force_fact = coul_prefact*(erf(r/(sqrt2*h_j))/(r*r*r) - (sqrt2/sqrt_pi)*(exp(-rsq*hm2_j/2)/(h_j*rsq)));
 
+            force_fact *=  qqrd2e * scale[itype][jtype];
+            
             f[i][0] += delx*force_fact;
             f[i][1] += dely*force_fact;
             f[i][2] += delz*force_fact;
@@ -401,7 +422,7 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
               ecoul += coul_prefact*erf(r/(sqrt2*eff_width))/r;
 
               force_fact = coul_prefact*(erf(r/(sqrt2*eff_width))/(r*r*r) - (sqrt2/sqrt_pi)*(exp(-rsq/(2*eff_width*eff_width))/(eff_width*rsq)));
-
+              
               f[i][0] += delx*force_fact;
               f[i][1] += dely*force_fact;
               f[i][2] += delz*force_fact;
@@ -410,7 +431,7 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
               hm2_j = 1/(h_j*h_j);
               gauss_pre_j = pi_fact*(1/(h_j*h_j*h_j));
               m_gauss_ji = imass*gauss_pre_j*exp(-(rsq)*hm2_j/2);
-              ji_fact = hm2_j*m_gauss_ji*(theta_coul[j]+theta_coul_ei[j]);
+              ji_fact = hm2_j*m_gauss_ji*(theta_coul[j]+chi_coul_ei[j]);
 
               // ele-ele and ion-ele SPH dynamic width terms
 
@@ -427,8 +448,8 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
                 jmass = mass[jtype];
                 m_gauss_ij = jmass*gauss_pre_i*exp(-(rsq)*hm2_i/2);
 
-                ij_fact = hm2_i*m_gauss_ij*(theta_coul[i]+theta_coul_ei[i]);
-                
+                ij_fact = hm2_i*m_gauss_ij*(theta_coul[i]+chi_coul_ei[i]);
+              
                 f[j][0] -= (delx)*ij_fact;
                 f[j][1] -= (dely)*ij_fact;
                 f[j][2] -= (delz)*ij_fact;
@@ -443,7 +464,7 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
             // use of ev_tally not accurate for pressure evaluation - edit in future.
             
             if (evflag) ev_tally_xyz(i,j,nlocal,newton_pair,0.0,ecoul,
-                        full_factor*delx - 0.5*(theta_coul[i]+theta_coul_ei[i])*dx_rho_SPH[i] + 0.5*(theta_coul[j]+theta_coul_ei[j])*dx_rho_SPH[j],full_factor*dely - 0.5*(theta_coul[i]+theta_coul_ei[i])*dy_rho_SPH[i] + 0.5*(theta_coul[j]+theta_coul_ei[j])*dy_rho_SPH[j],full_factor*delz - 0.5*(theta_coul[i]+theta_coul_ei[i])*dz_rho_SPH[i] + 0.5*(theta_coul[j]+theta_coul_ei[j])*dz_rho_SPH[j],delx,dely,delz);
+                        full_factor*delx - 0.5*(theta_coul[i]+chi_coul_ei[i])*dx_rho_SPH[i] + 0.5*(theta_coul[j]+chi_coul_ei[j])*dx_rho_SPH[j],full_factor*dely - 0.5*(theta_coul[i]+chi_coul_ei[i])*dy_rho_SPH[i] + 0.5*(theta_coul[j]+chi_coul_ei[j])*dy_rho_SPH[j],full_factor*delz - 0.5*(theta_coul[i]+chi_coul_ei[i])*dz_rho_SPH[i] + 0.5*(theta_coul[j]+chi_coul_ei[j])*dz_rho_SPH[j],delx,dely,delz);
           }
         }
 
@@ -454,15 +475,23 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
           if (itype != ion_species){
 
             // electron target
+            ecoul = 0.;
+            force_fact = 0.;
 
-            ecoul = coul_prefact*erf(r/(sqrt2*h_i))/r;
+            for (k = 0; k < N_coeff; k++){
+              mu_k = 2*h2_i*a_coeff[k] + 1;
+              beta_k = a_coeff[k]/mu_k;
+              mu_k_min3_2 = pow(mu_k,-1.5);
+              ecoul += c_coeff[k] * mu_k_min3_2 * exp(-beta_k*rsq);
+              force_fact += 2 * c_coeff[k] * beta_k * mu_k_min3_2 * exp(-beta_k*rsq);
+            }
+            ecoul *=  qqrd2e * scale[itype][jtype];
+            force_fact *=  qqrd2e * scale[itype][jtype];
 
             // remove erf coul
 
             ecoul -= ecoul_erf;
             
-            force_fact = coul_prefact*(erf(r/(sqrt2*h_i))/(r*r*r) - (sqrt2/sqrt_pi)*(exp(-rsq*hm2_i/2)/(h_i*rsq)));
-
             f[i][0] += delx*force_fact;
             f[i][1] += dely*force_fact;
             f[i][2] += delz*force_fact;
@@ -515,7 +544,7 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
    allocate all arrays
 ------------------------------------------------------------------------- */
 
-void PairCoulLongNopseudoSPHphsub::allocate()
+void PairCoulLongSPHphsub::allocate()
 {
   allocated = 1;
   int n = atom->ntypes;
@@ -528,28 +557,159 @@ void PairCoulLongNopseudoSPHphsub::allocate()
   memory->create(cutsq,n+1,n+1,"pair:cutsq");
 
   memory->create(scale,n+1,n+1,"pair:scale");
-  
 }
 
 /* ----------------------------------------------------------------------
    global settings
 ------------------------------------------------------------------------- */
 
-void PairCoulLongNopseudoSPHphsub::settings(int narg, char **arg)
+void PairCoulLongSPHphsub::settings(int narg, char **arg)
 {
-  if (narg != 6) error->all(FLERR,"Illegal pair_style command, incorrect number of arguments.");
+  if (narg != 9) error->all(FLERR,"Illegal pair_style command");
 
   cut_coul = force->numeric(FLERR,arg[0]);
   ke_in = force->numeric(FLERR,arg[1]);
   ion_species = force->numeric(FLERR,arg[2]);
-  ele_TFWHM = force->numeric(FLERR,arg[3]);
-  N_epe = force->numeric(FLERR,arg[4]);
-  tag_ele_start = force->numeric(FLERR,arg[5]);
+  pseudo_key = force->numeric(FLERR,arg[3]);
+  ion_charge = force->numeric(FLERR,arg[4]);
+  ele_TFWHM = force->numeric(FLERR,arg[5]);
+  N_elements_per_electron = force->numeric(FLERR,arg[6]);
+  N_epe = force->numeric(FLERR,arg[7]);
+  tag_ele_start = force->numeric(FLERR,arg[8]);
 
+  // check input parameters match selected Pseudopotential parameters
+  if (pseudo_key==al_lda_A_key){
+    c_coeff = al_lda_A_c;
+    a_coeff = al_lda_A_a;
+    N_coeff = al_lda_A_Ncoeff;
+    fprintf(screen,"\nUsing pseudopotential 'A' parameters from coul/long/SPH_ph_sub header file...");
+    if (ion_charge != al_lda_A_ion_charge){
+      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      fprintf(screen,"\n al_lda_A_ion_charge = %d \n",al_lda_A_ion_charge);
+      error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
+    }
+  }
+  if (pseudo_key==al_lda_D_key){
+    c_coeff = al_lda_D_c;
+    a_coeff = al_lda_D_a;
+    N_coeff = al_lda_D_Ncoeff;
+    fprintf(screen,"\nUsing pseudopotential 'D' parameters from coul/long/SPH_ph_sub header file...");
+    if (ion_charge != al_lda_D_ion_charge){
+      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      fprintf(screen,"\n al_lda_D_ion_charge = %d \n",al_lda_D_ion_charge);
+      error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
+    }
+  }
+  if (pseudo_key==al_gga_E_key){
+    c_coeff = al_gga_E_c;
+    a_coeff = al_gga_E_a;
+    N_coeff = al_gga_E_Ncoeff;
+    fprintf(screen,"\nUsing pseudopotential 'E' parameters from coul/long/SPH_ph_sub header file...");
+    if (ion_charge != al_gga_E_ion_charge){
+      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      fprintf(screen,"\n al_gga_E_ion_charge = %d \n",al_gga_E_ion_charge);
+      error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
+    }
+  }
+  if (pseudo_key==al_gga_F_key){
+    c_coeff = al_gga_F_c;
+    a_coeff = al_gga_F_a;
+    N_coeff = al_gga_F_Ncoeff;
+    fprintf(screen,"\nUsing scaled pseudopotential 'F' parameters from coul/long/SPH_ph_sub header file...");
+    if (N_elements_per_electron != al_gga_F_Nepe){
+      fprintf(screen,"\n al_gga_F_Nepe = %d \n",al_gga_F_Nepe);
+      error->all(FLERR,"PSEUDO_ERR requested scaled pseudopotential parameters do not match input: N elements per electron. ");
+    }
+    if (ion_charge != al_gga_F_ion_charge){
+      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      fprintf(screen,"\n al_gga_F_ion_charge = %d \n",al_gga_F_ion_charge);
+      error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
+    }
+  }
+  if (pseudo_key==al_gga_G_key){
+    c_coeff = al_gga_G_c;
+    a_coeff = al_gga_G_a;
+    N_coeff = al_gga_G_Ncoeff;
+    fprintf(screen,"\nUsing scaled pseudopotential 'G' parameters from coul/long/SPH_ph_sub header file...");
+    if (N_elements_per_electron != al_gga_G_Nepe){
+      fprintf(screen,"\n al_gga_G_Nepe = %d \n",al_gga_G_Nepe);
+      error->all(FLERR,"PSEUDO_ERR requested scaled pseudopotential parameters do not match input: N elements per electron. ");
+    
+    }
+    if (ion_charge != al_gga_G_ion_charge){
+      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      fprintf(screen,"\n al_gga_G_ion_charge = %d \n",al_gga_G_ion_charge);
+      error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
+    }
+  }
+  if (pseudo_key==al_gga_H_key){
+    c_coeff = al_gga_H_c;
+    a_coeff = al_gga_H_a;
+    N_coeff = al_gga_H_Ncoeff;
+    fprintf(screen,"\nUsing scaled pseudopotential 'H' parameters from coul/long/SPH_ph_sub header file...");
+    if (N_elements_per_electron != al_gga_H_Nepe){
+      fprintf(screen,"\n al_gga_H_Nepe = %d \n",al_gga_H_Nepe);
+      error->all(FLERR,"PSEUDO_ERR requested scaled pseudopotential parameters do not match input: N elements per electron. ");
+    
+    }
+    if (ion_charge != al_gga_H_ion_charge){
+      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      fprintf(screen,"\n al_gga_H_ion_charge = %d \n",al_gga_H_ion_charge);
+      error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
+    }
+  }
+  if (pseudo_key==al_gga_I_key){
+    c_coeff = al_gga_I_c;
+    a_coeff = al_gga_I_a;
+    N_coeff = al_gga_I_Ncoeff;
+    fprintf(screen,"\nUsing scaled pseudopotential 'I' parameters from coul/long/SPH_ph_sub header file...");
+    if (N_elements_per_electron != al_gga_I_Nepe){
+      fprintf(screen,"\n al_gga_I_Nepe = %d \n",al_gga_I_Nepe);
+      error->all(FLERR,"PSEUDO_ERR requested scaled pseudopotential parameters do not match input: N elements per electron. ");
+    
+    }
+    if (ion_charge != al_gga_I_ion_charge){
+      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      fprintf(screen,"\n al_gga_I_ion_charge = %d \n",al_gga_I_ion_charge);
+      error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
+    }
+  }
+  if (pseudo_key==al_gga_J_key){
+    c_coeff = al_gga_J_c;
+    a_coeff = al_gga_J_a;
+    N_coeff = al_gga_J_Ncoeff;
+    fprintf(screen,"\nUsing scaled pseudopotential 'J' parameters from coul/long/SPH_ph_sub header file...");
+    if (N_elements_per_electron != al_gga_J_Nepe){
+      fprintf(screen,"\n al_gga_J_Nepe = %d \n",al_gga_J_Nepe);
+      error->all(FLERR,"PSEUDO_ERR requested scaled pseudopotential parameters do not match input: N elements per electron. ");
+    
+    }
+    if (ion_charge != al_gga_J_ion_charge){
+      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      fprintf(screen,"\n al_gga_J_ion_charge = %d \n",al_gga_J_ion_charge);
+      error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
+    }
+  }
+  if (pseudo_key==al_gga_K_key){
+    c_coeff = al_gga_K_c;
+    a_coeff = al_gga_K_a;
+    N_coeff = al_gga_K_Ncoeff;
+    fprintf(screen,"\nUsing scaled pseudopotential 'K' parameters from coul/long/SPH_ph_sub header file...");
+    if (N_elements_per_electron != al_gga_K_Nepe){
+      fprintf(screen,"\n al_gga_K_Nepe = %d \n",al_gga_K_Nepe);
+      error->all(FLERR,"PSEUDO_ERR requested scaled pseudopotential parameters do not match input: N elements per electron. ");
+    
+    }
+    if (ion_charge != al_gga_K_ion_charge){
+      fprintf(screen,"\n ion_charge = %d \n",ion_charge);
+      fprintf(screen,"\n al_gga_K_ion_charge = %d \n",al_gga_K_ion_charge);
+      error->all(FLERR,"PSEUDO_ERR requested pseudopotential parameters do not match input: ion_charge ");
+    }
+  }
   if (cut_coul < ele_TFWHM){
     fprintf(screen,"\n cut_coul = %16.16f \n",cut_coul);
     fprintf(screen,"\n ele_TFWHM = %16.16f \n",ele_TFWHM);
-    error->all(FLERR,"coul/long/SPH_nopseudo_ph ERROR: cutoff too short for use with SPH coulomb. Cutoff must be larger than TFWHM");
+    error->all(FLERR,"PSEUDO_ERR cutoff too short for use with SPH coulomb: cutoff must be larger than TFWHM");
   }
 }
 
@@ -557,7 +717,7 @@ void PairCoulLongNopseudoSPHphsub::settings(int narg, char **arg)
    set coeffs for one or more type pairs
 ------------------------------------------------------------------------- */
 
-void PairCoulLongNopseudoSPHphsub::coeff(int narg, char **arg)
+void PairCoulLongSPHphsub::coeff(int narg, char **arg)
 {
   if (narg != 2) error->all(FLERR,"Incorrect args for pair coefficients");
   if (!allocated) allocate();
@@ -582,7 +742,7 @@ void PairCoulLongNopseudoSPHphsub::coeff(int narg, char **arg)
    init specific to this pair style
 ------------------------------------------------------------------------- */
 
-void PairCoulLongNopseudoSPHphsub::init_style()
+void PairCoulLongSPHphsub::init_style()
 {
   if (!atom->q_flag)
     error->all(FLERR,"Pair style lj/cut/coul/long requires atom attribute q");
@@ -600,14 +760,14 @@ void PairCoulLongNopseudoSPHphsub::init_style()
   // setup force tables
 
   if (ncoultablebits) init_tables(cut_coul,NULL);
-
-}
+  
+  }
 
 /* ----------------------------------------------------------------------
    init for one type pair i,j and corresponding j,i
 ------------------------------------------------------------------------- */
 
-double PairCoulLongNopseudoSPHphsub::init_one(int i, int j)
+double PairCoulLongSPHphsub::init_one(int i, int j)
 {
   scale[j][i] = scale[i][j];
   return cut_coul+2.0*qdist;
@@ -617,7 +777,7 @@ double PairCoulLongNopseudoSPHphsub::init_one(int i, int j)
   proc 0 writes to restart file
 ------------------------------------------------------------------------- */
 
-void PairCoulLongNopseudoSPHphsub::write_restart(FILE *fp)
+void PairCoulLongSPHphsub::write_restart(FILE *fp)
 {
   write_restart_settings(fp);
 
@@ -633,7 +793,7 @@ void PairCoulLongNopseudoSPHphsub::write_restart(FILE *fp)
   proc 0 reads from restart file, bcasts
 ------------------------------------------------------------------------- */
 
-void PairCoulLongNopseudoSPHphsub::read_restart(FILE *fp)
+void PairCoulLongSPHphsub::read_restart(FILE *fp)
 {
   read_restart_settings(fp);
 
@@ -656,7 +816,7 @@ void PairCoulLongNopseudoSPHphsub::read_restart(FILE *fp)
   proc 0 writes to restart file
 ------------------------------------------------------------------------- */
 
-void PairCoulLongNopseudoSPHphsub::write_restart_settings(FILE *fp)
+void PairCoulLongSPHphsub::write_restart_settings(FILE *fp)
 {
   fwrite(&cut_coul,sizeof(double),1,fp);
   fwrite(&offset_flag,sizeof(int),1,fp);
@@ -669,7 +829,7 @@ void PairCoulLongNopseudoSPHphsub::write_restart_settings(FILE *fp)
   proc 0 reads from restart file, bcasts
 ------------------------------------------------------------------------- */
 
-void PairCoulLongNopseudoSPHphsub::read_restart_settings(FILE *fp)
+void PairCoulLongSPHphsub::read_restart_settings(FILE *fp)
 {
   if (comm->me == 0) {
     utils::sfread(FLERR,&cut_coul,sizeof(double),1,fp,NULL,error);
@@ -687,7 +847,7 @@ void PairCoulLongNopseudoSPHphsub::read_restart_settings(FILE *fp)
 
 /* ---------------------------------------------------------------------- */
 
-// double PairCoulLongNopseudoSPHphsub::single(int i, int j, int /*itype*/, int /*jtype*/,
+// double PairCoulLongSPHphsub::single(int i, int j, int /*itype*/, int /*jtype*/,
 //                             double rsq,
 //                             double factor_coul, double /*factor_lj*/,
 //                             double &fforce)
@@ -724,7 +884,7 @@ void PairCoulLongNopseudoSPHphsub::read_restart_settings(FILE *fp)
 
 /* ---------------------------------------------------------------------- */
 
-void *PairCoulLongNopseudoSPHphsub::extract(const char *str, int &dim)
+void *PairCoulLongSPHphsub::extract(const char *str, int &dim)
 {
   if (strcmp(str,"cut_coul") == 0) {
     dim = 0;
@@ -740,7 +900,7 @@ void *PairCoulLongNopseudoSPHphsub::extract(const char *str, int &dim)
 /* ---------------------------------------------------------------------- */
 
 
-int PairCoulLongNopseudoSPHphsub::pack_forward_comm(int n, int *list, double *buf,
+int PairCoulLongSPHphsub::pack_forward_comm(int n, int *list, double *buf,
                                int /*pbc_flag*/, int * /*pbc*/)
 {
   int i,j,m;
@@ -749,7 +909,7 @@ int PairCoulLongNopseudoSPHphsub::pack_forward_comm(int n, int *list, double *bu
   for (i = 0; i < n; i++) {
     j = list[i];
     buf[m++] = theta_coul[j];
-    buf[m++] = theta_coul_ei[j];
+    buf[m++] = chi_coul_ei[j];
   }
   return m;
   
@@ -757,7 +917,7 @@ int PairCoulLongNopseudoSPHphsub::pack_forward_comm(int n, int *list, double *bu
 
 /* ---------------------------------------------------------------------- */
 
-void PairCoulLongNopseudoSPHphsub::unpack_forward_comm(int n, int first, double *buf)
+void PairCoulLongSPHphsub::unpack_forward_comm(int n, int first, double *buf)
 {
   int i,m,last;
 
@@ -765,13 +925,13 @@ void PairCoulLongNopseudoSPHphsub::unpack_forward_comm(int n, int first, double 
   last = first + n;
   for (i = first; i < last; i++){
     theta_coul[i] = buf[m++];
-    theta_coul_ei[i] = buf[m++];
+    chi_coul_ei[i] = buf[m++];
   }
   
 }
 /* ---------------------------------------------------------------------- */
 
-int PairCoulLongNopseudoSPHphsub::pack_reverse_comm(int n, int first, double *buf)
+int PairCoulLongSPHphsub::pack_reverse_comm(int n, int first, double *buf)
 {
   int i,m,last;
 
@@ -779,7 +939,7 @@ int PairCoulLongNopseudoSPHphsub::pack_reverse_comm(int n, int first, double *bu
   last = first + n;
   for (i = first; i < last; i++){
     buf[m++] = theta_coul[i];
-    buf[m++] = theta_coul_ei[i];
+    buf[m++] = chi_coul_ei[i];
   }
 
   return m;
@@ -787,7 +947,7 @@ int PairCoulLongNopseudoSPHphsub::pack_reverse_comm(int n, int first, double *bu
 
 /* ---------------------------------------------------------------------- */
 
-void PairCoulLongNopseudoSPHphsub::unpack_reverse_comm(int n, int *list, double *buf)
+void PairCoulLongSPHphsub::unpack_reverse_comm(int n, int *list, double *buf)
 {
   int i,j,m;
 
@@ -795,7 +955,7 @@ void PairCoulLongNopseudoSPHphsub::unpack_reverse_comm(int n, int *list, double 
   for (i = 0; i < n; i++) {
     j = list[i];
     theta_coul[j] += buf[m++];
-    theta_coul_ei[j] += buf[m++];
+    chi_coul_ei[j] += buf[m++];
   }
   
 }
