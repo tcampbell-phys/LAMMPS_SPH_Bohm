@@ -565,7 +565,7 @@ void PairCoulLongSPHphsub::allocate()
 
 void PairCoulLongSPHphsub::settings(int narg, char **arg)
 {
-  if (narg != 9) error->all(FLERR,"Illegal pair_style command");
+  if (narg != 8) error->all(FLERR,"Illegal pair_style command");
 
   cut_coul = force->numeric(FLERR,arg[0]);
   ke_in = force->numeric(FLERR,arg[1]);
@@ -573,9 +573,8 @@ void PairCoulLongSPHphsub::settings(int narg, char **arg)
   pseudo_key = force->numeric(FLERR,arg[3]);
   ion_charge = force->numeric(FLERR,arg[4]);
   ele_TFWHM = force->numeric(FLERR,arg[5]);
-  N_elements_per_electron = force->numeric(FLERR,arg[6]);
-  N_epe = force->numeric(FLERR,arg[7]);
-  tag_ele_start = force->numeric(FLERR,arg[8]);
+  N_epe = force->numeric(FLERR,arg[6]);
+  tag_ele_start = force->numeric(FLERR,arg[7]);
 
   // check input parameters match selected Pseudopotential parameters
   if (pseudo_key==al_lda_A_key){
@@ -616,7 +615,7 @@ void PairCoulLongSPHphsub::settings(int narg, char **arg)
     a_coeff = al_gga_F_a;
     N_coeff = al_gga_F_Ncoeff;
     fprintf(screen,"\nUsing scaled pseudopotential 'F' parameters from coul/long/SPH_ph_sub header file...");
-    if (N_elements_per_electron != al_gga_F_Nepe){
+    if (N_epe != al_gga_F_Nepe){
       fprintf(screen,"\n al_gga_F_Nepe = %d \n",al_gga_F_Nepe);
       error->all(FLERR,"PSEUDO_ERR requested scaled pseudopotential parameters do not match input: N elements per electron. ");
     }
@@ -631,7 +630,7 @@ void PairCoulLongSPHphsub::settings(int narg, char **arg)
     a_coeff = al_gga_G_a;
     N_coeff = al_gga_G_Ncoeff;
     fprintf(screen,"\nUsing scaled pseudopotential 'G' parameters from coul/long/SPH_ph_sub header file...");
-    if (N_elements_per_electron != al_gga_G_Nepe){
+    if (N_epe != al_gga_G_Nepe){
       fprintf(screen,"\n al_gga_G_Nepe = %d \n",al_gga_G_Nepe);
       error->all(FLERR,"PSEUDO_ERR requested scaled pseudopotential parameters do not match input: N elements per electron. ");
     
@@ -647,7 +646,7 @@ void PairCoulLongSPHphsub::settings(int narg, char **arg)
     a_coeff = al_gga_H_a;
     N_coeff = al_gga_H_Ncoeff;
     fprintf(screen,"\nUsing scaled pseudopotential 'H' parameters from coul/long/SPH_ph_sub header file...");
-    if (N_elements_per_electron != al_gga_H_Nepe){
+    if (N_epe != al_gga_H_Nepe){
       fprintf(screen,"\n al_gga_H_Nepe = %d \n",al_gga_H_Nepe);
       error->all(FLERR,"PSEUDO_ERR requested scaled pseudopotential parameters do not match input: N elements per electron. ");
     
@@ -663,7 +662,7 @@ void PairCoulLongSPHphsub::settings(int narg, char **arg)
     a_coeff = al_gga_I_a;
     N_coeff = al_gga_I_Ncoeff;
     fprintf(screen,"\nUsing scaled pseudopotential 'I' parameters from coul/long/SPH_ph_sub header file...");
-    if (N_elements_per_electron != al_gga_I_Nepe){
+    if (N_epe != al_gga_I_Nepe){
       fprintf(screen,"\n al_gga_I_Nepe = %d \n",al_gga_I_Nepe);
       error->all(FLERR,"PSEUDO_ERR requested scaled pseudopotential parameters do not match input: N elements per electron. ");
     
@@ -679,7 +678,7 @@ void PairCoulLongSPHphsub::settings(int narg, char **arg)
     a_coeff = al_gga_J_a;
     N_coeff = al_gga_J_Ncoeff;
     fprintf(screen,"\nUsing scaled pseudopotential 'J' parameters from coul/long/SPH_ph_sub header file...");
-    if (N_elements_per_electron != al_gga_J_Nepe){
+    if (N_epe != al_gga_J_Nepe){
       fprintf(screen,"\n al_gga_J_Nepe = %d \n",al_gga_J_Nepe);
       error->all(FLERR,"PSEUDO_ERR requested scaled pseudopotential parameters do not match input: N elements per electron. ");
     
@@ -695,7 +694,7 @@ void PairCoulLongSPHphsub::settings(int narg, char **arg)
     a_coeff = al_gga_K_a;
     N_coeff = al_gga_K_Ncoeff;
     fprintf(screen,"\nUsing scaled pseudopotential 'K' parameters from coul/long/SPH_ph_sub header file...");
-    if (N_elements_per_electron != al_gga_K_Nepe){
+    if (N_epe != al_gga_K_Nepe){
       fprintf(screen,"\n al_gga_K_Nepe = %d \n",al_gga_K_Nepe);
       error->all(FLERR,"PSEUDO_ERR requested scaled pseudopotential parameters do not match input: N elements per electron. ");
     
