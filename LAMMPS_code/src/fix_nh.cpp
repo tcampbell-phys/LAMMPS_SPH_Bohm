@@ -136,6 +136,25 @@ FixNH::FixNH(LAMMPS *lmp, int narg, char **arg) :
                    "Target temperature for fix nvt/npt/nph cannot be 0.0");
       iarg += 4;
 
+    } else if (strcmp(arg[iarg],"temp_CoM") == 0) {
+      // fprintf(screen,"\nIn temp section...");
+      if (iarg+4 > narg) error->all(FLERR,"Illegal fix nvt/npt/nph command");
+      tstat_flag = 1;
+      t_start = force->numeric(FLERR,arg[iarg+1]);
+      t_target = t_start;
+      t_stop = force->numeric(FLERR,arg[iarg+2]);
+      t_period = force->numeric(FLERR,arg[iarg+3]);
+      
+      
+      // Centre of Mass parameters
+      N_epe = force->numeric(FLERR,arg[iarg+4]);
+      tag_ele_start = force->numeric(FLERR,arg[iarg+5]);
+
+      if (t_start <= 0.0 || t_stop <= 0.0)
+        error->all(FLERR,
+                   "Target temperature for fix nvt/npt/nph cannot be 0.0");
+      iarg += 6;
+
     } else if (strcmp(arg[iarg],"iso") == 0) {
       if (iarg+4 > narg) error->all(FLERR,"Illegal fix nvt/npt/nph command");
       pcouple = XYZ;
@@ -362,6 +381,8 @@ FixNH::FixNH(LAMMPS *lmp, int narg, char **arg) :
 
     } else error->all(FLERR,"Illegal fix nvt/npt/nph command");
   }
+  fprintf(screen,"\nN_epe = %d",N_epe);
+  fprintf(screen,"\ntag_ele_start = %d",tag_ele_start);
 
   // error checks
 

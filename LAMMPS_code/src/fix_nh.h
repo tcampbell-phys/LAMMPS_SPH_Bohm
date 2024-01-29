@@ -9,6 +9,8 @@
    the GNU General Public License.
 
    See the README file in the top-level LAMMPS directory.
+
+   Edited by Thomas Campbell (Oxford)
 ------------------------------------------------------------------------- */
 
 #ifndef LMP_FIX_NH_H
@@ -121,6 +123,11 @@ class FixNH : public Fix {
   int pre_exchange_flag;           // set if pre_exchange needed for box flips
 
   double fixedpoint[3];            // location of dilation fixed-point
+
+  // Centre of Mass Parameters
+
+  int N_epe;                       // SPH elements per electron
+  int tag_ele_start;               // lowest tag ID beloning to an electron
 
   void couple();
   virtual void remap();

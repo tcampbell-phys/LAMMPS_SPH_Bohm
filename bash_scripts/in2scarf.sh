@@ -24,7 +24,7 @@ rsync ../input_decks/scarf/Al_research/3_5eV_5_2gcc/* scarf734@ui1.scarf.rl.ac.u
 
 # rsync ../input_decks/scarf/H_research/15_71eV_1_26_rs/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/15_71eV_1_26_rs/
 # rsync ../input_decks/scarf/H_research/12_53eV_2_rs/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/12_53eV_2_rs/
-rsync ../input_decks/scarf/H_research/10_77eV_1_75_rs/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/10_77eV_1_75_rs/
+rsync ../input_decks/scarf/H_research/10_77eV_1_75_rs/current/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/10_77eV_1_75_rs/
 
 # scp ../LAMMPS_code/src/USER-TC_SPH/*.cpp scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 # scp ../LAMMPS_code/src/USER-TC_SPH/*.h scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/

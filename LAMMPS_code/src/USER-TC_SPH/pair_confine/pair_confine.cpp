@@ -24,7 +24,7 @@ PairConfine::PairConfine(LAMMPS *lmp) : Pair(lmp)
 {
   boltz_val = force->boltz;
   hbar_val = (force->hplanck)/(2*M_PI);
-  fprintf(screen,"\nIn pair_confine with correct forcing term...");
+  // fprintf(screen,"\nIn pair_confine with correct forcing term...");
 }
 
 /* ---------------------------------------------------------------------- */
@@ -152,7 +152,7 @@ void PairConfine::settings(int narg, char **arg)
   // fprintf(screen,"\nN_epe = %f",N_epe);
 
   force_factor = (N_epe-1.0)/N_epe;
-  fprintf(screen,"\nforce_factor = %8.8f",force_factor);
+  // fprintf(screen,"\nforce_factor = %8.8f",force_factor);
 
   half_box_len = box_len/2;
 
