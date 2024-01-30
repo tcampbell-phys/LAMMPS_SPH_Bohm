@@ -153,14 +153,15 @@ FixNH::FixNH(LAMMPS *lmp, int narg, char **arg) :
       
       // Centre of Mass parameters
       N_epe = force->numeric(FLERR,arg[iarg+4]);
-      tag_ele_start = force->numeric(FLERR,arg[iarg+5]);
+      N_ele = force->numeric(FLERR,arg[iarg+5]);
+      tag_ele_start = force->numeric(FLERR,arg[iarg+6]);
 
       CoM_flag = 1;
 
       if (t_start <= 0.0 || t_stop <= 0.0)
         error->all(FLERR,
                    "Target temperature for fix nvt/npt/nph cannot be 0.0");
-      iarg += 6;
+      iarg += 7;
 
     } else if (strcmp(arg[iarg],"iso") == 0) {
       if (iarg+4 > narg) error->all(FLERR,"Illegal fix nvt/npt/nph command");
@@ -772,7 +773,7 @@ void FixNH::setup(int /*vflag*/)
 {
   // tdof needed by compute_temp_target
   if (CoM_flag){
-    t_current = temperature->compute_scalar_CoM(N_epe,tag_ele_start);
+    t_current = temperature->compute_scalar_CoM(N_epe,N_ele,tag_ele_start);
   }
   else{
     t_current = temperature->compute_scalar();
@@ -799,7 +800,7 @@ void FixNH::setup(int /*vflag*/)
 
     if (t0 == 0.0) {
       if (CoM_flag){
-        t0 = temperature->compute_scalar_CoM(N_epe,tag_ele_start);
+        t0 = temperature->compute_scalar_CoM(N_epe,N_ele,tag_ele_start);
       } else{
         t0 = temperature->compute_scalar();
       }
@@ -933,7 +934,7 @@ void FixNH::final_integrate()
 
   if (which == BIAS && neighbor->ago == 0)
     if (CoM_flag){
-      t_current = temperature->compute_scalar_CoM(N_epe,tag_ele_start);
+      t_current = temperature->compute_scalar_CoM(N_epe,N_ele,tag_ele_start);
     } else{ 
       t_current = temperature->compute_scalar();
     }
@@ -943,7 +944,7 @@ void FixNH::final_integrate()
   // compute new T,P after velocities rescaled by nh_v_press()
   // compute appropriately coupled elements of mvv_current
   if (CoM_flag){
-    t_current = temperature->compute_scalar_CoM(N_epe,tag_ele_start);
+    t_current = temperature->compute_scalar_CoM(N_epe,N_ele,tag_ele_start);
   } else{
     t_current = temperature->compute_scalar();
   }

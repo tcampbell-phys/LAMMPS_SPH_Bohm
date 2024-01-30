@@ -33,7 +33,7 @@ class ComputeTemp : public Compute {
   void init() {}
   void setup();
   virtual double compute_scalar();
-  virtual double compute_scalar_CoM(int N_epe, int tag_ele_start);
+  virtual double compute_scalar_CoM(double N_epe, int N_ele, int tag_ele_start);
   virtual void compute_vector();
 
  protected:
@@ -41,9 +41,9 @@ class ComputeTemp : public Compute {
 
   virtual void dof_compute();
 
-  double *vx_CoM;                  // CoM velocities (note not using atom parameter 'vx_COM')
-  double *vy_CoM;
-  double *vz_CoM;
+//   double *vx_CoM;                  // CoM velocities (note not using atom parameter 'vx_COM')
+//   double *vy_CoM;
+//   double *vz_CoM;
   int nmax;                        // required for communication of CoM velocity
   
 };

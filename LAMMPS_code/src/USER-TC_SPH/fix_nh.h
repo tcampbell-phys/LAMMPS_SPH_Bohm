@@ -131,10 +131,11 @@ class FixNH : public Fix {
   // Centre of Mass Parameters
 
   int N_epe;                       // SPH elements per electron
+  int N_ele;                       // Number of whole electrons
   int tag_ele_start;               // lowest tag ID beloning to an electron
   int CoM_flag;                    // CoM flag
   int nmax;                        // required for communication of CoM velocity
-  
+
   // double extra_dof;
   // int fix_dof;
 //   double commflag;
