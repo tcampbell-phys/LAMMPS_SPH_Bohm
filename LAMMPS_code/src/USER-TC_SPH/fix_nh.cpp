@@ -125,6 +125,7 @@ FixNH::FixNH(LAMMPS *lmp, int narg, char **arg) :
 
   int iarg = 3;
 
+  // required for CoM
   CoM_flag = 0;
 
   while (iarg < narg) {
@@ -769,14 +770,18 @@ void FixNH::init()
 
 void FixNH::setup(int /*vflag*/)
 {
-  // tdof needed by compute_temp_target()
-
-  t_current = temperature->compute_scalar();
+  // tdof needed by compute_temp_target
+  if (CoM_flag){
+    t_current = temperature->compute_scalar_CoM(N_epe,tag_ele_start);
+  }
+  else{
+    t_current = temperature->compute_scalar();
+  }
   tdof = temperature->dof;
   if (CoM_flag){
-    fprintf(screen,"\nIn CoM dof setup...TODO");
-    // tdof /= N_epe;
+    tdof = (tdof + temperature->extra_dof + temperature->fix_dof)/N_epe - (temperature->extra_dof + temperature->fix_dof);
   }
+  fprintf(screen,"\nFixNH::setup() tdof = %f",tdof);
 
   // t_target is needed by NVT and NPT in compute_scalar()
   // If no thermostat or using fix nphug,
@@ -793,7 +798,11 @@ void FixNH::setup(int /*vflag*/)
     // if it was read in from a restart file, leave it be
 
     if (t0 == 0.0) {
-      t0 = temperature->compute_scalar();
+      if (CoM_flag){
+        t0 = temperature->compute_scalar_CoM(N_epe,tag_ele_start);
+      } else{
+        t0 = temperature->compute_scalar();
+      }
       if (t0 == 0.0) {
         if (strcmp(update->unit_style,"lj") == 0) t0 = 1.0;
         else t0 = 300.0;
@@ -865,14 +874,8 @@ void FixNH::initial_integrate(int /*vflag*/)
   // update eta_dot
 
   if (tstat_flag) {
-    if (CoM_flag){
-      fprintf(screen,"\nIn CoM temp...");
-      compute_temp_target();
-      nhc_temp_integrate();
-    } else {
-      compute_temp_target();
-      nhc_temp_integrate();
-    }
+    compute_temp_target();
+    nhc_temp_integrate();
   }
 
   // need to recompute pressure to account for change in KE
@@ -929,19 +932,27 @@ void FixNH::final_integrate()
   //     since temp->compute() in initial_integrate()
 
   if (which == BIAS && neighbor->ago == 0)
-    t_current = temperature->compute_scalar();
+    if (CoM_flag){
+      t_current = temperature->compute_scalar_CoM(N_epe,tag_ele_start);
+    } else{ 
+      t_current = temperature->compute_scalar();
+    }
 
   if (pstat_flag) nh_v_press();
 
   // compute new T,P after velocities rescaled by nh_v_press()
   // compute appropriately coupled elements of mvv_current
-
-  t_current = temperature->compute_scalar();
+  if (CoM_flag){
+    t_current = temperature->compute_scalar_CoM(N_epe,tag_ele_start);
+  } else{
+    t_current = temperature->compute_scalar();
+  }
   tdof = temperature->dof;
   if (CoM_flag){
-    fprintf(screen,"\nIn CoM dof final...TODO");
-    // tdof /= N_epe;
+    tdof = (tdof + temperature->extra_dof + temperature->fix_dof)/N_epe - (temperature->extra_dof + temperature->fix_dof);
   }
+  fprintf(screen,"\nFixNH::final_integrate() tdof = %f",tdof);
+
 
   // need to recompute pressure to account for change in KE
   // t_current is up-to-date, but compute_temperature is not
@@ -963,12 +974,7 @@ void FixNH::final_integrate()
   // update eta_press_dot
 
   if (tstat_flag) {
-    if (CoM_flag){
-      fprintf(screen,"\nIn CoM temp final...");
-      nhc_temp_integrate();
-    } else {
-      nhc_temp_integrate();
-    }
+    nhc_temp_integrate();
   }
   if (pstat_flag && mpchain) nhc_press_integrate();
 }
@@ -1810,6 +1816,8 @@ void FixNH::nhc_temp_integrate()
   double expfac;
   double kecurrent = tdof * boltz * t_current;
 
+  fprintf(screen,"\nFixNH::nhc_temp_integrate() tdof = %f",tdof);
+  fprintf(screen,"\nFixNH::nhc_temp_integrate() t_current = %f",t_current);
   // Update masses, to preserve initial freq, if flag set
 
   if (eta_mass_flag) {
@@ -1838,14 +1846,6 @@ void FixNH::nhc_temp_integrate()
     eta_dot[0] += eta_dotdot[0] * ncfac*dt4;
     eta_dot[0] *= tdrag_factor;
     eta_dot[0] *= expfac;
-
-    // fprintf(screen,"\nexpfac = %16.16f",expfac);
-    // fprintf(screen,"\ntdrag_factor = %16.16f",tdrag_factor);
-    // fprintf(screen,"\neta_dotdot[0] = %16.16f",eta_dotdot[0]);
-    // fprintf(screen,"\nexpfac = %16.16f",expfac);
-    // fprintf(screen,"\nncfac = %16.16f",ncfac);
-    // fprintf(screen,"\neta_dot[1] = %16.16f",eta_dot[1]);
-    // fprintf(screen,"\neta_dot[0] = %16.16f",eta_dot[0]);
 
     factor_eta = exp(-ncfac*dthalf*eta_dot[0]);
 
@@ -2115,8 +2115,6 @@ void FixNH::nh_v_temp()
   int nlocal = atom->nlocal;
   if (igroup == atom->firstgroup) nlocal = atom->nfirst;
 
-  // fprintf(screen,"\nfactor_eta = %16.16f \n",factor_eta);
-
   if (which == NOBIAS) {
     for (int i = 0; i < nlocal; i++) {
       if (mask[i] & groupbit) {
@@ -2137,6 +2135,96 @@ void FixNH::nh_v_temp()
     }
   }
 }
+
+/* ----------------------------------------------------------------------
+   perform half-step thermostat scaling of Centre of Mass velocities
+-----------------------------------------------------------------------*/
+
+// void FixNH::nh_v_temp_CoM()
+// {
+//   double **v = atom->v;
+//   int *mask = atom->mask;
+//   int nlocal = atom->nlocal;
+
+//   int newton_pair = force->newton_pair;
+
+//   int i,j,ii,jj,inum,jnum,itype,jtype,a;
+//   int *ilist,*jlist,*numneigh,**firstneigh;
+
+//   int *tagid = atom->tag;
+//   list = pair->list;
+
+//   inum = list->inum;
+//   ilist = list->ilist;
+
+//   numneigh = list->numneigh;
+//   firstneigh = list->firstneigh;
+
+//   if (igroup == atom->firstgroup) nlocal = atom->nfirst;
+
+//   if (atom->nmax > nmax) {
+//     // delete and create new memory arrays for any per-particle variables that need communicating.
+//     memory->destroy(vx_CoM);
+//     memory->destroy(vy_CoM);
+//     memory->destroy(vz_CoM);
+    
+//     nmax = atom->nmax;
+
+//     memory->create(vx_CoM,nmax,"fix:vx_CoM");
+//     memory->create(vy_CoM,nmax,"fix:vy_CoM");
+//     memory->create(vz_CoM,nmax,"fix:vz_CoM");
+//   }
+
+  // // clear all CoM coords
+
+  // if (newton_pair) {
+  //   for (i = 0; i < nall; i++){
+  //     vx_CoM[i] = 0.0;
+  //     vy_CoM[i] = 0.0;
+  //     vz_CoM[i] = 0.0;
+  //   }
+  // } 
+  // else{
+  //   for (i = 0; i < nlocal; i++){
+  //     vx_CoM[i] = 0.0;
+  //     vy_CoM[i] = 0.0;
+  //     vz_CoM[i] = 0.0;
+  //   }
+  // }
+
+  // for (ii = 0; ii < inum; ii++) {
+  //   i = ilist[ii];
+  //   jlist = firstneigh[i];
+  //   jnum = numneigh[i];
+
+  //   xtmp = x[i][0];
+  //   ytmp = x[i][1];
+  //   ztmp = x[i][2];
+  // }
+
+
+  // commflag = 1;
+
+  // if (which == NOBIAS) {
+  //   for (int i = 0; i < nlocal; i++) {
+  //     if (mask[i] & groupbit) {
+  //       v[i][0] *= factor_eta;
+  //       v[i][1] *= factor_eta;
+  //       v[i][2] *= factor_eta;
+  //     }
+  //   }
+//   } else if (which == BIAS) {
+//     for (int i = 0; i < nlocal; i++) {
+//       if (mask[i] & groupbit) {
+//         temperature->remove_bias(i,v[i]);
+//         v[i][0] *= factor_eta;
+//         v[i][1] *= factor_eta;
+//         v[i][2] *= factor_eta;
+//         temperature->restore_bias(i,v[i]);
+//       }
+//     }
+//   }
+// }
 
 /* ----------------------------------------------------------------------
    compute sigma tensor
@@ -2446,3 +2534,38 @@ double FixNH::memory_usage()
   if (irregular) bytes += irregular->memory_usage();
   return bytes;
 }
+
+// int FixNH::pack_reverse_comm(int n, int first, double *buf)
+// {
+//   int i,m,last;
+
+//   m = 0;
+//   last = first + n;
+
+//   if (commflag == 1){
+//     for (i = first; i < last; i++){
+//       buf[m++] = vx_CoM[i];
+//       buf[m++] = vy_CoM[i];
+//       buf[m++] = vz_CoM[i];
+//     }
+//   }
+//   return m;
+// }
+
+// /* ---------------------------------------------------------------------- */
+
+// void FixNH::unpack_reverse_comm(int n, int *list, double *buf)
+// {
+//   int i,j,m;
+
+//   m = 0;
+
+//   if (commflag == 1){
+//     for (i = 0; i < n; i++) {
+//       j = list[i];
+//       vx_CoM[j] += buf[m++];
+//       vy_CoM[j] += buf[m++];
+//       vz_CoM[j] += buf[m++];
+//     }
+//   }
+// }

@@ -43,6 +43,10 @@ class FixNH : public Fix {
   virtual void *extract(const char*,int &);
   double memory_usage();
 
+  // required for CoM velocity communication
+//   virtual int pack_reverse_comm(int, int, double *);
+//   virtual void unpack_reverse_comm(int, int *, double *);
+
  protected:
   int dimension,which;
   double dtv,dtf,dthalf,dt4,dt8,dto;
@@ -128,7 +132,17 @@ class FixNH : public Fix {
 
   int N_epe;                       // SPH elements per electron
   int tag_ele_start;               // lowest tag ID beloning to an electron
-  int CoM_flag;
+  int CoM_flag;                    // CoM flag
+  int nmax;                        // required for communication of CoM velocity
+  
+  // double extra_dof;
+  // int fix_dof;
+//   double commflag;
+//   double *vx_CoM;                  // CoM velocities (note not using atom parameter 'vx_COM')
+//   double *vy_CoM;
+//   double *vz_CoM;
+//   class Pair *pair;
+//   class NeighList *list;
 
   void couple();
   virtual void remap();
@@ -139,6 +153,7 @@ class FixNH : public Fix {
   virtual void nve_v();
   virtual void nh_v_press();
   virtual void nh_v_temp();
+//   virtual void nh_v_temp_CoM();
   virtual void compute_temp_target();
   virtual int size_restart_global();
 
