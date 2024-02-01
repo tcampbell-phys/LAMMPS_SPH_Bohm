@@ -9,34 +9,46 @@
    the GNU General Public License.
 
    See the README file in the top-level LAMMPS directory.
+
+   Edited by Thomas Campbell (Oxford)
 ------------------------------------------------------------------------- */
 
 #ifdef COMPUTE_CLASS
 
-ComputeStyle(temp,ComputeTemp)
+ComputeStyle(tem_CoM,ComputeTempCoM)
 
 #else
 
-#ifndef LMP_COMPUTE_TEMP_H
-#define LMP_COMPUTE_TEMP_H
+#ifndef LMP_COMPUTE_TEMP_COM_H
+#define LMP_COMPUTE_TEMP_COM_H
 
 #include "compute.h"
 
 namespace LAMMPS_NS {
 
-class ComputeTemp : public Compute {
+class ComputeTempCoM : public Compute {
  public:
-  ComputeTemp(class LAMMPS *, int, char **);
-  virtual ~ComputeTemp();
+  ComputeTempCoM(class LAMMPS *, int, char **);
+  virtual ~ComputeTempCoM();
   void init() {}
   void setup();
   virtual double compute_scalar();
+  virtual double compute_scalar_CoM(double N_epe, int N_ele, int tag_ele_start);
   virtual void compute_vector();
 
  protected:
   double tfactor;
 
   virtual void dof_compute();
+
+//   double *vx_CoM;                  // CoM velocities (note not using atom parameter 'vx_COM')
+//   double *vy_CoM;
+//   double *vz_CoM;
+  int N_ele_compute_temp;
+  int size_vector_CoM_vel;
+  // int CoM_vel_flag;
+  int nmax;                        // required for communication of CoM velocity
+  
 };
 
 }

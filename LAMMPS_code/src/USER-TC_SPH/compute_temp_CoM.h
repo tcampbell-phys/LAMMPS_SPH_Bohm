@@ -9,34 +9,45 @@
    the GNU General Public License.
 
    See the README file in the top-level LAMMPS directory.
+
+   Edited by Thomas Campbell (Oxford)
 ------------------------------------------------------------------------- */
 
 #ifdef COMPUTE_CLASS
 
-ComputeStyle(temp,ComputeTemp)
+ComputeStyle(temp_CoM,ComputeTempCentreMass)
 
 #else
 
-#ifndef LMP_COMPUTE_TEMP_H
-#define LMP_COMPUTE_TEMP_H
+#ifndef LMP_COMPUTE_TEMP_CENTRE_MASS_H
+#define LMP_COMPUTE_TEMP_CENTRE_MASS_H
 
 #include "compute.h"
 
 namespace LAMMPS_NS {
 
-class ComputeTemp : public Compute {
+class ComputeTempCentreMass : public Compute {
  public:
-  ComputeTemp(class LAMMPS *, int, char **);
-  virtual ~ComputeTemp();
+  ComputeTempCentreMass(class LAMMPS *, int, char **);
+  virtual ~ComputeTempCentreMass();
   void init() {}
   void setup();
   virtual double compute_scalar();
+  virtual double compute_scalar_CoM(double N_epe, int N_ele, int tag_ele_start);
   virtual void compute_vector();
 
  protected:
   double tfactor;
 
   virtual void dof_compute();
+  double *CoM_vel,*CoM_vel_all;
+  int allocated;
+
+  virtual void allocate();
+  void deallocate();
+
+  int N_ele_compute_temp;
+
 };
 
 }

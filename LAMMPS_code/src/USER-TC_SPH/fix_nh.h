@@ -136,15 +136,6 @@ class FixNH : public Fix {
   int CoM_flag;                    // CoM flag
   int nmax;                        // required for communication of CoM velocity
 
-  // double extra_dof;
-  // int fix_dof;
-//   double commflag;
-//   double *vx_CoM;                  // CoM velocities (note not using atom parameter 'vx_COM')
-//   double *vy_CoM;
-//   double *vz_CoM;
-//   class Pair *pair;
-//   class NeighList *list;
-
   void couple();
   virtual void remap();
   void nhc_temp_integrate();
@@ -154,7 +145,6 @@ class FixNH : public Fix {
   virtual void nve_v();
   virtual void nh_v_press();
   virtual void nh_v_temp();
-//   virtual void nh_v_temp_CoM();
   virtual void compute_temp_target();
   virtual int size_restart_global();
 

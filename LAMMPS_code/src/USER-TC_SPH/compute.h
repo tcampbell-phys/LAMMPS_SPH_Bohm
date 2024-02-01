@@ -97,6 +97,9 @@ class Compute : protected Pointers {
   double extra_dof;            // extra DOF for temperature computes
   int fix_dof;                 // DOF due to fixes
 
+  int N_epe_compute; // public variable to be set in fix_nh for assigning correct memory to CoM Velocity vector
+  int CoM_vel_flag;
+
   int copymode;
 
   Compute(class LAMMPS *, int, char **);

@@ -391,7 +391,7 @@ FixNH::FixNH(LAMMPS *lmp, int narg, char **arg) :
   }
   // fprintf(screen,"\nN_epe = %d",N_epe);
   // fprintf(screen,"\ntag_ele_start = %d",tag_ele_start);
-  fprintf(screen,"\nCoM_flag = %d",CoM_flag);
+  // fprintf(screen,"\nCoM_flag = %d",CoM_flag);
   // error checks
 
   if (dimension == 2 && (p_flag[2] || p_flag[3] || p_flag[4]))
@@ -771,6 +771,7 @@ void FixNH::init()
 
 void FixNH::setup(int /*vflag*/)
 {
+  fprintf(screen,"\nFixNH::setup()");
   // tdof needed by compute_temp_target
   if (CoM_flag){
     t_current = temperature->compute_scalar_CoM(N_epe,N_ele,tag_ele_start);
@@ -778,11 +779,12 @@ void FixNH::setup(int /*vflag*/)
   else{
     t_current = temperature->compute_scalar();
   }
+  fprintf(screen,"\nFixNH::setup() t_current = %f",t_current);
   tdof = temperature->dof;
   if (CoM_flag){
     tdof = (tdof + temperature->extra_dof + temperature->fix_dof)/N_epe - (temperature->extra_dof + temperature->fix_dof);
   }
-  fprintf(screen,"\nFixNH::setup() tdof = %f",tdof);
+  // fprintf(screen,"\nFixNH::setup() tdof = %f",tdof);
 
   // t_target is needed by NVT and NPT in compute_scalar()
   // If no thermostat or using fix nphug,
@@ -952,7 +954,7 @@ void FixNH::final_integrate()
   if (CoM_flag){
     tdof = (tdof + temperature->extra_dof + temperature->fix_dof)/N_epe - (temperature->extra_dof + temperature->fix_dof);
   }
-  fprintf(screen,"\nFixNH::final_integrate() tdof = %f",tdof);
+  // fprintf(screen,"\nFixNH::final_integrate() tdof = %f",tdof);
 
 
   // need to recompute pressure to account for change in KE
@@ -1817,8 +1819,8 @@ void FixNH::nhc_temp_integrate()
   double expfac;
   double kecurrent = tdof * boltz * t_current;
 
-  fprintf(screen,"\nFixNH::nhc_temp_integrate() tdof = %f",tdof);
-  fprintf(screen,"\nFixNH::nhc_temp_integrate() t_current = %f",t_current);
+  // fprintf(screen,"\nFixNH::nhc_temp_integrate() tdof = %f",tdof);
+  // fprintf(screen,"\nFixNH::nhc_temp_integrate() t_current = %f",t_current);
   // Update masses, to preserve initial freq, if flag set
 
   if (eta_mass_flag) {
