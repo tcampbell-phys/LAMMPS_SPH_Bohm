@@ -31,7 +31,7 @@ ComputeTempCentreMass::ComputeTempCentreMass(LAMMPS *lmp, int narg, char **arg) 
 {
   if (narg != 3) error->all(FLERR,"Illegal compute temp_CoM command");
 
-  fprintf(screen,"\nComputeTempCentreMass constructor...");
+  // // fprintf(screen,"\nComputeTempCentreMass constructor...");
 
   CoM_vel = CoM_vel_all = NULL;
 
@@ -41,6 +41,7 @@ ComputeTempCentreMass::ComputeTempCentreMass(LAMMPS *lmp, int narg, char **arg) 
   extvector = 1;
   tempflag = 1;
 
+  unallocated = 1;
   allocated = 0;
   vector = new double[size_vector];
  
@@ -50,7 +51,7 @@ ComputeTempCentreMass::ComputeTempCentreMass(LAMMPS *lmp, int narg, char **arg) 
 
 ComputeTempCentreMass::~ComputeTempCentreMass()
 {
-  fprintf(screen,"\nComputeTempCentreMass destructor...");
+  // fprintf(screen,"\nComputeTempCentreMass destructor...\n");
   if (!copymode)
   delete [] vector;
   if (allocated){
@@ -110,21 +111,14 @@ double ComputeTempCentreMass::compute_scalar()
   if (dof < 0.0 && natoms_temp > 0.0)
     error->all(FLERR,"Temperature compute degrees of freedom < 0");
   scalar *= tfactor;
-  // fprintf(screen,"\nComputeTempCentreMass::compute_scalar() tfactor = %f",tfactor);
+  // // fprintf(screen,"\nComputeTempCentreMass::compute_scalar() tfactor = %f",tfactor);
   return scalar;
 }
 
 /* ---------------------------------------------------------------------- */
 
-double ComputeTempCentreMass::compute_scalar_CoM(double N_epe, int N_ele, int tag_ele_start)
+double ComputeTempCentreMass::compute_scalar_CoM(double N_epe, double particle_mass, int N_ele, int tag_ele_start)
 {
-  invoked_scalar = update->ntimestep;
-  // invoked_vector = update->ntimestep;
-
-  fprintf(screen,"\nComputeTempCentreMass compute_scalar_CoM...");
-
-  // int vector_size = 3*N_ele;
-
   double **v = atom->v;
   double *mass = atom->mass;
   double *rmass = atom->rmass;
@@ -134,11 +128,17 @@ double ComputeTempCentreMass::compute_scalar_CoM(double N_epe, int N_ele, int ta
   int nall = nlocal + atom->nghost;
   int *tagid = atom->tag;
 
-  double t = 0.0;
+  double CoM_KE = 0.0;
 
   N_ele_compute_temp = N_ele;
-  allocate();
-  allocated = 1;
+  if (unallocated){
+    deallocate();
+    // fprintf(screen,"\nComputeTempCentreMass allocating CoM_vel memory...\n");
+    // fprintf(screen,"\nComputeTempCentreMass particle_mass = %f\n",particle_mass);
+    allocate();
+    allocated = 1;
+    unallocated = 0;
+  }
   double tfactor_CoM;
 
   int ele_ind;
@@ -153,10 +153,13 @@ double ComputeTempCentreMass::compute_scalar_CoM(double N_epe, int N_ele, int ta
 
   for (int i = 0; i < nlocal; i++){
     if (mask[i] & groupbit){
-      // fprintf(screen,"\ntagid[i] = %d",tagid[i]);
       ele_ind = floor((tagid[i]-tag_ele_start)/N_epe);
 
-      // fprintf(screen,"\nele_ind = %d",ele_ind);
+      // if(ele_ind == 0){
+      //   // fprintf(screen,"\ntagid[i] = %d",tagid[i]);
+      //   // fprintf(screen,"\nv[i][0] = %f",v[i][0]);
+      // }
+
       //vx 
       CoM_vel[ele_ind] += v[i][0]/N_epe;
       //vy
@@ -165,29 +168,24 @@ double ComputeTempCentreMass::compute_scalar_CoM(double N_epe, int N_ele, int ta
       CoM_vel[ele_ind+2*N_ele] += v[i][2]/N_epe;
     }
   }
-  fprintf(screen,"\nA CoM_vel[0] = %f",CoM_vel[0]);
+  // // fprintf(screen,"\nA CoM_vel[0] = %f",CoM_vel[0]);
   MPI_Allreduce(CoM_vel,CoM_vel_all,size_CoM_vel,MPI_DOUBLE,MPI_SUM,world);
-  fprintf(screen,"\nB CoM_vel_all[0] = %f",CoM_vel_all[0]);
+  // // fprintf(screen,"\nB CoM_vel_all[0] = %f",CoM_vel_all[0]);
 
-  if (rmass) {
-    for (int i = 0; i < nlocal; i++)
-      if (mask[i] & groupbit)
-        t += (v[i][0]*v[i][0] + v[i][1]*v[i][1] + v[i][2]*v[i][2]) * rmass[i];
-  } else {
-    for (int i = 0; i < nlocal; i++)
-      if (mask[i] & groupbit)
-        t += (v[i][0]*v[i][0] + v[i][1]*v[i][1] + v[i][2]*v[i][2]) *
-          mass[type[i]];
+  for (int i = 0; i < N_ele_compute_temp; i++){
+    CoM_KE += (CoM_vel_all[i]*CoM_vel_all[i] + CoM_vel_all[i+N_ele]*CoM_vel_all[i+N_ele] + CoM_vel_all[i+2*N_ele]*CoM_vel_all[i+2*N_ele]) * particle_mass;
   }
 
-  MPI_Allreduce(&t,&scalar,1,MPI_DOUBLE,MPI_SUM,world);
   if (dynamic) dof_compute();
   if (dof < 0.0 && natoms_temp > 0.0)
     error->all(FLERR,"Temperature compute degrees of freedom < 0");
   tfactor_CoM = force->mvv2e / (((dof+extra_dof+fix_dof)/N_epe - (extra_dof+fix_dof)) * force->boltz);
-  // fprintf(screen,"\nComputeTempCentreMass::compute_scalar_CoM() tfactor_CoM = %f",tfactor_CoM);
-  scalar *= tfactor_CoM;
-  return scalar;
+  // fprintf(screen,"\nComputeTempCentreMass::compute_scalar_CoM() dof = %f",dof);
+  // // fprintf(screen,"\nComputeTempCentreMass::compute_scalar_CoM() tfactor_CoM = %f",tfactor_CoM);
+  CoM_KE *= tfactor_CoM;
+  // fprintf(screen,"\nComputeTempCentreMass::compute_scalar_CoM() t_current = %f",CoM_KE);
+  
+  return CoM_KE;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -230,6 +228,7 @@ void ComputeTempCentreMass::compute_vector()
 
 void ComputeTempCentreMass::allocate()
 {
+  // fprintf(screen,"\nComputeTempCentreMass::allocate()\n");
   // Centre of Mass array vx 0:N_ele, vy N_ele:2*N_ele, vz 2*N_ele:3_Nele
   CoM_vel = new double[3*N_ele_compute_temp]; 
   CoM_vel_all = new double[3*N_ele_compute_temp];
@@ -241,7 +240,7 @@ void ComputeTempCentreMass::allocate()
 
 void ComputeTempCentreMass::deallocate()
 {
-  
-  delete [] CoM_vel_all;
+  // fprintf(screen,"\nComputeTempCentreMass::deallocate()\n");
   delete [] CoM_vel;
+  delete [] CoM_vel_all;
 }

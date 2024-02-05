@@ -29,7 +29,7 @@ ComputeTemp::ComputeTemp(LAMMPS *lmp, int narg, char **arg) :
 {
   if (narg < 3) error->all(FLERR,"Illegal compute temp command");
 
-  fprintf(screen,"\nComputeTemp constructor...");
+  fprintf(screen,"\nComputeTemp constructor...\n");
 
   scalar_flag = vector_flag = 1;
   size_vector = 6;
@@ -44,7 +44,7 @@ ComputeTemp::ComputeTemp(LAMMPS *lmp, int narg, char **arg) :
 
 ComputeTemp::~ComputeTemp()
 {
-  fprintf(screen,"\nComputeTemp destructor...");
+  fprintf(screen,"\nComputeTemp destructor...\n");
   if (!copymode)
     delete [] vector;
 }

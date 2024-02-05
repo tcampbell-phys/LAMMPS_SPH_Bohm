@@ -33,11 +33,11 @@ FixNVTCOM::FixNVTCOM(LAMMPS *lmp, int narg, char **arg) :
   // create a new compute temp style
   // id = fix-ID + temp
 
-  printf("\nFixNVTCOM  arg[0] = %s",arg[0]);
-  printf("\nFixNVTCOM  arg[1] = %s",arg[1]);
-  printf("\nFixNVTCOM  arg[2] = %s",arg[2]);
-  printf("\nFixNVTCOM  arg[3] = %s",arg[3]);
-  printf("\nFixNVTCOM  arg[8] = %s",arg[8]);
+  // printf("\nFixNVTCOM  arg[0] = %s",arg[0]);
+  // printf("\nFixNVTCOM  arg[1] = %s",arg[1]);
+  // printf("\nFixNVTCOM  arg[2] = %s",arg[2]);
+  // printf("\nFixNVTCOM  arg[3] = %s",arg[3]);
+  // printf("\nFixNVTCOM  arg[8] = %s",arg[8]);
   // int N_ele	= force->numeric(FLERR,arg[3]);
 
   int n = strlen(id) + 6;

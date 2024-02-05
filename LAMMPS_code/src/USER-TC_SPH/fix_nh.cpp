@@ -142,7 +142,7 @@ FixNH::FixNH(LAMMPS *lmp, int narg, char **arg) :
       iarg += 4;
 
     } else if (strcmp(arg[iarg],"temp_CoM") == 0) {
-      // // fprintf(screen,"\nIn temp section...");
+      // // // fprintf(screen,"\nIn temp section...");
       if (iarg+4 > narg) error->all(FLERR,"Illegal fix nvt/npt/nph command");
       tstat_flag = 1;
       t_start = force->numeric(FLERR,arg[iarg+1]);
@@ -155,13 +155,14 @@ FixNH::FixNH(LAMMPS *lmp, int narg, char **arg) :
       N_epe = force->numeric(FLERR,arg[iarg+4]);
       N_ele = force->numeric(FLERR,arg[iarg+5]);
       tag_ele_start = force->numeric(FLERR,arg[iarg+6]);
+      particle_mass = force->numeric(FLERR,arg[iarg+7]);
 
       CoM_flag = 1;
 
       if (t_start <= 0.0 || t_stop <= 0.0)
         error->all(FLERR,
                    "Target temperature for fix nvt/npt/nph cannot be 0.0");
-      iarg += 7;
+      iarg += 8;
 
     } else if (strcmp(arg[iarg],"iso") == 0) {
       if (iarg+4 > narg) error->all(FLERR,"Illegal fix nvt/npt/nph command");
@@ -389,9 +390,9 @@ FixNH::FixNH(LAMMPS *lmp, int narg, char **arg) :
 
     } else error->all(FLERR,"Illegal fix nvt/npt/nph command");
   }
-  // fprintf(screen,"\nN_epe = %d",N_epe);
-  // fprintf(screen,"\ntag_ele_start = %d",tag_ele_start);
-  // fprintf(screen,"\nCoM_flag = %d",CoM_flag);
+  // // fprintf(screen,"\nN_epe = %d",N_epe);
+  // // fprintf(screen,"\ntag_ele_start = %d",tag_ele_start);
+  // // fprintf(screen,"\nCoM_flag = %d",CoM_flag);
   // error checks
 
   if (dimension == 2 && (p_flag[2] || p_flag[3] || p_flag[4]))
@@ -771,15 +772,15 @@ void FixNH::init()
 
 void FixNH::setup(int /*vflag*/)
 {
-  fprintf(screen,"\nFixNH::setup()");
+  // // fprintf(screen,"\nFixNH::setup()");
   // tdof needed by compute_temp_target
   if (CoM_flag){
-    t_current = temperature->compute_scalar_CoM(N_epe,N_ele,tag_ele_start);
+    t_current = temperature->compute_scalar_CoM(N_epe,particle_mass,N_ele,tag_ele_start);
   }
   else{
     t_current = temperature->compute_scalar();
   }
-  fprintf(screen,"\nFixNH::setup() t_current = %f",t_current);
+  // fprintf(screen,"\nFixNH::setup() t_current = %f",t_current);
   tdof = temperature->dof;
   if (CoM_flag){
     tdof = (tdof + temperature->extra_dof + temperature->fix_dof)/N_epe - (temperature->extra_dof + temperature->fix_dof);
@@ -802,7 +803,7 @@ void FixNH::setup(int /*vflag*/)
 
     if (t0 == 0.0) {
       if (CoM_flag){
-        t0 = temperature->compute_scalar_CoM(N_epe,N_ele,tag_ele_start);
+        t0 = temperature->compute_scalar_CoM(N_epe,particle_mass,N_ele,tag_ele_start);
       } else{
         t0 = temperature->compute_scalar();
       }
@@ -936,7 +937,7 @@ void FixNH::final_integrate()
 
   if (which == BIAS && neighbor->ago == 0)
     if (CoM_flag){
-      t_current = temperature->compute_scalar_CoM(N_epe,N_ele,tag_ele_start);
+      t_current = temperature->compute_scalar_CoM(N_epe,particle_mass,N_ele,tag_ele_start);
     } else{ 
       t_current = temperature->compute_scalar();
     }
@@ -946,7 +947,7 @@ void FixNH::final_integrate()
   // compute new T,P after velocities rescaled by nh_v_press()
   // compute appropriately coupled elements of mvv_current
   if (CoM_flag){
-    t_current = temperature->compute_scalar_CoM(N_epe,N_ele,tag_ele_start);
+    t_current = temperature->compute_scalar_CoM(N_epe,particle_mass,N_ele,tag_ele_start);
   } else{
     t_current = temperature->compute_scalar();
   }
@@ -955,6 +956,7 @@ void FixNH::final_integrate()
     tdof = (tdof + temperature->extra_dof + temperature->fix_dof)/N_epe - (temperature->extra_dof + temperature->fix_dof);
   }
   // fprintf(screen,"\nFixNH::final_integrate() tdof = %f",tdof);
+  // fprintf(screen,"\nFixNH::final_integrate() t_current = %f",t_current);
 
 
   // need to recompute pressure to account for change in KE
@@ -2362,6 +2364,8 @@ void FixNH::compute_temp_target()
   if (delta != 0.0) delta /= update->endstep - update->beginstep;
 
   t_target = t_start + delta * (t_stop-t_start);
+  // fprintf(screen,"\nFixNH::compute_temp_target() t_target = %f",t_target);
+  // fprintf(screen,"\nFixNH::compute_temp_target() tdof = %f",tdof);
   ke_target = tdof * boltz * t_target;
 }
 

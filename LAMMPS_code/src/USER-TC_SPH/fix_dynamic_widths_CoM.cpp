@@ -202,8 +202,8 @@ void FixDynamicWidthsCoM::FixedPointIterator()
 
     // clear all density values
 
-    for(int i = 0; i < nall; i++){
-      rho_SPH[i] = 0.;
+    for(int b = 0; b < nall; b++){
+      rho_SPH[b] = 0.;
     }
 
     // loop over my atoms

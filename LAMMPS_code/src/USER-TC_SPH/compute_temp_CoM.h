@@ -33,7 +33,7 @@ class ComputeTempCentreMass : public Compute {
   void init() {}
   void setup();
   virtual double compute_scalar();
-  virtual double compute_scalar_CoM(double N_epe, int N_ele, int tag_ele_start);
+  virtual double compute_scalar_CoM(double N_epe, double particle_mass, int N_ele, int tag_ele_start);
   virtual void compute_vector();
 
  protected:
@@ -42,6 +42,7 @@ class ComputeTempCentreMass : public Compute {
   virtual void dof_compute();
   double *CoM_vel,*CoM_vel_all;
   int allocated;
+  int unallocated;
 
   virtual void allocate();
   void deallocate();

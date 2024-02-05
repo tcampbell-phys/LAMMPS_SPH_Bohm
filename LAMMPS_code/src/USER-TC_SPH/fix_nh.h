@@ -133,6 +133,7 @@ class FixNH : public Fix {
   int N_epe;                       // SPH elements per electron
   int N_ele;                       // Number of whole electrons
   int tag_ele_start;               // lowest tag ID beloning to an electron
+  double particle_mass;            // mass of full particle (for CoM KE calculation)
   int CoM_flag;                    // CoM flag
   int nmax;                        // required for communication of CoM velocity
 

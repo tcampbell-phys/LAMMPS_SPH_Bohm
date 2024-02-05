@@ -111,7 +111,7 @@ class Compute : protected Pointers {
   virtual void init_list(int, class NeighList *) {}
   virtual void setup() {}
   virtual double compute_scalar() {return 0.0;}
-  virtual double compute_scalar_CoM(double N_epe, int N_ele, int tag_ele_start) {return 0.0;}
+  virtual double compute_scalar_CoM(double N_epe, double particle_mass, int N_ele, int tag_ele_start) {return 0.0;}
   virtual void compute_vector() {}
   virtual void compute_array() {}
   virtual void compute_peratom() {}
