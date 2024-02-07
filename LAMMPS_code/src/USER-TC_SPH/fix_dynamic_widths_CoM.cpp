@@ -32,7 +32,7 @@ using namespace LAMMPS_NS;
 using namespace FixConst;
 
 FixDynamicWidthsCoM::FixDynamicWidthsCoM(LAMMPS *lmp, int narg, char **arg):
-	Fix(lmp, narg, arg)
+	Fix(lmp, narg, arg), mu(NULL), mu_all(NULL), tau(NULL), tau_all(NULL)
 {
   if (narg < 13) error->all(FLERR,"Illegal fix Dynamic Widths command");
 
@@ -54,12 +54,18 @@ FixDynamicWidthsCoM::FixDynamicWidthsCoM(LAMMPS *lmp, int narg, char **arg):
 
   two_pi_over_len = 2*M_PI/box_len;
 
-  x_mu = NULL;
-  x_tau = NULL;
-  y_mu = NULL;
-  y_tau = NULL;
-  z_mu = NULL;
-  z_tau = NULL;
+  // x_mu = NULL;
+  // x_tau = NULL;
+  // y_mu = NULL;
+  // y_tau = NULL;
+  // z_mu = NULL;
+  // z_tau = NULL;
+
+  mu_all = NULL;
+  tau_all = NULL;
+
+  unallocated = 1;
+  allocated = 0;
 
   comm_forward = 1;
   comm_reverse = 1; 
@@ -74,6 +80,9 @@ FixDynamicWidthsCoM::~FixDynamicWidthsCoM()
 {
   //free pair_name variable
   free(pair_name);
+  if (allocated){
+    deallocate();
+  }
 }
 
 int FixDynamicWidthsCoM::setmask()
@@ -451,8 +460,8 @@ double FixDynamicWidthsCoM::Gauss_Width_Deriv(double pre_fact, double wid, doubl
 
 void FixDynamicWidthsCoM::CoM_Calculator()
 {
-  int i,j,ii,jj,inum,jnum,itype,jtype,a;
-  int *ilist,*jlist,*numneigh,**firstneigh;
+  int i,ii,inum;
+  int *ilist;
 	double **x = atom->x;
   double *x_COM = atom->x_COM;
   double *y_COM = atom->y_COM;
@@ -463,138 +472,31 @@ void FixDynamicWidthsCoM::CoM_Calculator()
   int *type = atom->type;
   int nlocal = atom->nlocal;
   int nall = nlocal + atom->nghost;
-  int newton_pair = force->newton_pair;
-
-  double xtmp,ytmp,ztmp,delx,dely,delz;
-  double rsq;
 
   int *tagid = atom->tag;
 
   list = pair->list;
 
-  int ntimestep = update->ntimestep;
+  // int ntimestep = update->ntimestep;
 	
   inum = list->inum;
   ilist = list->ilist;
-  numneigh = list->numneigh;
-  firstneigh = list->firstneigh;
 
   double theta_ave;
 
-  if (atom->nmax > nmax) {
-    // delete and create new memory arrays for any per-particle variables that need communicating.
-    memory->destroy(x_mu);
-    memory->destroy(x_tau);
-    memory->destroy(y_mu);
-    memory->destroy(y_tau);
-    memory->destroy(z_mu);
-    memory->destroy(z_tau);
-    
-    nmax = atom->nmax;
+  int ele_ind;
 
-    memory->create(x_mu,nmax,"fix:x_mu");
-    memory->create(x_tau,nmax,"fix:x_tau");
-    memory->create(y_mu,nmax,"fix:y_mu");
-    memory->create(y_tau,nmax,"fix:y_tau");
-    memory->create(z_mu,nmax,"fix:z_mu");
-    memory->create(z_tau,nmax,"fix:z_tau");
+  if (unallocated){
+    deallocate();
+    // fprintf(screen,"\nFixDynamicWidthsCoM allocating mu tau memory...\n");
+    allocate();
+    allocated = 1;
+    unallocated = 0;
   }
 
-  // clear all CoM coords
-
-  if (newton_pair) {
-    for (i = 0; i < nall; i++){
-      x_mu[i] = 0.0;
-      x_tau[i] = 0.0;
-      y_mu[i] = 0.0;
-      y_tau[i] = 0.0;
-      z_mu[i] = 0.0;
-      z_tau[i] = 0.0;
-    }
-  } 
-  else{
-    for (i = 0; i < nlocal; i++){
-      x_mu[i] = 0.0;
-      x_tau[i] = 0.0;
-      y_mu[i] = 0.0;
-      y_tau[i] = 0.0;
-      z_mu[i] = 0.0;
-      z_tau[i] = 0.0;
-    }
-  }
-
-  for (ii = 0; ii < inum; ii++) {
-    i = ilist[ii];
-    jlist = firstneigh[i];
-    jnum = numneigh[i];
-
-    if (type[i] == type_avoid){
-      continue;
-    }
-
-    xtmp = x[i][0];
-    ytmp = x[i][1];
-    ztmp = x[i][2];
-
-    x_mu[i] += cos(xtmp*two_pi_over_len);
-    x_tau[i] += sin(xtmp*two_pi_over_len);
-
-    y_mu[i] += cos(ytmp*two_pi_over_len);
-    y_tau[i] += sin(ytmp*two_pi_over_len);
-
-    z_mu[i] += cos(ztmp*two_pi_over_len);
-    z_tau[i] += sin(ztmp*two_pi_over_len);
-
-    for (jj = 0; jj < jnum; jj++) {
-      j = jlist[jj];
-      j &= NEIGHMASK;
-      if (type[j] == type_avoid){
-        continue;
-      }
-      
-      if (floor((tagid[i]-tag_ele_start)/N_elements_per_electron) == floor((tagid[j]-tag_ele_start)/N_elements_per_electron)){
-
-        delx = x[j][0] - xtmp;
-        dely = x[j][1] - ytmp;
-        delz = x[j][2] - ztmp;
-
-        rsq = delx*delx + dely*dely + delz*delz;
-
-        if (rsq < cutsquared){
-
-          // i particle adds j particle to i CoM coords
-
-          x_mu[i] += cos(x[j][0]*two_pi_over_len);
-          x_tau[i] += sin(x[j][0]*two_pi_over_len);
-
-          y_mu[i] += cos(x[j][1]*two_pi_over_len);
-          y_tau[i] += sin(x[j][1]*two_pi_over_len);
-
-          z_mu[i] += cos(x[j][2]*two_pi_over_len);
-          z_tau[i] += sin(x[j][2]*two_pi_over_len);
-
-          if (newton_pair || j < nlocal) {
-
-            // j particle adds i particle to j CoM coords
-          
-            x_mu[j] += cos(xtmp*two_pi_over_len);
-            x_tau[j] += sin(xtmp*two_pi_over_len);
-            
-            y_mu[j] += cos(ytmp*two_pi_over_len);
-            y_tau[j] += sin(ytmp*two_pi_over_len);
-
-            z_mu[j] += cos(ztmp*two_pi_over_len);
-            z_tau[j] += sin(ztmp*two_pi_over_len);
-          }
-        }
-      }
-    }
-  }
-  commflag = 4;
-  comm_forward = 6;
-  comm_reverse = 6; 
-  if (newton_pair){
-    comm->reverse_comm_fix(this);
+  for (int a = 0; a < 3*N_electrons; a++){ 
+    mu[a] = 0.0;
+    tau[a] = 0.0;
   }
 
   for (ii = 0; ii < inum; ii++) {
@@ -602,9 +504,27 @@ void FixDynamicWidthsCoM::CoM_Calculator()
     if (type[i] == type_avoid){
       continue;
     }
-    x_COM[i] = (atan2(-x_tau[i]/N_elements_per_electron,-x_mu[i]/N_elements_per_electron) + M_PI)/two_pi_over_len;
-    y_COM[i] = (atan2(-y_tau[i]/N_elements_per_electron,-y_mu[i]/N_elements_per_electron) + M_PI)/two_pi_over_len;
-    z_COM[i] = (atan2(-z_tau[i]/N_elements_per_electron,-z_mu[i]/N_elements_per_electron) + M_PI)/two_pi_over_len;
+    ele_ind = floor((tagid[i]-tag_ele_start)/N_elements_per_electron);
+    mu[ele_ind] += cos(x[i][0]*two_pi_over_len);
+    mu[ele_ind+N_electrons] += cos(x[i][1]*two_pi_over_len);
+    mu[ele_ind+2*N_electrons] += cos(x[i][2]*two_pi_over_len);
+    tau[ele_ind] += sin(x[i][0]*two_pi_over_len);
+    tau[ele_ind+N_electrons] += sin(x[i][1]*two_pi_over_len);
+    tau[ele_ind+2*N_electrons] += sin(x[i][2]*two_pi_over_len);
+  }
+
+  MPI_Allreduce(mu,mu_all,3*N_electrons,MPI_DOUBLE,MPI_SUM,world);
+  MPI_Allreduce(tau,tau_all,3*N_electrons,MPI_DOUBLE,MPI_SUM,world);
+
+  for (ii = 0; ii < inum; ii++) {
+    i = ilist[ii];
+    if (type[i] == type_avoid){
+      continue;
+    }
+    ele_ind = floor((tagid[i]-tag_ele_start)/N_elements_per_electron);
+    x_COM[i] = (atan2(-tau_all[ele_ind]/N_elements_per_electron,-mu_all[ele_ind]/N_elements_per_electron) + M_PI)/two_pi_over_len;
+    y_COM[i] = (atan2(-tau_all[ele_ind+N_electrons]/N_elements_per_electron,-mu_all[ele_ind+N_electrons]/N_elements_per_electron) + M_PI)/two_pi_over_len;
+    z_COM[i] = (atan2(-tau_all[ele_ind+2*N_electrons]/N_elements_per_electron,-mu_all[ele_ind+2*N_electrons]/N_elements_per_electron) + M_PI)/two_pi_over_len;
     // if (tagid[i] == 801){
     //   fprintf(screen,"\n\ntimestep %d \n\nx_COM = %16.16f \ny_COM = %16.16f \nz_COM = %16.16f",ntimestep,x_COM[i],y_COM[i],z_COM[i]);
     // }
@@ -867,4 +787,31 @@ void FixDynamicWidthsCoM::unpack_reverse_comm(int n, int *list, double *buf)
       omega_SPH[j] += buf[m++];
     }
   }
+}
+
+/* ----------------------------------------------------------------------
+   allocate memory that depends on # of electrons
+------------------------------------------------------------------------- */
+
+void FixDynamicWidthsCoM::allocate()
+{
+  fprintf(screen,"\nFixDynamicWidthsCoM::allocate()\n");
+  // Centre of Mass array x 0:N_ele, y N_ele:2*N_ele, z 2*N_ele:3_Nele
+  mu = new double[3*N_electrons]; 
+  mu_all = new double[3*N_electrons];
+  tau = new double[3*N_electrons]; 
+  tau_all = new double[3*N_electrons];
+}
+
+/* ----------------------------------------------------------------------
+   deallocate memory that depends on # of electrons
+------------------------------------------------------------------------- */
+
+void FixDynamicWidthsCoM::deallocate()
+{
+  fprintf(screen,"\nFixDynamicWidthsCoM::deallocate()\n");
+  delete [] mu;
+  delete [] mu_all;
+  delete [] tau;
+  delete [] tau_all;
 }

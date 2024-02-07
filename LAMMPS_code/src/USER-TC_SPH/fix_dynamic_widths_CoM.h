@@ -53,6 +53,15 @@ class FixDynamicWidthsCoM : public Fix {
   double *z_mu;
   double *z_tau;
 
+  double *mu,*tau;
+  double *mu_all,*tau_all;
+
+  int allocated;
+  int unallocated;
+
+  virtual void allocate();
+  void deallocate();
+
   void FixedPointIterator();
   void CoM_Calculator();
   double Gauss_Width_Deriv(double pre_fact, double wid, double sep_sq);
