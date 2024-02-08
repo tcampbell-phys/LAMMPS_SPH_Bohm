@@ -68,6 +68,7 @@ FixDynamicWidthsCoM::FixDynamicWidthsCoM(LAMMPS *lmp, int narg, char **arg):
   nmax = 0;
 
   assignment_flag = 1;
+  fprintf(screen,"\nIn FixDynamicWidthsCoM commflag = 4 or 5 ON...");
 }
 
 FixDynamicWidthsCoM::~FixDynamicWidthsCoM()

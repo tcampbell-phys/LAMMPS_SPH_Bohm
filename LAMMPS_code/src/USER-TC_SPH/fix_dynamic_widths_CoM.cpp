@@ -74,6 +74,7 @@ FixDynamicWidthsCoM::FixDynamicWidthsCoM(LAMMPS *lmp, int narg, char **arg):
   nmax = 0;
 
   assignment_flag = 1;
+  fprintf(screen,"\nIn FixDynamicWidthsCoM with MPI_Allreduce and no commflag = 4 or 5");
 }
 
 FixDynamicWidthsCoM::~FixDynamicWidthsCoM()
@@ -529,11 +530,11 @@ void FixDynamicWidthsCoM::CoM_Calculator()
     //   fprintf(screen,"\n\ntimestep %d \n\nx_COM = %16.16f \ny_COM = %16.16f \nz_COM = %16.16f",ntimestep,x_COM[i],y_COM[i],z_COM[i]);
     // }
   }
-  commflag = 5;
-  comm_forward = 3;
-  comm_reverse = 3;
+  // commflag = 5;
+  // comm_forward = 3;
+  // comm_reverse = 3;
 
-  comm->forward_comm_fix(this);
+  // comm->forward_comm_fix(this);
 }
 
 int FixDynamicWidthsCoM::pack_forward_comm(int n, int *list, double *buf,
