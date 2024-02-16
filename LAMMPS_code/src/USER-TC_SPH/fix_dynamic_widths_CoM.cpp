@@ -532,11 +532,6 @@ void FixDynamicWidthsCoM::CoM_Calculator()
     //   fprintf(screen,"\n\ntimestep %d \n\nx_COM = %16.16f \ny_COM = %16.16f \nz_COM = %16.16f",ntimestep,x_COM[i],y_COM[i],z_COM[i]);
     // }
   }
-  // commflag = 5;
-  // comm_forward = 3;
-  // comm_reverse = 3;
-
-  // comm->forward_comm_fix(this);
 }
 
 int FixDynamicWidthsCoM::pack_forward_comm(int n, int *list, double *buf,

@@ -467,7 +467,7 @@ void PairBohmSPHDynamicMoczMF::allocate()
 
 void PairBohmSPHDynamicMoczMF::settings(int narg, char **arg)
 {
-  if (narg != 4) error->all(FLERR,"Illegal pair_style command. Require 2 input arguments.");
+  if (narg != 4) error->all(FLERR,"Illegal pair_style command. Require 4 input arguments.");
 
   if (comm->ghost_velocity != 1) error->all(FLERR,"Illegal pair_style command. Require ghost atom velocity.");
 

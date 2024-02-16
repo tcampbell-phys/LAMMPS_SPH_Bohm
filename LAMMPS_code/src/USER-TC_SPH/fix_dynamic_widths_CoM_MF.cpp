@@ -199,6 +199,10 @@ void FixDynamicWidthsCoMMF::FixedPointIterator()
   int nall = nlocal + atom->nghost;
   int newton_pair = force->newton_pair;
 
+  int *tagid = atom->tag;
+  int lo_lim_lev;
+  int hi_lim_lev;
+
   list = pair->list;
 	
   inum = list->inum;
@@ -224,14 +228,18 @@ void FixDynamicWidthsCoMMF::FixedPointIterator()
 
       i = ilist[ii];
 
-      xtmp = x[i][0];
-      ytmp = x[i][1];
-      ztmp = x[i][2];
-
       itype = type[i];
       if (type[i] == type_avoid){
         continue;
       }
+
+      xtmp = x[i][0];
+      ytmp = x[i][1];
+      ztmp = x[i][2];
+
+      // determine owner electron ID limits
+      lo_lim_lev = floor((tagid[i]-tag_ele_start)/N_elements_per_electron)*N_elements_per_electron + tag_ele_start;
+      hi_lim_lev = lo_lim_lev + N_elements_per_electron;
       
       jlist = firstneigh[i];
 
@@ -252,6 +260,11 @@ void FixDynamicWidthsCoMMF::FixedPointIterator()
 
         jtype = type[j];
         if (type[j] == type_avoid){
+          continue;
+        }
+
+        // skip elements not in owner electron
+        if ( tagid[j] >= hi_lim_lev || tagid[j] < lo_lim_lev ){
           continue;
         }
 
@@ -317,14 +330,18 @@ void FixDynamicWidthsCoMMF::FixedPointIterator()
 
     i = ilist[ii];
 
-    xtmp = x[i][0];
-    ytmp = x[i][1];
-    ztmp = x[i][2];
-
     itype = type[i];
     if (type[i] == type_avoid){
       continue;
     }
+
+    xtmp = x[i][0];
+    ytmp = x[i][1];
+    ztmp = x[i][2];
+
+    // determine owner electron ID limits
+    lo_lim_lev = floor((tagid[i]-tag_ele_start)/N_elements_per_electron)*N_elements_per_electron + tag_ele_start;
+    hi_lim_lev = lo_lim_lev + N_elements_per_electron;
     
     jlist = firstneigh[i];
     jnum = numneigh[i];
@@ -345,6 +362,11 @@ void FixDynamicWidthsCoMMF::FixedPointIterator()
 
       jtype = type[j];
       if (type[j] == type_avoid){
+        continue;
+      }
+
+      // skip elements not in owner electron
+      if ( tagid[j] >= hi_lim_lev || tagid[j] < lo_lim_lev ){
         continue;
       }
 
@@ -392,14 +414,17 @@ void FixDynamicWidthsCoMMF::FixedPointIterator()
 
     // // // fprintf(screen,"\nrho_SPH[%d] = %16.16f",i,rho_SPH[i]);
 
-    xtmp = x[i][0];
-    ytmp = x[i][1];
-    ztmp = x[i][2];
-
     itype = type[i];
     if (type[i] == type_avoid){
       continue;
     }
+    xtmp = x[i][0];
+    ytmp = x[i][1];
+    ztmp = x[i][2];
+
+    // determine owner electron ID limits
+    lo_lim_lev = floor((tagid[i]-tag_ele_start)/N_elements_per_electron)*N_elements_per_electron + tag_ele_start;
+    hi_lim_lev = lo_lim_lev + N_elements_per_electron;
     
     jlist = firstneigh[i];
 
@@ -423,6 +448,11 @@ void FixDynamicWidthsCoMMF::FixedPointIterator()
 
       jtype = type[j];
       if (type[j] == type_avoid){
+        continue;
+      }
+
+      // skip elements not in owner electron
+      if ( tagid[j] >= hi_lim_lev || tagid[j] < lo_lim_lev ){
         continue;
       }
 
@@ -532,11 +562,6 @@ void FixDynamicWidthsCoMMF::CoM_Calculator()
     //   fprintf(screen,"\n\ntimestep %d \n\nx_COM = %16.16f \ny_COM = %16.16f \nz_COM = %16.16f",ntimestep,x_COM[i],y_COM[i],z_COM[i]);
     // }
   }
-  // commflag = 5;
-  // comm_forward = 3;
-  // comm_reverse = 3;
-
-  // comm->forward_comm_fix(this);
 }
 
 int FixDynamicWidthsCoMMF::pack_forward_comm(int n, int *list, double *buf,

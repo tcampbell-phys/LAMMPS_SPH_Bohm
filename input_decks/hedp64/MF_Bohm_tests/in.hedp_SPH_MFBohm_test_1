@@ -1,0 +1,200 @@
+# Set output directory
+
+variable out_number string 1
+
+### BACKUP SIMULATION FILES
+
+# CAREFUL - check pauli_table gamma coefficient matches gamma_factor input
+
+variable gamma_factor equal 1.0
+
+variable outputdir string hedp_SPH_MFBohm_test_${out_number}
+shell mkdir /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/
+shell cp ~/fresh_lammps-3Mar20/lammps-3Mar20/SPH_Bohm/in.hedp_SPH_confine_test_${out_number} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/
+shell cp ~/fresh_lammps-3Mar20/lammps-3Mar20/src/pair_bohm_SPH_dynamic.cpp /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/
+shell cp ~/fresh_lammps-3Mar20/lammps-3Mar20/src/pair_bohm_SPH_dynamic.h /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/
+shell cp ~/fresh_lammps-3Mar20/lammps-3Mar20/src/pair_coul_long_SPH_ph.cpp /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/
+shell cp ~/fresh_lammps-3Mar20/lammps-3Mar20/src/pair_coul_long_SPH_ph.h /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/
+log /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/log.${outputdir}  
+
+### SYSTEM PARAMETERS: 
+
+### physical parameters:
+
+variable temp equal 10.77	         # temperature in Ev
+variable ion_density equal 0.044545217  		# Density in # per bohr^3
+variable num_ions equal 50	                                        # Number of ions
+variable ion_charge equal 1.0			                                # Average charge/ionization
+variable ion_amu equal 1.008	                                # Atomic mass of ion
+variable electron_amu equal 0.00054857991                           # Atomic mass of electrons
+
+variable sigma_start equal 1.3                                         # Start global packet width of electrons in bohr
+
+variable elements_per_electron equal 32
+
+variable element_scaled_mass equal ${electron_amu}/${elements_per_electron}
+variable element_scaled_charge equal -1/${elements_per_electron}
+
+variable num_electrons equal ${num_ions}*${ion_charge}
+variable num_electron_elements equal ${num_electrons}*${elements_per_electron}
+variable half_num_electrons equal ${num_electrons}/2.0
+variable quar_num_electrons equal ${half_num_electrons}/2.0
+variable temptouse equal 11604.5221*${temp}
+variable box_len equal (${num_ions}/${ion_density})^(1/3)
+variable half_box_len equal ${box_len}/2.0
+
+variable confine_strength equal 0.05        # set strength of qudratic confinement potential for SPH elements belonging to the same electron
+
+### simulation parameters:
+
+variable time_step_length equal 0.25e-3
+variable block_time_steps equal 1e3
+variable CoM_check_time_steps equal 200
+variable dump_freq equal 1
+variable cutoff equal 5.0                                     # cutoff for pairwise calculations
+
+units electron                                                      # use electron units (Hartree)
+newton on
+boundary p p p
+atom_style SPH_CoM     
+
+# Pair style string selection
+
+variable pair_name string bohm_SPH_dynamic_Mocz
+
+variable ion_seed equal 1
+variable e_up_a_seed equal 2
+variable e_up_b_seed equal 3
+variable e_down_a_seed equal 4 
+variable e_down_b_seed equal 5
+
+# thermostat parameters
+
+variable ion_vel_seed equal 6
+variable e_down_a_vel_seed equal 7
+variable e_down_b_vel_seed equal 8
+variable e_up_a_vel_seed equal 9
+variable e_up_b_vel_seed equal 10
+
+variable i_temp_damping equal ${time_step_length}*100
+variable e_temp_damping equal ${time_step_length}*100
+                                     
+### NOTE - initialising particles from rest
+variable vel_t equal 0.0*${temptouse}
+
+# rdf calculation
+
+variable rdf_num_bins equal 150
+variable rdf_num_measurements equal 100
+variable rdf_output_time_step equal 5000
+variable rdf_measurement_time_gap equal 10 
+
+### Setup simulation
+
+region bounding_region block 0.0 ${box_len} 0.0 ${box_len} 0.0 ${box_len}
+timestep ${time_step_length}
+
+create_box 1 bounding_region
+
+create_atoms 1 random ${num_electron_elements} ${e_up_a_seed} NULL
+group electron type 1
+mass 1 ${element_scaled_mass}
+set type 1 charge ${element_scaled_charge}
+
+# increase number of allowed neighbours
+neigh_modify one 10000
+
+variable tag_ele_start equal 1
+
+# Ensure ghost atom velocities communicated for SPH Bohm Potential:
+
+comm_modify vel yes
+
+### Dynamic Width fix
+variable dens_wid_const equal 1.2
+variable N_iter equal 1
+variable mix_fact equal 1.0
+variable tfwhm equal 4.70964*${dens_wid_const}*${box_len}/(${num_electron_elements}^(1/3))
+variable type_avoid equal 10 #ensure ions are not included in SPH loops (must match ion type)
+
+pair_style ${pair_name} ${cutoff} ${gamma_factor}
+
+fix ele_dyn_wid electron dynamic_widths_com ${dens_wid_const} ${N_iter} ${mix_fact} ${sigma_start} ${cutoff} ${box_len} ${type_avoid} ${num_electrons} ${elements_per_electron} ${tag_ele_start} ${pair_name}
+
+# Set up each pair with the correct styles:
+
+pair_coeff * *
+
+fix all_nve all nve
+
+velocity electron create ${vel_t} ${e_down_a_vel_seed} &
+rot yes dist gaussian
+
+# Randomize the starting positions of all of our particles
+
+displace_atoms all random 0.1 0.1 0.1 42
+
+# custom logfile output
+
+thermo_style custom step temp pe ke etotal press
+
+# modify logfile output
+
+# Minimize energy
+
+min_style cg
+minimize 1.0e-4 1.0e-5 50 50 
+
+reset_timestep 0
+
+thermo_modify lost warn
+thermo 10
+thermo_style custom step temp pe ke etotal press
+
+run ${block_time_steps}
+
+dump 1 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check1.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+# save small dump of positions and widths for CoM checking
+run ${CoM_check_time_steps}
+
+undump 1
+
+run ${block_time_steps}
+
+dump 2 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check2.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+# save small dump of positions and widths for CoM checking
+run ${CoM_check_time_steps}
+
+undump 2
+
+run ${block_time_steps}
+
+dump 3 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check3.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+# save small dump of positions and widths for CoM checking
+run ${CoM_check_time_steps}
+
+undump 3
+
+run ${block_time_steps}
+
+dump 4 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check4.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+# save small dump of positions and widths for CoM checking
+run ${CoM_check_time_steps}
+
+undump 4
+
+run ${block_time_steps}
+
+dump 5 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check5.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+# save small dump of positions and widths for CoM checking
+run ${CoM_check_time_steps}
+
+undump 5
+
+
+quit 0
