@@ -2,6 +2,8 @@
 Bespoke fix to compute the updated with valeus via a fixed point iteration,
 and associated omega_SPH values for use in SPH force expressions.
 
+Widths updated according to total density of electrons. (Compatible with QHD Bohm).
+
 Thomas Campbell
 ------------------------------------------------------------------------- */
 

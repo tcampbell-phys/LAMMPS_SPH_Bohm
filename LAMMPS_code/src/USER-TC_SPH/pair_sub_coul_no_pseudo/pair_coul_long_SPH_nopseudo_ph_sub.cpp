@@ -199,12 +199,6 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
       
       j &= NEIGHMASK;
 
-      delx = xtmp - x[j][0];
-      dely = ytmp - x[j][1];
-      delz = ztmp - x[j][2];
-      rsq = delx*delx + dely*dely + delz*delz;
-      jtype = type[j];
-
       // skip self-interactions
 
       if (itype != ion_species) {
@@ -214,6 +208,12 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
           }
         }
       }
+
+      delx = xtmp - x[j][0];
+      dely = ytmp - x[j][1];
+      delz = ztmp - x[j][2];
+      rsq = delx*delx + dely*dely + delz*delz;
+      jtype = type[j];
 
       if (rsq < cutsq[itype][jtype]) {
 

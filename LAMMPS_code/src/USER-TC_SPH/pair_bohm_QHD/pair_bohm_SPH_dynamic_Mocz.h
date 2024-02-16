@@ -6,6 +6,7 @@ pair_bohm_SPH_dynamic:
 - Electrons as basic fluid element.
 - Dynamic per-particle gaussian widths.
 - Mocz 2015. form for second derivatives.
+- Bohm potential calculated on total density of electron fluid (QHD Bohm Potential).
 
 Thomas Campbell
 ------------------------------------------------------------------------- */

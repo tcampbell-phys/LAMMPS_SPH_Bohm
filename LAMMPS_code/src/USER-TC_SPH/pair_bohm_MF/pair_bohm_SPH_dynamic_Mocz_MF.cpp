@@ -6,10 +6,11 @@ pair_bohm_SPH_dynamic_Mocz:
 - Electrons as basic fluid element.
 - Dynamic per-particle gaussian widths.
 - Mocz 2015. form for second derivatives.
+- Bohm potential calculated only on density of single electrons (Many - Fermion Bohm Potential).
 
 Thomas Campbell
 ------------------------------------------------------------------------- */
-#include "pair_bohm_SPH_dynamic_Mocz.h"
+#include "pair_bohm_SPH_dynamic_Mocz_MF.h"
 #include <mpi.h>
 #include <cmath>
 #include <cstring>
@@ -31,7 +32,7 @@ using namespace LAMMPS_NS;
 
 /* ---------------------------------------------------------------------- */
 
-PairBohmSPHDynamicMocz::PairBohmSPHDynamicMocz(LAMMPS *lmp) : Pair(lmp) {
+PairBohmSPHDynamicMoczMF::PairBohmSPHDynamicMoczMF(LAMMPS *lmp) : Pair(lmp) {
   nmax = 0;
 
   manybody_flag = 1;
@@ -49,7 +50,7 @@ PairBohmSPHDynamicMocz::PairBohmSPHDynamicMocz(LAMMPS *lmp) : Pair(lmp) {
 
 /* ---------------------------------------------------------------------- */
 
-PairBohmSPHDynamicMocz::~PairBohmSPHDynamicMocz()
+PairBohmSPHDynamicMoczMF::~PairBohmSPHDynamicMoczMF()
 {
   if (allocated) {
     memory->destroy(setflag);
@@ -66,7 +67,7 @@ PairBohmSPHDynamicMocz::~PairBohmSPHDynamicMocz()
 
 /* ---------------------------------------------------------------------- */
 
-void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
+void PairBohmSPHDynamicMoczMF::compute(int eflag, int vflag)
 {
   int i,j,ii,jj,inum,jnum,itype,jtype;
   double xtmp,ytmp,ztmp,delx,dely,delz;
@@ -92,6 +93,10 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
   double bohm_pot;
   double cutsquared;
   double u_prefact_i,u_prefact_j;
+
+  int *tagid = atom->tag;
+  int lo_lim_lev;
+  int hi_lim_lev;
 
   ev_init(eflag,vflag);
   
@@ -204,6 +209,10 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
 
     imass = mass[itype];
 
+    // determine owner electron ID limits
+    lo_lim_lev = floor((tagid[i]-tag_ele_start)/N_epe)*N_epe + tag_ele_start;
+    hi_lim_lev = lo_lim_lev + N_epe;
+
     h_i = width_SPH[i];
     h2_i = h_i*h_i;
     hm2_i = 1./h2_i;
@@ -219,6 +228,11 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
     for (jj = 0; jj < jnum; jj++) {
       j = jlist[jj];
       j &= NEIGHMASK;
+
+      // skip elements not in owner electron
+      if ( tagid[j] >= hi_lim_lev || tagid[j] < lo_lim_lev ){
+        continue;
+      }
 
       delx = xtmp - x[j][0];
       dely = ytmp - x[j][1];
@@ -311,6 +325,10 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
     h2_i = h_i*h_i;
     hm2_i = 1./h2_i;
 
+    // determine owner electron ID limits
+    lo_lim_lev = floor((tagid[i]-tag_ele_start)/N_epe)*N_epe + tag_ele_start;
+    hi_lim_lev = lo_lim_lev + N_epe;
+
     // 3D Gaussian prefactor
     gauss_pre_i = pi_fact*(1./(h_i*h_i*h_i));
 
@@ -326,6 +344,11 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
     for (jj = 0; jj < jnum; jj++) {
       j = jlist[jj];
       j &= NEIGHMASK;
+
+      // skip elements not in owner electron
+      if ( tagid[j] >= hi_lim_lev || tagid[j] < lo_lim_lev ){
+        continue;
+      }
 
       delx = xtmp - x[j][0];
       dely = ytmp - x[j][1];
@@ -423,7 +446,7 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
    allocate all arrays
 ------------------------------------------------------------------------- */
 
-void PairBohmSPHDynamicMocz::allocate()
+void PairBohmSPHDynamicMoczMF::allocate()
 {
   allocated = 1;
   int n = atom->ntypes;
@@ -442,14 +465,16 @@ void PairBohmSPHDynamicMocz::allocate()
    global settings
 ------------------------------------------------------------------------- */
 
-void PairBohmSPHDynamicMocz::settings(int narg, char **arg)
+void PairBohmSPHDynamicMoczMF::settings(int narg, char **arg)
 {
-  if (narg != 2) error->all(FLERR,"Illegal pair_style command. Require 2 input arguments.");
+  if (narg != 4) error->all(FLERR,"Illegal pair_style command. Require 2 input arguments.");
 
   if (comm->ghost_velocity != 1) error->all(FLERR,"Illegal pair_style command. Require ghost atom velocity.");
 
   cut_global = force->numeric(FLERR,arg[0]);
   gamma_factor = force->numeric(FLERR,arg[1]);
+  N_epe = force->numeric(FLERR,arg[2]);
+  tag_ele_start = force->numeric(FLERR,arg[3]);
 
   // reset cutoffs that have been explicitly set
 
@@ -465,7 +490,7 @@ void PairBohmSPHDynamicMocz::settings(int narg, char **arg)
    set coeffs for one or more type pairs
 ------------------------------------------------------------------------- */
 
-void PairBohmSPHDynamicMocz::coeff(int narg, char **arg)
+void PairBohmSPHDynamicMoczMF::coeff(int narg, char **arg)
 {
   if (narg < 2 || narg > 3)
     error->all(FLERR,"Incorrect args for pair coefficients");
@@ -497,7 +522,7 @@ void PairBohmSPHDynamicMocz::coeff(int narg, char **arg)
    init specific to this pair style
 ------------------------------------------------------------------------- */
 
-void PairBohmSPHDynamicMocz::init_style()
+void PairBohmSPHDynamicMoczMF::init_style()
 {
   neighbor->request(this,instance_me);
 }
@@ -506,7 +531,7 @@ void PairBohmSPHDynamicMocz::init_style()
    init for one type pair i,j and corresponding j,i
 ------------------------------------------------------------------------- */
 
-double PairBohmSPHDynamicMocz::init_one(int i, int j)
+double PairBohmSPHDynamicMoczMF::init_one(int i, int j)
 {
   if (setflag[i][j] == 0)
     cut[i][j] = mix_distance(cut[i][i],cut[j][j]);
@@ -518,7 +543,7 @@ double PairBohmSPHDynamicMocz::init_one(int i, int j)
   proc 0 writes to restart file
 ------------------------------------------------------------------------- */
 
-void PairBohmSPHDynamicMocz::write_restart(FILE *fp)
+void PairBohmSPHDynamicMoczMF::write_restart(FILE *fp)
 {
   write_restart_settings(fp);
 
@@ -534,7 +559,7 @@ void PairBohmSPHDynamicMocz::write_restart(FILE *fp)
   proc 0 reads from restart file, bcasts
 ------------------------------------------------------------------------- */
 
-void PairBohmSPHDynamicMocz::read_restart(FILE *fp)
+void PairBohmSPHDynamicMoczMF::read_restart(FILE *fp)
 {
   read_restart_settings(fp);
   allocate();
@@ -556,7 +581,7 @@ void PairBohmSPHDynamicMocz::read_restart(FILE *fp)
   proc 0 writes to restart file
 ------------------------------------------------------------------------- */
 
-void PairBohmSPHDynamicMocz::write_restart_settings(FILE *fp)
+void PairBohmSPHDynamicMoczMF::write_restart_settings(FILE *fp)
 {
   fwrite(&cut_global,sizeof(double),1,fp);
   fwrite(&offset_flag,sizeof(int),1,fp);
@@ -567,7 +592,7 @@ void PairBohmSPHDynamicMocz::write_restart_settings(FILE *fp)
   proc 0 reads from restart file, bcasts
 ------------------------------------------------------------------------- */
 
-void PairBohmSPHDynamicMocz::read_restart_settings(FILE *fp)
+void PairBohmSPHDynamicMoczMF::read_restart_settings(FILE *fp)
 {
   if (comm->me == 0) {
     utils::sfread(FLERR,&cut_global,sizeof(double),1,fp,NULL,error);
@@ -581,7 +606,7 @@ void PairBohmSPHDynamicMocz::read_restart_settings(FILE *fp)
 
 /* ---------------------------------------------------------------------- */
 
-int PairBohmSPHDynamicMocz::pack_forward_comm(int n, int *list, double *buf,
+int PairBohmSPHDynamicMoczMF::pack_forward_comm(int n, int *list, double *buf,
                                int /*pbc_flag*/, int * /*pbc*/)
 {
   int i,j,m;
@@ -610,7 +635,7 @@ int PairBohmSPHDynamicMocz::pack_forward_comm(int n, int *list, double *buf,
 
 /* ---------------------------------------------------------------------- */
 
-void PairBohmSPHDynamicMocz::unpack_forward_comm(int n, int first, double *buf)
+void PairBohmSPHDynamicMoczMF::unpack_forward_comm(int n, int first, double *buf)
 {
   int i,m,last;
 
@@ -637,7 +662,7 @@ void PairBohmSPHDynamicMocz::unpack_forward_comm(int n, int first, double *buf)
 
 /* ---------------------------------------------------------------------- */
 
-int PairBohmSPHDynamicMocz::pack_reverse_comm(int n, int first, double *buf)
+int PairBohmSPHDynamicMoczMF::pack_reverse_comm(int n, int first, double *buf)
 {
   int i,m,last;
 
@@ -665,7 +690,7 @@ int PairBohmSPHDynamicMocz::pack_reverse_comm(int n, int first, double *buf)
 
 /* ---------------------------------------------------------------------- */
 
-void PairBohmSPHDynamicMocz::unpack_reverse_comm(int n, int *list, double *buf)
+void PairBohmSPHDynamicMoczMF::unpack_reverse_comm(int n, int *list, double *buf)
 {
   int i,j,m;
 
@@ -693,7 +718,7 @@ void PairBohmSPHDynamicMocz::unpack_reverse_comm(int n, int *list, double *buf)
 
 /* ---------------------------------------------------------------------- */
 
-void *PairBohmSPHDynamicMocz::extract(const char *str, int &dim)
+void *PairBohmSPHDynamicMoczMF::extract(const char *str, int &dim)
 {
   dim = 2;
   return NULL;
