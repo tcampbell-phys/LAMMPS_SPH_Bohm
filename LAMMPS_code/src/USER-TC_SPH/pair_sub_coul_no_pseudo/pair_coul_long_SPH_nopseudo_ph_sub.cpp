@@ -386,14 +386,37 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
             f[i][1] -= (dely)*fpair_erf;
             f[i][2] -= (delz)*fpair_erf;
 
+            h_j = width_SPH[j];
+            hm2_j = 1/(h_j*h_j);
+            gauss_pre_j = pi_fact*(1/(h_j*h_j*h_j));
+            m_gauss_ji = imass*gauss_pre_j*exp(-(rsq)*hm2_j/2);
+            ji_fact = hm2_j*m_gauss_ji*(theta_coul[j]+theta_coul_ei[j]);
+
+            // ele-ele and ion-ele SPH dynamic width terms
+
+            f[i][0] += (delx)*ji_fact;
+            f[i][1] += (dely)*ji_fact;
+            f[i][2] += (delz)*ji_fact;
+
             if (newton_pair || j < nlocal) {
               f[j][0] += delx*fpair_erf;
               f[j][1] += dely*fpair_erf;
               f[j][2] += delz*fpair_erf;
-            }
-            full_factor = - fpair_erf;
 
-            // skip self-interactions
+              jmass = mass[jtype];
+              m_gauss_ij = jmass*gauss_pre_i*exp(-(rsq)*hm2_i/2);
+
+              ij_fact = hm2_i*m_gauss_ij*(theta_coul[i]+theta_coul_ei[i]);
+              
+              f[j][0] -= (delx)*ij_fact;
+              f[j][1] -= (dely)*ij_fact;
+              f[j][2] -= (delz)*ij_fact;
+
+            }
+            full_factor = - fpair_erf + 0.5*(ij_fact+ji_fact);
+
+            // skip self-interactions in d/dr terms
+
             if ( tagid[j] >= hi_lim_lev || tagid[j] < lo_lim_lev ){
 
               eff_width = pow((h2_i + width_SPH[j]*width_SPH[j]),0.5);
@@ -406,35 +429,14 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
               f[i][1] += dely*force_fact;
               f[i][2] += delz*force_fact;
 
-              h_j = width_SPH[j];
-              hm2_j = 1/(h_j*h_j);
-              gauss_pre_j = pi_fact*(1/(h_j*h_j*h_j));
-              m_gauss_ji = imass*gauss_pre_j*exp(-(rsq)*hm2_j/2);
-              ji_fact = hm2_j*m_gauss_ji*(theta_coul[j]+theta_coul_ei[j]);
-
-              // ele-ele and ion-ele SPH dynamic width terms
-
-              f[i][0] += (delx)*ji_fact;
-              f[i][1] += (dely)*ji_fact;
-              f[i][2] += (delz)*ji_fact;
-
               if (newton_pair || j < nlocal) {
 
                 f[j][0] -= delx*force_fact;
                 f[j][1] -= dely*force_fact;
                 f[j][2] -= delz*force_fact;
 
-                jmass = mass[jtype];
-                m_gauss_ij = jmass*gauss_pre_i*exp(-(rsq)*hm2_i/2);
-
-                ij_fact = hm2_i*m_gauss_ij*(theta_coul[i]+theta_coul_ei[i]);
-                
-                f[j][0] -= (delx)*ij_fact;
-                f[j][1] -= (dely)*ij_fact;
-                f[j][2] -= (delz)*ij_fact;
-
               }
-
+              
               full_factor = force_fact - fpair_erf + 0.5*(ij_fact+ji_fact);
 
             }

@@ -92,7 +92,7 @@ void PairCoulLong::compute(int eflag, int vflag)
   ilist = list->ilist;
   numneigh = list->numneigh;
   firstneigh = list->firstneigh;
-  fprintf(screen,"\n\n coul/long g_ewald = %16.16f",g_ewald);
+  // fprintf(screen,"\n\n coul/long g_ewald = %16.16f",g_ewald);
 
 
   // loop over neighbors of my atoms

@@ -264,6 +264,8 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
   }
   
   commflag = 0;
+  comm_forward = 6;
+  comm_reverse = 6;
 
   if (newton_pair) comm->reverse_comm_pair(this);
 
@@ -389,6 +391,8 @@ void PairBohmSPHDynamic::compute(int eflag, int vflag)
   }
 
   commflag = 1;
+  comm_forward = 1;
+  comm_reverse = 1;
   if (newton_pair) comm->reverse_comm_pair(this);
   comm->forward_comm_pair(this);
 
