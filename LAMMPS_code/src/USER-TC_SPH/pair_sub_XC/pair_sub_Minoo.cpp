@@ -64,10 +64,6 @@ void PairSubMinoo::compute(int eflag, int vflag)
   numneigh = list->numneigh;
   firstneigh = list->firstneigh;
 
-  double pot_pre_fact = boltz_val * targ_temp * ln_two;
-  double for_pre_fact = (2 * boltz_val * targ_temp * boltz_val * targ_temp)/(hh_me);
-  double exp_fact = (boltz_val * targ_temp)/(hh_me * ln_two);
-
   int *tagid = atom->tag;
   int lo_lim_lev;
   int hi_lim_lev;
@@ -167,6 +163,11 @@ void PairSubMinoo::settings(int narg, char **arg)
   N_elements_per_electron_sq = N_elements_per_electron*N_elements_per_electron;
 
   hh_me = force-> hhmrr2e * hbar_val * hbar_val / e_mass;
+
+  pot_pre_fact = boltz_val * targ_temp * ln_two;
+  for_pre_fact = (2 * boltz_val * targ_temp * boltz_val * targ_temp)/(hh_me);
+  exp_fact = (boltz_val * targ_temp)/(hh_me * ln_two);
+  // fprintf(screen,"\nhh_me = %f",hh_me);
 
   // reset cutoffs that have been explicitly set
 

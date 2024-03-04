@@ -42,6 +42,10 @@ class PairSubMinoo : public Pair {
   double hbar_val;
   double hh_me;
   double e_mass;
+  double pot_pre_fact;
+  double for_pre_fact;
+  double exp_fact;
+
   double ln_two = 0.6931471805599453;
   double **cut;
 

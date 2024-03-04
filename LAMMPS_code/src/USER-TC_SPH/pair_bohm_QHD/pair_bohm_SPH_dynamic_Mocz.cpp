@@ -46,6 +46,13 @@ PairBohmSPHDynamicMocz::PairBohmSPHDynamicMocz(LAMMPS *lmp) : Pair(lmp) {
 
   comm_forward = 6;
   comm_reverse = 6;
+
+  hplanck  = force->hplanck;
+  hbar = hplanck/(2*M_PI);
+  // Bohm pressure prefactor
+  f_prefactor = force->hhmrr2e * (hbar*hbar)/(4*e_mass);
+
+  pi_fact = 1/pow(2*M_PI,1.5);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -74,7 +81,6 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
   double vxtmp,vytmp,vztmp,delvx,delvy,delvz;
   double xtmp2,ytmp2,ztmp2,delx2,dely2,delz2;
   double delx_2,dely_2,delz_2,rsq;
-  double pi_fact;
   double gauss_pre_i;
   double gauss_pre_j;
   double h_i,h2_i,hm2_i,hm4_i;
@@ -91,16 +97,9 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
   double dens_factor_ij,dens_factor_ji;
   double rho_i,rho_j;
   double bohm_pot;
-  double cutsquared;
   double u_prefact_i,u_prefact_j;
 
   ev_init(eflag,vflag);
-  
-  hplanck  = force->hplanck;
-  hbar = hplanck/(2*M_PI);
-
-  // Bohm pressure prefactor
-  f_prefactor = force->hhmrr2e * (hbar*hbar)/(4*e_mass);
 
   int *ilist,*jlist,*numneigh,**firstneigh;
 
@@ -155,8 +154,6 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
   numneigh = list->numneigh;
   firstneigh = list->firstneigh;
 
-  cutsquared = cut_global*cut_global;
-
   // // fprintf(screen,"\nIn pair_bohm_dynamic_Mocz compute function...\n");
 
   // zero out per-atom arrays
@@ -186,7 +183,6 @@ void PairBohmSPHDynamicMocz::compute(int eflag, int vflag)
 
   // 9 per-particle gradients to compute
 
-  pi_fact = 1/pow(2*M_PI,1.5);
 
   for (ii = 0; ii < inum; ii++) {
 
@@ -451,6 +447,8 @@ void PairBohmSPHDynamicMocz::settings(int narg, char **arg)
 
   cut_global = force->numeric(FLERR,arg[0]);
   gamma_factor = force->numeric(FLERR,arg[1]);
+
+  cutsquared = cut_global*cut_global;
 
   // reset cutoffs that have been explicitly set
 

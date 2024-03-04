@@ -420,9 +420,8 @@ void PairCoulLongSPHphsub::compute(int eflag, int vflag)
               f[j][2] -= (delz)*ij_fact;
 
             }
-
             full_factor =  - fpair_erf + 0.5*(ij_fact+ji_fact);
-
+            
             // skip self-interactions in d/dr terms
             if ( tagid[j] >= hi_lim_lev || tagid[j] < lo_lim_lev ){
 

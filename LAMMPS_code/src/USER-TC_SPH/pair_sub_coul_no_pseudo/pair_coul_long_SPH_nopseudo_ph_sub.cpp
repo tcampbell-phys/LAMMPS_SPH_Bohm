@@ -411,7 +411,6 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
               f[j][0] -= (delx)*ij_fact;
               f[j][1] -= (dely)*ij_fact;
               f[j][2] -= (delz)*ij_fact;
-
             }
             full_factor = - fpair_erf + 0.5*(ij_fact+ji_fact);
 

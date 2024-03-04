@@ -24,7 +24,7 @@ PairStyle(hybrid,PairHybrid)
 #include "fix_dynamic_widths.h"
 #include "fix_dynamic_widths_CoM.h"
 #include "fix_dynamic_widths_CoM_MF.h"
-
+#include "fix_dynamic_widths_CoM_F2.h"
 
 namespace LAMMPS_NS {
 
@@ -40,6 +40,7 @@ class PairHybrid : public Pair {
   friend class FixDynamicWidths;
   friend class FixDynamicWidthsCoM;
   friend class FixDynamicWidthsCoMMF;
+  friend class FixDynamicWidthsCoMFtwo;
  public:
   PairHybrid(class LAMMPS *);
   virtual ~PairHybrid();

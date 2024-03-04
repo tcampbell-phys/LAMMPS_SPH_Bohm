@@ -54,6 +54,8 @@ protected:
   double hplanck;
   double hbar;
   double f_prefactor;
+  double cutsquared;
+  double pi_fact;
   double **cut;
 
   int *numforce;
