@@ -24,8 +24,9 @@
 
 # rsync ../input_decks/scarf/H_research/15_71eV_1_26_rs/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/15_71eV_1_26_rs/
 # rsync ../input_decks/scarf/H_research/12_53eV_2_rs/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/12_53eV_2_rs/
-rsync ../input_decks/scarf/H_research/10_77eV_1_75_rs/current/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/10_77eV_1_75_rs/
-rsync ../input_decks/scarf/H_research/10_77eV_2_rs/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/10_77eV_2_rs/
+# rsync ../input_decks/scarf/H_research/10_77eV_1_75_rs/current/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/10_77eV_1_75_rs/
+# rsync ../input_decks/scarf/H_research/10_77eV_2_rs/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/10_77eV_2_rs/
+rsync ../input_decks/scarf/H_research/21_54eV_2_rs/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/21_54eV_2_rs/
 
 # scp ../LAMMPS_code/src/USER-TC_SPH/*.cpp scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 # scp ../LAMMPS_code/src/USER-TC_SPH/*.h scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
@@ -44,12 +45,12 @@ rsync ../input_decks/scarf/H_research/10_77eV_2_rs/* scarf734@ui1.scarf.rl.ac.uk
 # scp ../LAMMPS_code/src/USER-TC_SPH/fix_fermi_no_cons.* scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 # scp ../LAMMPS_code/src/USER-TC_SPH/fix_dynamic_widths.* scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 # scp ../LAMMPS_code/src/USER-TC_SPH/atom_vec_SPH_CoM/atom* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
-scp ../LAMMPS_code/src/USER-TC_SPH/fix_dynamic_widths_CoM* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
+# scp ../LAMMPS_code/src/USER-TC_SPH/fix_dynamic_widths_CoM* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 # scp ../LAMMPS_code/src/USER-TC_SPH/legacy_SPH_code/fix_dynamic_widths_CoM.* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 
 # scp ../LAMMPS_code/src/USER-TC_SPH/compute_property_atom.* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 # scp ../LAMMPS_code/src/USER-TC_SPH/dump_custom.* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
-scp ../LAMMPS_code/src/USER-TC_SPH/pair_hybrid.* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
+# scp ../LAMMPS_code/src/USER-TC_SPH/pair_hybrid.* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 
 ### modules required for CoM thermostat
 # scp ../LAMMPS_code/src/USER-TC_SPH/compute.* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
