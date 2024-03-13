@@ -1,0 +1,468 @@
+
+### SYSTEM PARAMETERS:
+
+### physical parameters:
+
+variable temp equal 21.54	         # temperature in Ev
+variable ion_density equal 0.02981476  		# Density in # per bohr^3
+variable num_ions equal 1024	                                        # Number of ions
+variable ion_charge equal 1.0			                                # Average charge/ionization
+variable ion_amu equal 1.008	                                # Atomic mass of ion
+variable electron_amu equal 0.00054857991                           # Atomic mass of electrons
+
+variable sigma_start equal 1.32                                         # Start global packet width of electrons in bohr
+
+variable elements_per_electron equal 32
+
+variable element_scaled_mass equal ${electron_amu}/${elements_per_electron}
+variable element_scaled_mass equal 0.00054857991/${elements_per_electron}
+variable element_scaled_mass equal 0.00054857991/32
+variable element_scaled_charge equal -1/${elements_per_electron}
+variable element_scaled_charge equal -1/32
+
+variable num_electrons equal ${num_ions}*${ion_charge}
+variable num_electrons equal 1024*${ion_charge}
+variable num_electrons equal 1024*1
+variable num_electron_elements equal ${num_electrons}*${elements_per_electron}
+variable num_electron_elements equal 1024*${elements_per_electron}
+variable num_electron_elements equal 1024*32
+variable half_num_electrons equal ${num_electrons}/2.0
+variable half_num_electrons equal 1024/2.0
+variable quar_num_electrons equal ${half_num_electrons}/2.0
+variable quar_num_electrons equal 512/2.0
+variable temptouse equal 11604.5221*${temp}
+variable temptouse equal 11604.5221*21.54
+variable box_len equal (${num_ions}/${ion_density})^(1/3)
+variable box_len equal (1024/${ion_density})^(1/3)
+variable box_len equal (1024/0.02981476)^(1/3)
+variable half_box_len equal ${box_len}/2.0
+variable half_box_len equal 32.505452263729/2.0
+
+variable confine_strength equal 0.168        # set strength of qudratic confinement potential for SPH elements belonging to the same electron
+
+### simulation parameters:
+
+variable time_step_length equal 0.3e-3
+variable block_time_steps equal 1e2
+variable cutoff equal 7.15                                  # cutoff for pairwise calculations
+variable cutoff_SPH equal 5.281
+variable cutoff_Minoo equal 3.743
+
+units electron                                                      # use electron units (Hartree)
+newton on
+boundary p p p
+atom_style SPH_CoM
+
+# Pair style string selection
+
+variable pair_name string bohm_SPH_dynamic_Mocz
+
+variable rnseed index 10
+variable number equal ceil(random(1,10000000000,${rnseed})/100000.0)
+variable number equal ceil(random(1,10000000000,17746)/100000.0)
+
+variable ion_seed equal ${number}
+variable ion_seed equal 63604
+variable e_up_a_seed equal ${number}
+variable e_up_a_seed equal 79784
+variable e_up_b_seed equal ${number}
+variable e_up_b_seed equal 82323
+variable e_down_a_seed equal ${number}
+variable e_down_a_seed equal 84442
+variable e_down_b_seed equal ${number}
+variable e_down_b_seed equal 53007
+
+# thermostat parameters
+
+variable ion_vel_seed equal ${number}
+variable ion_vel_seed equal 15749
+variable e_down_a_vel_seed equal ${number}
+variable e_down_a_vel_seed equal 84159
+variable e_down_b_vel_seed equal ${number}
+variable e_down_b_vel_seed equal 90461
+variable e_up_a_vel_seed equal ${number}
+variable e_up_a_vel_seed equal 44560
+variable e_up_b_vel_seed equal ${number}
+variable e_up_b_vel_seed equal 28512
+
+variable i_temp_damping equal ${time_step_length}*100
+variable i_temp_damping equal 0.0003*100
+variable e_temp_damping equal ${time_step_length}*200
+variable e_temp_damping equal 0.0003*200
+
+variable vel_t equal 1.0*${temptouse}
+variable vel_t equal 1.0*249961.406034
+
+# rdf calculation
+
+variable rdf_num_bins equal 150
+variable rdf_num_measurements equal 100
+variable rdf_output_time_step equal 4000
+variable rdf_measurement_time_gap equal 10
+
+### Setup simulation
+
+region bounding_region block 0.0 ${box_len} 0.0 ${box_len} 0.0 ${box_len}
+region bounding_region block 0.0 32.505452263729 0.0 ${box_len} 0.0 ${box_len}
+region bounding_region block 0.0 32.505452263729 0.0 32.505452263729 0.0 ${box_len}
+region bounding_region block 0.0 32.505452263729 0.0 32.505452263729 0.0 32.505452263729
+timestep ${time_step_length}
+timestep 0.0003
+
+create_box 2 bounding_region
+Created orthogonal box = (0 0 0) to (32.5055 32.5055 32.5055)
+  4 by 4 by 8 MPI processor grid
+
+create_atoms 1 random ${num_ions} ${ion_seed} NULL
+create_atoms 1 random 1024 ${ion_seed} NULL
+create_atoms 1 random 1024 63604 NULL
+Created 1024 atoms
+  create_atoms CPU = 0.00126195 secs
+group ion type 1
+1024 atoms in group ion
+mass 1 ${ion_amu}
+mass 1 1.008
+set type 1 charge ${ion_charge}
+set type 1 charge 1
+  1024 settings made for charge
+
+create_atoms 2 random ${num_electron_elements} ${e_up_a_seed} NULL
+create_atoms 2 random 32768 ${e_up_a_seed} NULL
+create_atoms 2 random 32768 79784 NULL
+Created 32768 atoms
+  create_atoms CPU = 0.00092411 secs
+group electron type 2
+32768 atoms in group electron
+mass 2 ${element_scaled_mass}
+mass 2 1.71431221875e-05
+set type 2 charge ${element_scaled_charge}
+set type 2 charge -0.03125
+  32768 settings made for charge
+
+variable tag_ele_start equal ${num_ions}+1
+variable tag_ele_start equal 1024+1
+
+# Ensure ghost atom velocities communicated for SPH Bohm Potential:
+
+comm_modify vel yes
+
+### Dynamic Width fix
+variable dens_wid_const equal 1.3
+variable N_iter equal 1
+variable mix_fact equal 1.0
+variable tfwhm equal 4.70964*${dens_wid_const}*${box_len}/(${num_electron_elements}^(1/3))
+variable tfwhm equal 4.70964*1.3*${box_len}/(${num_electron_elements}^(1/3))
+variable tfwhm equal 4.70964*1.3*32.505452263729/(${num_electron_elements}^(1/3))
+variable tfwhm equal 4.70964*1.3*32.505452263729/(32768^(1/3))
+variable type_avoid equal 1 #ensure ions are not included in SPH loops (must match ion type)
+
+# Call dynamic_widths_com to ensure calculation of electron Centres of Mass
+
+fix ele_dyn_wid electron dynamic_widths_com_ftwo ${dens_wid_const} ${N_iter} ${mix_fact} ${sigma_start} ${cutoff_SPH} ${box_len} ${type_avoid} ${num_electrons} ${elements_per_electron} ${tag_ele_start} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths_com_ftwo 1.3 ${N_iter} ${mix_fact} ${sigma_start} ${cutoff_SPH} ${box_len} ${type_avoid} ${num_electrons} ${elements_per_electron} ${tag_ele_start} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths_com_ftwo 1.3 1 ${mix_fact} ${sigma_start} ${cutoff_SPH} ${box_len} ${type_avoid} ${num_electrons} ${elements_per_electron} ${tag_ele_start} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths_com_ftwo 1.3 1 1 ${sigma_start} ${cutoff_SPH} ${box_len} ${type_avoid} ${num_electrons} ${elements_per_electron} ${tag_ele_start} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths_com_ftwo 1.3 1 1 1.32 ${cutoff_SPH} ${box_len} ${type_avoid} ${num_electrons} ${elements_per_electron} ${tag_ele_start} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths_com_ftwo 1.3 1 1 1.32 5.281 ${box_len} ${type_avoid} ${num_electrons} ${elements_per_electron} ${tag_ele_start} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths_com_ftwo 1.3 1 1 1.32 5.281 32.505452263729 ${type_avoid} ${num_electrons} ${elements_per_electron} ${tag_ele_start} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths_com_ftwo 1.3 1 1 1.32 5.281 32.505452263729 1 ${num_electrons} ${elements_per_electron} ${tag_ele_start} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths_com_ftwo 1.3 1 1 1.32 5.281 32.505452263729 1 1024 ${elements_per_electron} ${tag_ele_start} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths_com_ftwo 1.3 1 1 1.32 5.281 32.505452263729 1 1024 32 ${tag_ele_start} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths_com_ftwo 1.3 1 1 1.32 5.281 32.505452263729 1 1024 32 1025 ${pair_name}
+fix ele_dyn_wid electron dynamic_widths_com_ftwo 1.3 1 1 1.32 5.281 32.505452263729 1 1024 32 1025 bohm_SPH_dynamic_Mocz
+
+pair_style hybrid/overlay ${pair_name} ${cutoff_SPH} ${gamma_factor} coul/long/SPH_nopseudo_ph_sub ${cutoff} 1.0 1 ${tfwhm} ${elements_per_electron} ${tag_ele_start} sub_minoo ${cutoff_Minoo} ${temptouse} ${electron_amu} ${elements_per_electron} ${tag_ele_start} confine ${confine_strength} ${cutoff_Minoo} ${box_len} ${elements_per_electron}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz ${cutoff_SPH} ${gamma_factor} coul/long/SPH_nopseudo_ph_sub ${cutoff} 1.0 1 ${tfwhm} ${elements_per_electron} ${tag_ele_start} sub_minoo ${cutoff_Minoo} ${temptouse} ${electron_amu} ${elements_per_electron} ${tag_ele_start} confine ${confine_strength} ${cutoff_Minoo} ${box_len} ${elements_per_electron}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz 5.281 ${gamma_factor} coul/long/SPH_nopseudo_ph_sub ${cutoff} 1.0 1 ${tfwhm} ${elements_per_electron} ${tag_ele_start} sub_minoo ${cutoff_Minoo} ${temptouse} ${electron_amu} ${elements_per_electron} ${tag_ele_start} confine ${confine_strength} ${cutoff_Minoo} ${box_len} ${elements_per_electron}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz 5.281 1822.888483 coul/long/SPH_nopseudo_ph_sub ${cutoff} 1.0 1 ${tfwhm} ${elements_per_electron} ${tag_ele_start} sub_minoo ${cutoff_Minoo} ${temptouse} ${electron_amu} ${elements_per_electron} ${tag_ele_start} confine ${confine_strength} ${cutoff_Minoo} ${box_len} ${elements_per_electron}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz 5.281 1822.888483 coul/long/SPH_nopseudo_ph_sub 7.15 1.0 1 ${tfwhm} ${elements_per_electron} ${tag_ele_start} sub_minoo ${cutoff_Minoo} ${temptouse} ${electron_amu} ${elements_per_electron} ${tag_ele_start} confine ${confine_strength} ${cutoff_Minoo} ${box_len} ${elements_per_electron}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz 5.281 1822.888483 coul/long/SPH_nopseudo_ph_sub 7.15 1.0 1 6.21923973934854 ${elements_per_electron} ${tag_ele_start} sub_minoo ${cutoff_Minoo} ${temptouse} ${electron_amu} ${elements_per_electron} ${tag_ele_start} confine ${confine_strength} ${cutoff_Minoo} ${box_len} ${elements_per_electron}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz 5.281 1822.888483 coul/long/SPH_nopseudo_ph_sub 7.15 1.0 1 6.21923973934854 32 ${tag_ele_start} sub_minoo ${cutoff_Minoo} ${temptouse} ${electron_amu} ${elements_per_electron} ${tag_ele_start} confine ${confine_strength} ${cutoff_Minoo} ${box_len} ${elements_per_electron}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz 5.281 1822.888483 coul/long/SPH_nopseudo_ph_sub 7.15 1.0 1 6.21923973934854 32 1025 sub_minoo ${cutoff_Minoo} ${temptouse} ${electron_amu} ${elements_per_electron} ${tag_ele_start} confine ${confine_strength} ${cutoff_Minoo} ${box_len} ${elements_per_electron}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz 5.281 1822.888483 coul/long/SPH_nopseudo_ph_sub 7.15 1.0 1 6.21923973934854 32 1025 sub_minoo 3.743 ${temptouse} ${electron_amu} ${elements_per_electron} ${tag_ele_start} confine ${confine_strength} ${cutoff_Minoo} ${box_len} ${elements_per_electron}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz 5.281 1822.888483 coul/long/SPH_nopseudo_ph_sub 7.15 1.0 1 6.21923973934854 32 1025 sub_minoo 3.743 249961.406034 ${electron_amu} ${elements_per_electron} ${tag_ele_start} confine ${confine_strength} ${cutoff_Minoo} ${box_len} ${elements_per_electron}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz 5.281 1822.888483 coul/long/SPH_nopseudo_ph_sub 7.15 1.0 1 6.21923973934854 32 1025 sub_minoo 3.743 249961.406034 0.00054857991 ${elements_per_electron} ${tag_ele_start} confine ${confine_strength} ${cutoff_Minoo} ${box_len} ${elements_per_electron}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz 5.281 1822.888483 coul/long/SPH_nopseudo_ph_sub 7.15 1.0 1 6.21923973934854 32 1025 sub_minoo 3.743 249961.406034 0.00054857991 32 ${tag_ele_start} confine ${confine_strength} ${cutoff_Minoo} ${box_len} ${elements_per_electron}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz 5.281 1822.888483 coul/long/SPH_nopseudo_ph_sub 7.15 1.0 1 6.21923973934854 32 1025 sub_minoo 3.743 249961.406034 0.00054857991 32 1025 confine ${confine_strength} ${cutoff_Minoo} ${box_len} ${elements_per_electron}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz 5.281 1822.888483 coul/long/SPH_nopseudo_ph_sub 7.15 1.0 1 6.21923973934854 32 1025 sub_minoo 3.743 249961.406034 0.00054857991 32 1025 confine 0.168 ${cutoff_Minoo} ${box_len} ${elements_per_electron}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz 5.281 1822.888483 coul/long/SPH_nopseudo_ph_sub 7.15 1.0 1 6.21923973934854 32 1025 sub_minoo 3.743 249961.406034 0.00054857991 32 1025 confine 0.168 3.743 ${box_len} ${elements_per_electron}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz 5.281 1822.888483 coul/long/SPH_nopseudo_ph_sub 7.15 1.0 1 6.21923973934854 32 1025 sub_minoo 3.743 249961.406034 0.00054857991 32 1025 confine 0.168 3.743 32.505452263729 ${elements_per_electron}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz 5.281 1822.888483 coul/long/SPH_nopseudo_ph_sub 7.15 1.0 1 6.21923973934854 32 1025 sub_minoo 3.743 249961.406034 0.00054857991 32 1025 confine 0.168 3.743 32.505452263729 32
+
+# Set up each pair with the correct styles:
+
+pair_coeff * * coul/long/SPH_nopseudo_ph_sub
+
+pair_coeff 2 2 ${pair_name}
+pair_coeff 2 2 bohm_SPH_dynamic_Mocz
+
+pair_coeff 2 2 sub_minoo
+
+pair_coeff 2 2 confine
+
+# increase number of allowed neighbours
+neigh_modify one 10000
+
+# kspace
+variable ewalds_parameter equal 3/${cutoff}
+variable ewalds_parameter equal 3/7.15
+kspace_style ewald 1.0e-4
+kspace_modify gewald ${ewalds_parameter}
+kspace_modify gewald 0.41958041958042
+
+### Thermostatting
+fix ele_nve electron nve
+fix ion_nvt ion nvt temp ${temptouse} ${temptouse} ${i_temp_damping}
+fix ion_nvt ion nvt temp 249961.406034 ${temptouse} ${i_temp_damping}
+fix ion_nvt ion nvt temp 249961.406034 249961.406034 ${i_temp_damping}
+fix ion_nvt ion nvt temp 249961.406034 249961.406034 0.03
+
+velocity ion create ${temptouse} ${ion_vel_seed} rot yes dist gaussian
+velocity ion create 249961.406034 ${ion_vel_seed} rot yes dist gaussian
+velocity ion create 249961.406034 15749 rot yes dist gaussian
+
+velocity electron create ${vel_t} ${e_down_a_vel_seed} rot yes dist gaussian
+velocity electron create 249961.406034 ${e_down_a_vel_seed} rot yes dist gaussian
+velocity electron create 249961.406034 84159 rot yes dist gaussian
+
+# Randomize the starting positions of all of our particles
+
+displace_atoms all random 0.1 0.1 0.1 42
+
+# Compute group temperatures for output in logfile
+
+compute ion_temp ion temp
+
+compute electron_temp electron temp
+
+# Compute pair correlation functions:
+
+compute ion_ion_rdf all rdf ${rdf_num_bins} 1 1
+compute ion_ion_rdf all rdf 150 1 1
+
+compute ion_electron_rdf all rdf ${rdf_num_bins} 1 2
+compute ion_electron_rdf all rdf 150 1 2
+
+compute electron_electron_rdf all rdf ${rdf_num_bins} 2 2
+compute electron_electron_rdf all rdf 150 2 2
+
+fix write_ion_ion_rdf all ave/time ${rdf_measurement_time_gap} ${rdf_num_measurements} ${rdf_output_time_step} c_ion_ion_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/${outputdir}/ion_ion.rdf mode vector
+fix write_ion_ion_rdf all ave/time 10 ${rdf_num_measurements} ${rdf_output_time_step} c_ion_ion_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/${outputdir}/ion_ion.rdf mode vector
+fix write_ion_ion_rdf all ave/time 10 100 ${rdf_output_time_step} c_ion_ion_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/${outputdir}/ion_ion.rdf mode vector
+fix write_ion_ion_rdf all ave/time 10 100 4000 c_ion_ion_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/${outputdir}/ion_ion.rdf mode vector
+fix write_ion_ion_rdf all ave/time 10 100 4000 c_ion_ion_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/scarf_H_21_54eV_2_rs_min_2testh/ion_ion.rdf mode vector
+
+fix write_ion_electron_rdf all ave/time ${rdf_measurement_time_gap} ${rdf_num_measurements} ${rdf_output_time_step} c_ion_electron_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/${outputdir}/ion_electron.rdf mode vector
+fix write_ion_electron_rdf all ave/time 10 ${rdf_num_measurements} ${rdf_output_time_step} c_ion_electron_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/${outputdir}/ion_electron.rdf mode vector
+fix write_ion_electron_rdf all ave/time 10 100 ${rdf_output_time_step} c_ion_electron_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/${outputdir}/ion_electron.rdf mode vector
+fix write_ion_electron_rdf all ave/time 10 100 4000 c_ion_electron_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/${outputdir}/ion_electron.rdf mode vector
+fix write_ion_electron_rdf all ave/time 10 100 4000 c_ion_electron_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/scarf_H_21_54eV_2_rs_min_2testh/ion_electron.rdf mode vector
+
+fix write_electron_electron_rdf all ave/time ${rdf_measurement_time_gap} ${rdf_num_measurements} ${rdf_output_time_step} c_electron_electron_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/${outputdir}/electron_electron.rdf mode vector
+fix write_electron_electron_rdf all ave/time 10 ${rdf_num_measurements} ${rdf_output_time_step} c_electron_electron_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/${outputdir}/electron_electron.rdf mode vector
+fix write_electron_electron_rdf all ave/time 10 100 ${rdf_output_time_step} c_electron_electron_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/${outputdir}/electron_electron.rdf mode vector
+fix write_electron_electron_rdf all ave/time 10 100 4000 c_electron_electron_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/${outputdir}/electron_electron.rdf mode vector
+fix write_electron_electron_rdf all ave/time 10 100 4000 c_electron_electron_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/scarf_H_21_54eV_2_rs_min_2testh/electron_electron.rdf mode vector
+
+# custom logfile output
+
+thermo_style custom step temp c_ion_temp c_electron_temp pe ke etotal press
+
+reset_timestep 0
+
+# Check forces
+
+variable rhi equal 19.36
+variable rlo equal 1.001e-2
+variable write_N equal 1936
+
+# modify logfile output
+
+thermo_modify lost warn
+thermo 1
+thermo_style custom step temp c_ion_temp c_electron_temp pe ke etotal press
+WARNING: New thermo_style command, previous thermo_modify settings will be lost (src/output.cpp:708)
+
+run ${block_time_steps}
+run 100
+Ewald initialization ...
+  using 12-bit tables for long-range coulomb (src/kspace.cpp:332)
+  G vector (1/distance) = 0.41958
+  estimated absolute RMS force accuracy = 1.19558e-05
+  estimated relative force accuracy = 4.2695e-05
+  KSpace vectors: actual max1d max3d = 3576 12 7812
+                  kxmax kymax kzmax  = 12 12 12
+Neighbor list info ...
+  update every 1 steps, delay 10 steps, check yes
+  max neighbors/atom: 10000, page size: 100000
+  master list distance cutoff = 9.15
+  ghost atom cutoff = 9.15
+  binsize = 4.575, bins = 8 8 8
+  7 neighbor lists, perpetual/occasional/extra = 4 3 0
+  (1) pair bohm_SPH_dynamic_Mocz, perpetual, skip from (2)
+      attributes: half, newton on
+      pair build: skip
+      stencil: none
+      bin: none
+  (2) pair coul/long/SPH_nopseudo_ph_sub, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d/newton
+      bin: standard
+  (3) pair sub_minoo, perpetual, copy from (1)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+  (4) pair confine, perpetual, copy from (1)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+  (5) compute rdf, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+  (6) compute rdf, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+  (7) compute rdf, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+Per MPI rank memory allocation (min/avg/max) = 31.75 | 33.15 | 33.7 Mbytes
+Step Temp c_ion_temp c_electron_temp PotEng KinEng TotEng Press 
+       0    249954.01    249961.41    249961.41    69089.407    40121.314    109210.72 -1.2401194e+13 
+       1    250422.72    249958.44    250444.86    69011.645    40196.549    109208.19 -1.2316058e+13 
+       2    251474.12    249955.47    251529.21    68837.162    40365.314    109202.48 -1.2128656e+13 
+       3    253101.29     249952.5    253207.32    68567.128    40626.499    109193.63 -1.1840234e+13 
+       4    255293.52    249949.53    255468.16      68203.3    40978.385    109181.69 -1.1452729e+13 
+       5    258036.42    249946.55    258296.86     67748.11     41418.66    109166.77 -1.0968728e+13 
+       6    261311.97    249943.57    261674.87    67204.506    41944.434    109148.94 -1.039149e+13 
+       7    265098.71    249940.58    265580.04    66576.109    42552.263    109128.37 -9.7248755e+12 
+       8    269371.87    249937.59    269986.84    65867.028    43238.168     109105.2 -8.973359e+12 
+       9    274103.53    249934.59    274866.46    65081.927    43997.669     109079.6 -8.1419695e+12 
+      10    279262.85    249931.59     280187.1    64225.868    44825.816    109051.68 5.5768785e+10 
+      11    284816.23    249928.58    285914.13    63304.486    45717.216     109021.7 1.1634175e+12 
+      12    290727.54    249925.57    292010.27    62323.755    46666.069    108989.82 2.3208075e+12 
+      13    296958.34    249922.56    298435.88    61290.066    47666.204    108956.27 3.5207924e+12 
+      14    303468.15    249919.54    305149.22    60210.153    48711.124    108921.28 4.755882e+12 
+      15    310214.74    249916.52    312106.75    59091.025    49794.053    108885.08 6.0182937e+12 
+      16    317154.45     249913.5    319263.43    57939.901    50907.979    108847.88 7.2999809e+12 
+      17    324242.41    249910.49    326572.98    56764.239    52045.701    108809.94 8.592706e+12 
+      18    331432.85    249907.48    333988.22     55571.63    53199.873     108771.5 9.8880713e+12 
+      19    338679.42    249904.47    341461.35     54369.79    54363.054    108732.84 1.1177594e+13 
+      20    345935.47    249901.47    348944.25     53166.37    55527.757    108694.13 1.3604616e+13 
+      21    353154.36    249898.48    356388.83     51969.19    56686.496    108655.69 1.4949707e+13 
+      22    360289.77    249895.49    363747.32    50785.894    57831.835    108617.73 1.6261498e+13 
+      23    367296.01    249892.52    370972.61    49624.059     58956.44     108580.5 1.7531565e+13 
+      24    374128.37    249889.55    378018.58    48491.092    60053.135    108544.23 1.8751679e+13 
+      25    380743.36     249886.6    384840.39    47394.198     61114.94    108509.14 1.9913859e+13 
+      26    387099.04    249883.66    391394.78    46340.327     62135.12    108475.45 2.1010402e+13 
+      27     393155.2    249880.72    397640.29    45336.176    63107.223     108443.4 2.2033917e+13 
+      28    398873.64     249877.8    403537.53    44388.038    64025.117    108413.16 2.2977342e+13 
+      29    404218.34    249874.89    409049.35    43501.905    64883.021    108384.93 2.3834062e+13 
+      30     409155.7    249871.99     414141.1    42683.246     65675.54    108358.79 2.4107286e+13 
+      31    413654.71     249869.1    418780.79     41937.35    66397.697    108335.05 2.4921838e+13 
+      32     417687.1    249866.23    422939.29    41268.845    67044.955     108313.8 2.5633474e+13 
+      33    421227.55    249863.37    426590.47    40681.918    67613.251    108295.17 2.6237526e+13 
+      34     424253.8    249860.53    429711.38    40180.252    68099.008    108279.26 2.6729956e+13 
+      35    426746.74     249857.7    432282.32    39767.029    68499.162    108266.19 2.7107361e+13 
+      36    428690.62    249854.88    434287.03    39444.863    68811.182    108256.04 2.7366978e+13 
+      37    430073.14    249852.09    435712.85    39215.777    69033.098    108248.88 2.7506763e+13 
+      38    430885.59    249849.32    436550.77    39081.232    69163.509    108244.74 2.7525359e+13 
+      39    431122.82    249846.57     436795.5    39042.067    69201.587    108243.65 2.7422068e+13 
+      40    430783.32    249843.85    436445.47    39098.523    69147.092    108245.61 2.7534027e+13 
+      41    429869.18    249841.15    435502.85    39250.274    69000.359    108250.63 2.7370104e+13 
+      42    428386.07    249838.47    433973.47    39496.371    68762.298    108258.67 2.7085432e+13 
+      43    426343.18    249835.82    431866.83    39835.288    68434.385    108269.67 2.6681781e+13 
+      44    423753.26     249833.2    429196.05    40264.917    68018.664    108283.58 2.6161663e+13 
+      45    420632.55     249830.6     425977.9    40782.567    67517.743    108300.31 2.5528262e+13 
+      46    417000.74    249828.02    422232.67    41384.969    66934.784    108319.75 2.4785389e+13 
+      47    412880.84    249825.46     417984.1    42068.303    66273.479    108341.78 2.3937497e+13 
+      48    408298.95    249822.93     413259.1    42828.249    65538.018    108366.27 2.2989617e+13 
+      49    403284.07    249820.43    408087.58    43659.989    64733.056    108393.04 2.1947309e+13 
+      50    397867.96    249817.95    402502.29     44558.26    63863.691    108421.95 2.3512866e+13 
+      51    392084.95     249815.5    396538.63    45517.379    62935.432    108452.81 2.2464925e+13 
+      52    385971.73    249813.07    390234.44    46531.252     61954.17    108485.42  2.13378e+13 
+      53    379567.18    249810.68    383629.82    47593.466    60926.145    108519.61 2.0138771e+13 
+      54    372912.12    249808.33    376766.85    48697.215    59857.909    108555.12 1.8875439e+13 
+      55    366049.04    249806.01    369689.37    49835.482    58756.284    108591.77 1.7555721e+13 
+      56    359021.88    249803.72    362442.67    51000.985     57628.32    108629.31 1.6187801e+13 
+      57    351875.68    249801.48    355073.22    52186.263     56481.25    108667.51 1.4780107e+13 
+      58    344656.37    249799.29    347628.37    53383.676    55322.443    108706.12 1.334124e+13 
+      59    337410.39    249797.13    340156.01    54585.546    54159.356     108744.9 1.1879925e+13 
+      60     330184.4    249795.03    332704.27    55784.151    52999.478    108783.63 1.5564813e+13 
+      61    323024.95    249792.98    325321.14    56971.748    51850.281    108822.03 1.4289033e+13 
+      62    315978.21    249790.98    318054.24    58140.723    50719.174     108859.9 1.3008451e+13 
+      63    309089.69    249789.04    310950.51    59283.503    49613.465    108896.97 1.1731339e+13 
+      64    302403.94    249787.15    304055.89    60392.698    48540.304       108933 1.0465826e+13 
+      65    295964.27    249785.32    297415.03     61461.12    47506.641    108967.76 9.2198298e+12 
+      66     289812.4    249783.54    291070.96    62481.896    46519.175    109001.07 8.0010373e+12 
+      67    283988.24    249781.83    285064.85    63448.366    45584.311    109032.68 6.8168177e+12 
+      68     278529.6    249780.18    279435.67    64354.257    44708.119    109062.38 5.674221e+12 
+      69    273471.93    249778.59    274219.99     65193.69    43896.288    109089.98 4.5799195e+12 
+      70    268848.08    249777.06    269451.69    65961.189    43154.092    109115.28 8.5445491e+12 
+      71    264688.08     249775.6    265161.73    66651.765     42486.35    109138.12 7.786895e+12 
+      72    261018.93     249774.2    261377.96    67260.943    41897.398    109158.34 7.0863014e+12 
+      73    257864.48    249772.87    258124.98    67784.725    41391.062    109175.79 6.447097e+12 
+      74    255245.25     249771.6    255423.93    68219.726    40970.636    109190.36 5.8730813e+12 
+      75    253178.28    249770.41    253292.41    68563.065    40638.858    109201.92 5.3674669e+12 
+      76    251677.07    249769.28    251744.31    68812.526     40397.89    109210.42 4.9328947e+12 
+      77    250751.37    249768.22    250789.72    68966.482    40249.303    109215.78 4.5713907e+12 
+      78    250407.24    249767.24    250434.86    69023.871    40194.064    109217.94 4.2843386e+12 
+      79    250646.92    249766.32    250682.07    68984.322    40232.537    109216.86 4.0725091e+12 
+      80    251468.91    249765.48    251529.77    68848.113    40364.479    109212.59 7.2529417e+12 
+      81    252867.93    249764.71    252972.53    68616.107    40589.041    109205.15 7.4734935e+12 
+      82    254834.95    249764.01    255001.05    68289.801    40904.778    109194.58 7.7619657e+12 
+      83    257357.32    249763.39    257602.26    67871.307    41309.655    109180.96 8.1161736e+12 
+      84    260418.78    249762.83    260759.41    67363.341    41801.064     109164.4 8.5333428e+12 
+      85     263999.6    249762.35    264452.15    66769.174     42375.84    109145.01 9.0101233e+12 
+      86    268076.74    249761.95    268656.72    66092.648    43030.281    109122.93 9.5426189e+12 
+      87    272623.93    249761.62    273346.02    65338.164    43760.172    109098.34 1.0126414e+13 
+      88    277611.85    249761.36    278489.83    64510.578    44560.807    109071.39 1.075658e+13 
+      89    283008.38    249761.19    284055.01    63615.207     45427.03    109042.24 1.1427723e+13 
+      90    288778.76    249761.09    290005.72    62657.839    46353.261     109011.1 1.311069e+13 
+      91    294885.84    249761.07    296303.65    61644.651    47333.537    108978.19 1.4141543e+13 
+      92    301290.32    249761.13    302908.27    60582.183     48361.55    108943.73 1.5192789e+13 
+      93       307951    249761.27     309777.1    59477.274    49430.688    108907.96 1.6257112e+13 
+      94    314825.09     249761.5    316866.01    58337.011    50534.082    108871.09 1.7326944e+13 
+      95    321868.47    249761.81    324129.49    57168.711    51664.648    108833.36 1.8394527e+13 
+      96       329036    249762.21    331521.01    55979.875    52815.144    108795.02 1.9451974e+13 
+      97    336281.82    249762.69    338993.24    54778.111    53978.204    108756.31 2.0491314e+13 
+      98    343559.56    249763.27    346498.41    53571.106     55146.39     108717.5 2.1504536e+13 
+      99    350822.71    249763.93    353988.52    52366.568    56312.232     108678.8 2.2483639e+13 
+     100    358024.84    249764.67     361415.7     51172.15    57468.281    108640.43 2.2609772e+13 
+Loop time of 9.84873 on 128 procs for 100 steps with 33792 atoms
+
+Performance: 263.181 fs/day, 0.091 hours/fs, 10.154 timesteps/s
+99.1% CPU use with 128 MPI tasks x no OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 5.4061     | 6.2252     | 6.99       |  12.5 | 63.21
+Kspace  | 0.68217    | 1.4003     | 2.1552     |  24.7 | 14.22
+Neigh   | 0.061033   | 0.077498   | 0.091266   |   2.2 |  0.79
+Comm    | 0.28774    | 0.35449    | 0.42653    |   4.2 |  3.60
+Output  | 0.0097015  | 0.0099485  | 0.012045   |   0.2 |  0.10
+Modify  | 1.7611     | 1.7766     | 1.7934     |   0.6 | 18.04
+Other   |            | 0.004618   |            |       |  0.05
+
+Nlocal:    264 ave 321 max 208 min
+Histogram: 7 3 14 21 18 25 19 8 9 4
+Nghost:    14241.4 ave 14521 max 14013 min
+Histogram: 10 9 14 21 19 25 14 8 4 4
+Neighs:    389935 ave 501501 max 285665 min
+Histogram: 6 7 15 19 18 26 16 9 9 3
+
+Total # of neighbors = 49911640
+Ave neighs/atom = 1477.03
+Neighbor list builds = 10
+Dangerous builds = 10
+
+quit 0

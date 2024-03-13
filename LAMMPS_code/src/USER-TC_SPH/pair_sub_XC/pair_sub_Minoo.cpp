@@ -164,6 +164,8 @@ void PairSubMinoo::settings(int narg, char **arg)
 
   hh_me = force-> hhmrr2e * hbar_val * hbar_val / e_mass;
 
+  // e_mass must be in amu for compatibility with units electron
+
   pot_pre_fact = boltz_val * targ_temp * ln_two;
   for_pre_fact = (2 * boltz_val * targ_temp * boltz_val * targ_temp)/(hh_me);
   exp_fact = (boltz_val * targ_temp)/(hh_me * ln_two);
