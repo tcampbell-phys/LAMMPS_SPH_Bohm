@@ -122,6 +122,13 @@ void PairBohmSPHDynamicMoczRobust::compute(int eflag, int vflag)
     memory->destroy(dyy_rho);
     memory->destroy(dyz_rho);
     memory->destroy(dzz_rho);
+
+    memory->destroy(Pxx);
+    memory->destroy(Pxy);
+    memory->destroy(Pxz);
+    memory->destroy(Pyy);
+    memory->destroy(Pyz);
+    memory->destroy(Pzz);
     
     nmax = atom->nmax;
 
@@ -131,6 +138,13 @@ void PairBohmSPHDynamicMoczRobust::compute(int eflag, int vflag)
     memory->create(dyy_rho,nmax,"pair:dyy_rho");
     memory->create(dyz_rho,nmax,"pair:dyz_rho");
     memory->create(dzz_rho,nmax,"pair:dzz_rho");
+
+    memory->create(Pxx,nmax,"pair:Pxx");
+    memory->create(Pxy,nmax,"pair:Pxy");
+    memory->create(Pxz,nmax,"pair:Pxz");
+    memory->create(Pyy,nmax,"pair:Pyy");
+    memory->create(Pyz,nmax,"pair:Pyz");
+    memory->create(Pzz,nmax,"pair:Pzz");
 
   }
 
