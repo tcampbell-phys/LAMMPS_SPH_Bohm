@@ -21,6 +21,7 @@ PairStyle(hybrid,PairHybrid)
 #define LMP_PAIR_HYBRID_H
 
 #include "pair.h"
+#include "fix_fixed_widths.h"
 #include "fix_dynamic_widths.h"
 #include "fix_dynamic_widths_CoM.h"
 #include "fix_dynamic_widths_CoM_MF.h"
@@ -37,6 +38,7 @@ class PairHybrid : public Pair {
   friend class Respa;
   friend class Info;
   friend class PairDeprecated;
+  friend class FixFixedWidths;
   friend class FixDynamicWidths;
   friend class FixDynamicWidthsCoM;
   friend class FixDynamicWidthsCoMMF;

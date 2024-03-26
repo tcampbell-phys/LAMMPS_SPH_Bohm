@@ -115,7 +115,7 @@ void PairCoulCutSPHNoPseudoSub::compute(int eflag, int vflag)
   numneigh = list->numneigh;
   firstneigh = list->firstneigh;
 
-    if (atom->nmax > nmax) {
+  if (atom->nmax > nmax) {
     // delete and create new memory arrays for any per-particle variables that need communicating.
 
     memory->destroy(theta_coul);

@@ -1,0 +1,2660 @@
+
+### SYSTEM PARAMETERS:
+
+### physical parameters:
+
+variable temp equal 0.005	         # temperature in Ev
+variable ion_density equal 0.044545217  		# Density in # per bohr^3
+variable num_ions equal 1	                                        # Number of ions
+variable ion_charge equal 1.0			                                # Average charge/ionization
+variable ion_amu equal 1.008	                                # Atomic mass of ion
+variable electron_amu equal 0.00054857991                           # Atomic mass of electrons
+
+variable sigma_start equal 1.5                                         # Start global packet width of electrons in bohr
+
+variable elements_per_electron equal 256
+
+variable element_scaled_mass equal ${electron_amu}/${elements_per_electron}
+variable element_scaled_mass equal 0.00054857991/${elements_per_electron}
+variable element_scaled_mass equal 0.00054857991/256
+variable element_scaled_charge equal -1/${elements_per_electron}
+variable element_scaled_charge equal -1/256
+
+variable num_electrons equal ${num_ions}*${ion_charge}
+variable num_electrons equal 1*${ion_charge}
+variable num_electrons equal 1*1
+variable num_electron_elements equal ${num_electrons}*${elements_per_electron}
+variable num_electron_elements equal 1*${elements_per_electron}
+variable num_electron_elements equal 1*256
+variable half_num_electrons equal ${num_electrons}/2.0
+variable half_num_electrons equal 1/2.0
+variable quar_num_electrons equal ${half_num_electrons}/2.0
+variable quar_num_electrons equal 0.5/2.0
+variable temptouse equal 11604.5221*${temp}
+variable temptouse equal 11604.5221*0.005
+# variable box_len equal (${num_ions}/${ion_density})^(1/3)
+variable box_len equal 0.5
+variable half_box_len equal ${box_len}/2.0
+variable half_box_len equal 0.5/2.0
+
+variable confine_strength equal 0.0        # set strength of qudratic confinement potential for SPH elements belonging to the same electron
+
+### simulation parameters:
+
+variable time_step_length equal 0.06125e-3
+variable equi_time_steps equal 1e4
+variable buff_time_steps equal 1e1
+variable CoM_check_time_steps equal 1e2
+variable dump_freq equal 1
+variable cutoff equal 10.0                                     # cutoff for pairwise calculations
+
+variable assign_ion equal 1    # if set to 1, all ions moved to targ coord on first timestep
+variable targ_coord equal ${half_box_len}
+variable targ_coord equal 0.25
+
+units electron                                                      # use electron units (Hartree)
+newton on
+boundary s s s
+atom_style SPH_CoM
+
+# Pair style string selection
+
+variable pair_name string bohm_SPH_dynamic_Mocz_rob
+
+variable ion_seed equal 1
+variable e_up_a_seed equal 2
+variable e_up_b_seed equal 3
+variable e_down_a_seed equal 4
+variable e_down_b_seed equal 5
+
+# thermostat parameters
+
+variable ion_vel_seed equal 6
+variable e_down_a_vel_seed equal 7
+variable e_down_b_vel_seed equal 8
+variable e_up_a_vel_seed equal 9
+variable e_up_b_vel_seed equal 10
+
+variable i_temp_damping equal ${time_step_length}*100
+variable i_temp_damping equal 6.125e-05*100
+variable e_temp_damping equal ${time_step_length}*100
+variable e_temp_damping equal 6.125e-05*100
+
+variable vel_t equal 1.0*${temptouse}
+variable vel_t equal 1.0*58.0226105
+
+# rdf calculation
+
+variable rdf_num_bins equal 150
+variable rdf_num_measurements equal 10
+variable rdf_output_time_step equal 40
+variable rdf_measurement_time_gap equal 1
+
+### Setup simulation
+
+region bounding_region block 0.0 ${box_len} 0.0 ${box_len} 0.0 ${box_len}
+region bounding_region block 0.0 0.5 0.0 ${box_len} 0.0 ${box_len}
+region bounding_region block 0.0 0.5 0.0 0.5 0.0 ${box_len}
+region bounding_region block 0.0 0.5 0.0 0.5 0.0 0.5
+timestep ${time_step_length}
+timestep 6.125e-05
+
+create_box 2 bounding_region
+Created orthogonal box = (0 0 0) to (0.5 0.5 0.5)
+  1 by 2 by 2 MPI processor grid
+
+create_atoms 1 random ${num_ions} ${ion_seed} NULL
+create_atoms 1 random 1 ${ion_seed} NULL
+create_atoms 1 random 1 1 NULL
+Created 1 atoms
+  create_atoms CPU = 4.5286e-05 secs
+group ion type 1
+1 atoms in group ion
+mass 1 ${ion_amu}
+mass 1 1.008
+set type 1 charge ${ion_charge}
+set type 1 charge 1
+  1 settings made for charge
+
+create_atoms 2 random ${num_electron_elements} ${e_up_a_seed} NULL
+create_atoms 2 random 256 ${e_up_a_seed} NULL
+create_atoms 2 random 256 2 NULL
+Created 256 atoms
+  create_atoms CPU = 0.000647658 secs
+group electron type 2
+256 atoms in group electron
+mass 2 ${element_scaled_mass}
+mass 2 2.1428902734375e-06
+set type 2 charge ${element_scaled_charge}
+set type 2 charge -0.00390625
+  256 settings made for charge
+
+variable tag_ele_start equal ${num_ions}+1
+variable tag_ele_start equal 1+1
+
+# Ensure ghost atom velocities communicated for SPH Bohm Potential:
+
+comm_modify vel yes
+
+### Dynamic Width fix
+variable dens_wid_const equal 1.3
+variable N_iter equal 1
+variable mix_fact equal 1.0
+variable tfwhm equal 4.70964*${dens_wid_const}*${box_len}/(${num_electron_elements}^(1/3))
+variable tfwhm equal 4.70964*1.3*${box_len}/(${num_electron_elements}^(1/3))
+variable tfwhm equal 4.70964*1.3*0.5/(${num_electron_elements}^(1/3))
+variable tfwhm equal 4.70964*1.3*0.5/(256^(1/3))
+variable type_avoid equal 1 #ensure ions are not included in SPH loops (must match ion type)
+
+# Call dynamic_widths_com to ensure calculation of electron Centres of Mass
+
+fix ele_dyn_wid electron dynamic_widths_com ${dens_wid_const} ${N_iter} ${mix_fact} ${sigma_start} ${cutoff} ${box_len} ${type_avoid} ${num_electrons} ${elements_per_electron} ${tag_ele_start} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths_com 1.3 ${N_iter} ${mix_fact} ${sigma_start} ${cutoff} ${box_len} ${type_avoid} ${num_electrons} ${elements_per_electron} ${tag_ele_start} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths_com 1.3 1 ${mix_fact} ${sigma_start} ${cutoff} ${box_len} ${type_avoid} ${num_electrons} ${elements_per_electron} ${tag_ele_start} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths_com 1.3 1 1 ${sigma_start} ${cutoff} ${box_len} ${type_avoid} ${num_electrons} ${elements_per_electron} ${tag_ele_start} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths_com 1.3 1 1 1.5 ${cutoff} ${box_len} ${type_avoid} ${num_electrons} ${elements_per_electron} ${tag_ele_start} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths_com 1.3 1 1 1.5 10 ${box_len} ${type_avoid} ${num_electrons} ${elements_per_electron} ${tag_ele_start} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths_com 1.3 1 1 1.5 10 0.5 ${type_avoid} ${num_electrons} ${elements_per_electron} ${tag_ele_start} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths_com 1.3 1 1 1.5 10 0.5 1 ${num_electrons} ${elements_per_electron} ${tag_ele_start} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths_com 1.3 1 1 1.5 10 0.5 1 1 ${elements_per_electron} ${tag_ele_start} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths_com 1.3 1 1 1.5 10 0.5 1 1 256 ${tag_ele_start} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths_com 1.3 1 1 1.5 10 0.5 1 1 256 2 ${pair_name}
+fix ele_dyn_wid electron dynamic_widths_com 1.3 1 1 1.5 10 0.5 1 1 256 2 bohm_SPH_dynamic_Mocz_rob
+
+pair_style hybrid/overlay ${pair_name} ${cutoff} ${gamma_factor} coul/cut/SPH_nopseudo_sub ${cutoff} 1.0 1 ${elements_per_electron} ${tag_ele_start} ${assign_ion} ${targ_coord}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz_rob ${cutoff} ${gamma_factor} coul/cut/SPH_nopseudo_sub ${cutoff} 1.0 1 ${elements_per_electron} ${tag_ele_start} ${assign_ion} ${targ_coord}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz_rob 10 ${gamma_factor} coul/cut/SPH_nopseudo_sub ${cutoff} 1.0 1 ${elements_per_electron} ${tag_ele_start} ${assign_ion} ${targ_coord}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz_rob 10 1822.888483 coul/cut/SPH_nopseudo_sub ${cutoff} 1.0 1 ${elements_per_electron} ${tag_ele_start} ${assign_ion} ${targ_coord}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz_rob 10 1822.888483 coul/cut/SPH_nopseudo_sub 10 1.0 1 ${elements_per_electron} ${tag_ele_start} ${assign_ion} ${targ_coord}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz_rob 10 1822.888483 coul/cut/SPH_nopseudo_sub 10 1.0 1 256 ${tag_ele_start} ${assign_ion} ${targ_coord}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz_rob 10 1822.888483 coul/cut/SPH_nopseudo_sub 10 1.0 1 256 2 ${assign_ion} ${targ_coord}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz_rob 10 1822.888483 coul/cut/SPH_nopseudo_sub 10 1.0 1 256 2 1 ${targ_coord}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz_rob 10 1822.888483 coul/cut/SPH_nopseudo_sub 10 1.0 1 256 2 1 0.25
+
+# Set up each pair with the correct styles:
+
+pair_coeff * * coul/cut/SPH_nopseudo_sub
+
+pair_coeff 2 2 ${pair_name}
+pair_coeff 2 2 bohm_SPH_dynamic_Mocz_rob
+
+# increase number of allowed neighbours
+neigh_modify one 10000
+
+fix all_nve all nve
+
+velocity all create ${temptouse} ${ion_vel_seed} rot yes dist gaussian
+velocity all create 58.0226105 ${ion_vel_seed} rot yes dist gaussian
+velocity all create 58.0226105 6 rot yes dist gaussian
+
+#velocity ion create ${temptouse} ${ion_vel_seed} #rot yes dist gaussian
+
+#velocity electron create ${vel_t} ${e_down_a_vel_seed} #rot yes dist gaussian
+
+# Randomize the starting positions of all of our particles
+
+displace_atoms all random 0.1 0.1 0.1 42
+
+compute electron_temp electron temp
+
+# Compute pair correlation functions:
+compute ion_electron_rdf all rdf ${rdf_num_bins} 1 2
+compute ion_electron_rdf all rdf 150 1 2
+
+compute electron_electron_rdf all rdf ${rdf_num_bins} 2 2
+compute electron_electron_rdf all rdf 150 2 2
+
+fix write_ion_electron_rdf all ave/time ${rdf_measurement_time_gap} ${rdf_num_measurements} ${rdf_output_time_step} c_ion_electron_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_electron.rdf mode vector
+fix write_ion_electron_rdf all ave/time 1 ${rdf_num_measurements} ${rdf_output_time_step} c_ion_electron_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_electron.rdf mode vector
+fix write_ion_electron_rdf all ave/time 1 10 ${rdf_output_time_step} c_ion_electron_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_electron.rdf mode vector
+fix write_ion_electron_rdf all ave/time 1 10 40 c_ion_electron_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_electron.rdf mode vector
+fix write_ion_electron_rdf all ave/time 1 10 40 c_ion_electron_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/hedp_SPH_H_ground_3k/ion_electron.rdf mode vector
+
+fix write_electron_electron_rdf all ave/time ${rdf_measurement_time_gap} ${rdf_num_measurements} ${rdf_output_time_step} c_electron_electron_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/electron_electron.rdf mode vector
+fix write_electron_electron_rdf all ave/time 1 ${rdf_num_measurements} ${rdf_output_time_step} c_electron_electron_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/electron_electron.rdf mode vector
+fix write_electron_electron_rdf all ave/time 1 10 ${rdf_output_time_step} c_electron_electron_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/electron_electron.rdf mode vector
+fix write_electron_electron_rdf all ave/time 1 10 40 c_electron_electron_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/electron_electron.rdf mode vector
+fix write_electron_electron_rdf all ave/time 1 10 40 c_electron_electron_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/hedp_SPH_H_ground_3k/electron_electron.rdf mode vector
+
+# custom logfile output
+
+thermo_style custom step temp pe ke etotal press
+
+# modify logfile output
+
+thermo_modify lost warn
+thermo 10
+thermo_style custom step temp pe ke etotal press
+WARNING: New thermo_style command, previous thermo_modify settings will be lost (src/output.cpp:708)
+
+dump 2 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check1.dump
+dump 2 ion xyz 1 /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check1.dump
+dump 2 ion xyz 1 /data/tcampbell/LAMMPS/SPH_Bohm/hedp_SPH_H_ground_3k/ion_xyz_data_check1.dump
+
+run ${buff_time_steps}
+run 10
+Neighbor list info ...
+  update every 1 steps, delay 10 steps, check yes
+  max neighbors/atom: 10000, page size: 100000
+  master list distance cutoff = 12
+  ghost atom cutoff = 12
+  binsize = 6, bins = 1 1 1
+  4 neighbor lists, perpetual/occasional/extra = 2 2 0
+  (1) pair bohm_SPH_dynamic_Mocz_rob, perpetual, skip from (2)
+      attributes: half, newton on
+      pair build: skip
+      stencil: none
+      bin: none
+  (2) pair coul/cut/SPH_nopseudo_sub, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d/newton
+      bin: standard
+  (3) compute rdf, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+  (4) compute rdf, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+WARNING: Proc sub-domain size < neighbor skin, could lead to lost atoms (src/domain.cpp:936)
+Per MPI rank memory allocation (min/avg/max) = 6.52 | 6.77 | 7.52 Mbytes
+Step Temp PotEng KinEng TotEng Press 
+       0    58.022611    -1.787138  0.070558807   -1.7165792 -3.8777141e+13 
+      10    89.803669   -3.7888378   0.10920639   -3.6796314 1.0589885e+14 
+Loop time of 0.055273 on 4 procs for 10 steps with 257 atoms
+
+Performance: 957.430 fs/day, 0.025 hours/fs, 180.920 timesteps/s
+99.6% CPU use with 4 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.031333   | 0.034912   | 0.038503   |   1.9 | 63.16
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00052565 | 0.0041149  | 0.0077374  |   5.5 |  7.44
+Output  | 0.00023108 | 0.00025836 | 0.00031051 |   0.0 |  0.47
+Modify  | 0.015927   | 0.015967   | 0.016006   |   0.0 | 28.89
+Other   |            | 2e-05      |            |       |  0.04
+
+Nlocal:    64.25 ave 68 max 60 min
+Histogram: 1 0 1 0 0 0 0 0 1 1
+Nghost:    192.75 ave 197 max 189 min
+Histogram: 1 1 0 0 0 0 0 1 0 1
+Neighs:    8160 ave 12736 max 3534 min
+Histogram: 2 0 0 0 0 0 0 0 0 2
+
+Total # of neighbors = 32640
+Ave neighs/atom = 127.004
+Neighbor list builds = 0
+Dangerous builds = 0
+undump 2
+
+dump 1 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check1.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+dump 1 electron custom 1 /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check1.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+dump 1 electron custom 1 /data/tcampbell/LAMMPS/SPH_Bohm/hedp_SPH_H_ground_3k/ele_xyzh_data_check1.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+# save small dump of positions and widths for CoM checking
+run ${CoM_check_time_steps}
+run 100
+Neighbor list info ...
+  update every 1 steps, delay 10 steps, check yes
+  max neighbors/atom: 10000, page size: 100000
+  master list distance cutoff = 12
+  ghost atom cutoff = 12
+  binsize = 6, bins = 1 1 1
+  4 neighbor lists, perpetual/occasional/extra = 2 2 0
+  (1) pair bohm_SPH_dynamic_Mocz_rob, perpetual, skip from (2)
+      attributes: half, newton on
+      pair build: skip
+      stencil: none
+      bin: none
+  (2) pair coul/cut/SPH_nopseudo_sub, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d/newton
+      bin: standard
+  (3) compute rdf, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+  (4) compute rdf, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+WARNING: Proc sub-domain size < neighbor skin, could lead to lost atoms (src/domain.cpp:936)
+Per MPI rank memory allocation (min/avg/max) = 7.688 | 7.688 | 7.688 Mbytes
+Step Temp PotEng KinEng TotEng Press 
+      10    89.803669   -3.8015562   0.10920639   -3.6923498 1.0188717e+14 
+      20     232.8272   -3.9761127   0.28313117   -3.6929815 1.3162747e+14 
+      30    480.04417   -4.2754514   0.58376112   -3.6916903 1.7449009e+14 
+      40    813.50528   -4.6779341   0.98926886   -3.6886653 2.107612e+14 
+      50    1191.6079   -5.1329699    1.4490632   -3.6839067 2.2695526e+14 
+      60    1543.8108   -5.5544296    1.8773621   -3.6770676 2.269502e+14 
+      70    1818.5864   -5.8802658    2.2115049   -3.6687609 2.1973321e+14 
+      80    2008.8961   -6.1037602    2.4429324   -3.6608279 2.108856e+14 
+      90    2132.2874    -6.247477    2.5929833   -3.6544937 2.0287218e+14 
+     100    2209.6871   -6.3369493    2.6871056   -3.6498436 1.9632454e+14 
+     110    2257.2319   -6.3914302    2.7449229   -3.6465074 1.9112341e+14 
+Loop time of 0.598566 on 4 procs for 100 steps with 257 atoms
+
+Performance: 884.113 fs/day, 0.027 hours/fs, 167.066 timesteps/s
+99.5% CPU use with 4 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.32173    | 0.35671    | 0.39364    |   5.8 | 59.59
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0044299  | 0.041991   | 0.077729   |  17.2 |  7.02
+Output  | 0.027697   | 0.029584   | 0.030883   |   0.7 |  4.94
+Modify  | 0.16833    | 0.16874    | 0.16935    |   0.1 | 28.19
+Other   |            | 0.001547   |            |       |  0.26
+
+Nlocal:    64.25 ave 70 max 60 min
+Histogram: 1 0 1 0 0 1 0 0 0 1
+Nghost:    192.75 ave 197 max 187 min
+Histogram: 1 0 0 0 0 1 0 0 1 1
+Neighs:    8160 ave 12971 max 3618 min
+Histogram: 2 0 0 0 0 0 0 0 0 2
+
+Total # of neighbors = 32640
+Ave neighs/atom = 127.004
+Neighbor list builds = 0
+Dangerous builds = 0
+
+undump 1
+
+unfix all_nve
+fix all_nvt all nvt temp ${temptouse} 0.0000001 ${e_temp_damping}
+fix all_nvt all nvt temp 58.0226105 0.0000001 ${e_temp_damping}
+fix all_nvt all nvt temp 58.0226105 0.0000001 0.006125
+
+run ${equi_time_steps}
+run 10000
+Neighbor list info ...
+  update every 1 steps, delay 10 steps, check yes
+  max neighbors/atom: 10000, page size: 100000
+  master list distance cutoff = 12
+  ghost atom cutoff = 12
+  binsize = 6, bins = 1 1 1
+  4 neighbor lists, perpetual/occasional/extra = 2 2 0
+  (1) pair bohm_SPH_dynamic_Mocz_rob, perpetual, skip from (2)
+      attributes: half, newton on
+      pair build: skip
+      stencil: none
+      bin: none
+  (2) pair coul/cut/SPH_nopseudo_sub, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d/newton
+      bin: standard
+  (3) compute rdf, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+  (4) compute rdf, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+WARNING: Proc sub-domain size < neighbor skin, could lead to lost atoms (src/domain.cpp:936)
+Per MPI rank memory allocation (min/avg/max) = 5.078 | 5.078 | 5.078 Mbytes
+Step Temp PotEng KinEng TotEng Press 
+     110    2257.2319   -6.4067521    2.7449229   -3.6618292 1.0234484e+13 
+     120    1880.4816   -6.4410646     2.286773   -4.1542916 8.3594443e+12 
+     130    1447.1698   -6.4574029    1.7598411   -4.6975617 6.3427361e+12 
+     140    1096.3494   -6.4661669    1.3332234   -5.1329434 4.7416271e+12 
+     150    836.88232   -6.4711838    1.0176967   -5.4534871 3.5660952e+12 
+     160    647.88958   -6.4744096   0.78787072   -5.6865389 2.7133148e+12 
+     170    509.72669   -6.4768703   0.61985676   -5.8570136 2.0919555e+12 
+     180    407.69047   -6.4791264   0.49577489   -5.9833516 1.6348597e+12 
+     190    331.42935   -6.4815022   0.40303701   -6.0784651 1.2950653e+12 
+     200    273.77291    -6.484202   0.33292349   -6.1512785 1.0400744e+12 
+     210    229.75394   -6.4873736   0.27939391   -6.2079797 8.4727309e+11 
+     220    195.91153   -6.4911444   0.23823961   -6.2529048 7.0070577e+11 
+     230    169.81953   -6.4956463   0.20651025   -6.2891361 5.8888908e+11 
+     240    149.77296   -6.5010355   0.18213247    -6.318903 5.0335418e+11 
+     250    134.57851   -6.5075082   0.16365515   -6.3438531 4.3772536e+11 
+     260    123.40778    -6.515312    0.1500709   -6.3652411 3.8730175e+11 
+     270    115.67744   -6.5247381   0.14067037   -6.3840678 3.4929426e+11 
+     280     110.9335    -6.536087   0.13490147   -6.4011855 3.2384058e+11 
+     290    108.79396   -6.5496661   0.13229967   -6.4173664 3.1469607e+11 
+     300    109.15841   -6.5660704   0.13274286   -6.4333276 3.2590812e+11 
+     310    112.69565   -6.5868716   0.13704434   -6.4498272 3.5657438e+11 
+     320    121.07375   -6.6151338    0.1472326   -6.4679012 4.1647413e+11 
+     330    137.15169   -6.6556875   0.16678429   -6.4889032 5.6135153e+11 
+     340    164.81859   -6.7154058   0.20042881    -6.514977 8.6294224e+11 
+     350     202.1471    -6.796086   0.24582241   -6.5502636 1.2964866e+12 
+     360    231.33554    -6.877251   0.28131723   -6.5959338 1.574034e+12 
+     370    234.90896    -6.930533   0.28566271   -6.6448703 1.4704212e+12 
+     380    216.56821   -6.9540204   0.26335931   -6.6906611 1.1754757e+12 
+     390    189.05944   -6.9606934   0.22990707   -6.7307864 8.6978621e+11 
+     400    160.71803   -6.9597294    0.1954423   -6.7642871 6.0814834e+11 
+     410    135.10471   -6.9555624   0.16429504   -6.7912674 4.0052239e+11 
+     420    113.32106   -6.9503659   0.13780488    -6.812561 2.394899e+11 
+     430    95.336849   -6.9451595   0.11593505   -6.8292244 1.1456178e+11 
+     440      80.6932   -6.9403627  0.098127538   -6.8422352 1.7060497e+10 
+     450     68.84406   -6.9361201  0.083718307   -6.8524018 -5.953944e+10 
+     460    59.287943   -6.9324602  0.072097523   -6.8603627 -1.2003325e+11 
+     470    51.604579   -6.9293661  0.062754114    -6.866612 -1.6792117e+11 
+     480    45.455637   -6.9268042  0.055276649   -6.8715276 -2.0575828e+11 
+     490    40.574212   -6.9247379  0.049340558   -6.8753973 -3.4203482e+10 
+     500    36.752425   -6.9231322  0.044693047   -6.8784392 -3.7520744e+10 
+     510    33.830296   -6.9219565  0.041139571   -6.8808169 -3.9989875e+10 
+     520     31.68673   -6.9211847  0.038532872   -6.8826518 -4.1712278e+10 
+     530    30.232557    -6.920796  0.036764516   -6.8840315 -4.2757171e+10 
+     540    29.405306   -6.9207747  0.035758531   -6.8850162 -4.3168386e+10 
+     550    29.165255     -6.92111  0.035466616   -6.8856434 -4.2969154e+10 
+     560    29.492323   -6.9217963  0.035864348    -6.885932 -4.2165324e+10 
+     570    30.383282   -6.9228328  0.036947805    -6.885885 -4.0747384e+10 
+     580    31.848817   -6.9242232  0.038729979   -6.8854932 -3.8691756e+10 
+     590    33.909912   -6.9259754  0.041236389    -6.884739 -3.5961911e+10 
+     600    36.593165   -6.9281003  0.044499377    -6.883601 -3.2509967e+10 
+     610    39.924723   -6.9306112  0.048550743   -6.8820604 -2.8279311e+10 
+     620    43.922761   -6.9335215  0.053412585   -6.8801089 -2.3208641e+10 
+     630    48.588571    -6.936844  0.059086477   -6.8777575 -1.723761e+10 
+     640    53.896558    -6.940588  0.065541292   -6.8750467 -1.0314015e+10 
+     650    59.783612   -6.9447584  0.072700285   -6.8720581 -2.4023315e+09 
+     660    66.138759   -6.9493543  0.080428507   -6.8689258 6.5069178e+09 
+     670     72.79474   -6.9543696   0.08852256   -6.8658471 1.6387966e+10 
+     680    79.524425   -6.9597968  0.096706241   -6.8630905 2.7172865e+10 
+     690    86.046914   -6.9656351   0.10463796   -6.8609972 3.8751009e+10 
+     700    92.050889   -6.9719092   0.11193914   -6.8599701 5.098301e+10 
+     710    97.245985   -6.9787036   0.11825667   -6.8604469 6.3742701e+10 
+     720    101.45474   -6.9862275   0.12337476   -6.8628528 7.7010097e+10 
+     730    104.75191   -6.9949296   0.12738431   -6.8675453 9.1052651e+10 
+     740    107.62532   -7.0056626   0.13087853   -6.8747841 1.0673518e+11 
+     750     111.0141   -7.0197737   0.13499948   -6.8847742 1.2575603e+11 
+     760    115.79981   -7.0386093   0.14081917   -6.8977901 1.4938058e+11 
+     770    121.43427   -7.0618246   0.14767101   -6.9141536 1.7348201e+11 
+     780    125.85926   -7.0865815   0.15305205   -6.9335294 1.8685183e+11 
+     790    128.98749   -7.1112815   0.15685615   -6.9544254 1.8528941e+11 
+     800     131.9432   -7.1362193   0.16045046   -6.9757688 1.7475195e+11 
+     810    133.21095   -7.1593675   0.16199212   -6.9973754 1.5775096e+11 
+     820    130.55897    -7.177588   0.15876716   -7.0188208 1.3475219e+11 
+     830     123.8329   -7.1899143   0.15058788   -7.0393264 7.5797104e+10 
+     840    114.60499   -7.1975905   0.13936621   -7.0582243 5.849752e+10 
+     850    104.63463   -7.2023989   0.12724169   -7.0751572 4.3798333e+10 
+     860    95.109711   -7.2057224   0.11565884   -7.0900636 3.2231948e+10 
+     870    86.598417    -7.208387   0.10530862   -7.1030784 2.3537768e+10 
+     880    79.231269   -7.2107729  0.096349747   -7.1144231 1.7052569e+10 
+     890    72.882407   -7.2129576  0.088629168   -7.1243285 1.1956454e+10 
+     900    67.298251   -7.2148306  0.081838515   -7.1329921 7.5254127e+09 
+     910     62.20848     -7.21621  0.075649064   -7.1405609 3.3605818e+09 
+     920    57.456994   -7.2170043  0.069870985   -7.1471333 -5.9409067e+08 
+     930     53.07385   -7.2173291  0.064540832   -7.1527883 -4.2332777e+09 
+     940    49.198051   -7.2174455  0.059827639   -7.1576178 -7.4122838e+09 
+     950    45.959764   -7.2176188  0.055889697   -7.1617291 -9.9836511e+09 
+     960    43.435385   -7.2180513  0.052819908   -7.1652314 -1.1838284e+10 
+     970    41.654983   -7.2188799  0.050654837   -7.1682251 -1.2923582e+10 
+     980    40.619472    -7.220194  0.049395596   -7.1707984 -1.3228861e+10 
+     990    40.312337   -7.2220477  0.049022103   -7.1730255 -1.2762614e+10 
+    1000    40.704197   -7.2244675  0.049498627   -7.1749689 -1.1535901e+10 
+    1010    41.751448   -7.2274531  0.050772144    -7.176681 -9.5529882e+09 
+    1020    43.391348   -7.2309749  0.052766357   -7.1782086 -6.8070475e+09 
+    1030    45.537892   -7.2349731  0.055376677   -7.1795964 -3.2804644e+09 
+    1040    48.084807   -7.2393653  0.058473871   -7.1808915 1.0502173e+09 
+    1050     50.92014   -7.2440683  0.061921798   -7.1821465 6.2077088e+09 
+    1060    53.948692   -7.2490279   0.06560469   -7.1834232 1.2206667e+10 
+    1070    57.107301   -7.2542428  0.069445739   -7.1847971 1.9037887e+10 
+    1080    60.352381   -7.2597562  0.073391941   -7.1863643 2.6632128e+10 
+    1090    63.611225   -7.2656036  0.077354881   -7.1882487 3.4758928e+10 
+    1100    66.706726   -7.2717259  0.081119187   -7.1906068 4.2789879e+10 
+    1110    69.322898   -7.2779172  0.084300602   -7.1936166 4.9560188e+10 
+    1120    71.380903   -7.2842052  0.086803254   -7.1974019 5.4247304e+10 
+    1130    73.954644   -7.2919021  0.089933069    -7.201969 5.8172803e+10 
+    1140    79.109642   -7.3036668  0.096201841    -7.207465 5.2288125e+10 
+    1150    87.887965   -7.3214236   0.10687678   -7.2145469 6.030252e+10 
+    1160    98.613587   -7.3440833   0.11991975   -7.2241636 6.9604693e+10 
+    1170    107.43531   -7.3673178   0.13064747   -7.2366703 7.5221922e+10 
+    1180     111.2034   -7.3863933   0.13522968   -7.2511637 7.3045099e+10 
+    1190    109.33014   -7.3992754   0.13295169   -7.2663237 6.3905627e+10 
+    1200    102.70118   -7.4060187    0.1248905   -7.2811282 5.1273942e+10 
+    1210    92.979239   -7.4077646   0.11306806   -7.2946965 3.7476927e+10 
+    1220    81.957849   -7.4061609  0.099665423   -7.3064955 2.4176027e+10 
+    1230    71.054231   -7.4027605  0.086406002   -7.3163545 1.2524949e+10 
+    1240    61.143725   -7.3987151   0.07435426   -7.3243608 2.9569935e+09 
+    1250    52.632916   -7.3947453  0.064004631   -7.3307407 -4.6036227e+09 
+    1260    45.619513   -7.3912436  0.055475932   -7.3357677 -1.044527e+10 
+    1270    40.038946   -7.3883962  0.048689644   -7.3397065 -1.4886623e+10 
+    1280    35.763062   -7.3862764  0.043489925   -7.3427864 -1.8203313e+10 
+    1290    32.654464   -7.3849029  0.039709693   -7.3451932 -2.0609894e+10 
+    1300    30.592002   -7.3842719  0.037201621   -7.3470703 -2.2262387e+10 
+    1310    29.480545    -7.384373  0.035850025    -7.348523 -2.3266177e+10 
+    1320    29.252944   -7.3851976   0.03557325   -7.3496243 -2.3683792e+10 
+    1330    29.868118   -7.3867416  0.036321336   -7.3504203 -2.354111e+10 
+    1340    31.306802   -7.3890062  0.038070858   -7.3509354 -2.2832076e+10 
+    1350    33.565199   -7.3919962  0.040817198    -7.351179 -2.1522617e+10 
+    1360    36.646079   -7.3957168  0.044563725   -7.3511531 -1.9554768e+10 
+    1370    40.546638   -7.4001694  0.049307027   -7.3508624 -1.6852134e+10 
+    1380    45.242582   -7.4053445  0.055017562   -7.3503269 -1.332807e+10 
+    1390    50.668483   -7.4112135  0.061615768   -7.3495978 -8.8983534e+09 
+    1400    56.695429   -7.4177191  0.068944878   -7.3487743 -3.5009758e+09 
+    1410    63.108153   -7.4247636  0.076743117   -7.3480205 2.8732847e+09 
+    1420    69.584162   -7.4321949  0.084618314   -7.3475766 1.0136491e+10 
+    1430    75.675597   -7.4397854  0.092025846   -7.3477595 1.8049498e+10 
+    1440    80.794207   -7.4471915  0.098250368   -7.3489411 2.6170035e+10 
+    1450    84.225229   -7.4539087   0.10242269    -7.351486 3.3767178e+10 
+    1460     85.27893    -7.459336   0.10370405   -7.3556319 3.9669555e+10 
+    1470    83.787983   -7.4632442   0.10189097   -7.3613532 4.2823836e+10 
+    1480    81.124408    -7.466926  0.098651912   -7.3682741 4.4002069e+10 
+    1490    80.123717   -7.4734696  0.097435015   -7.3760346 4.5721487e+10 
+    1500    82.654679   -7.4853195   0.10051281   -7.3848067 4.3209403e+10 
+    1510    88.853983   -7.5030212   0.10805152   -7.3949697 5.1254423e+10 
+    1520    97.682019   -7.5257285   0.11878691   -7.4069416 6.1055341e+10 
+    1530    106.12438   -7.5501734   0.12905331   -7.4211201 6.7350859e+10 
+    1540    109.52521   -7.5703416   0.13318891   -7.4371527 6.5558561e+10 
+    1550    105.25942   -7.5813257   0.12800147   -7.4533242 5.554802e+10 
+    1560    95.533257   -7.5840035   0.11617389   -7.4678296 4.1061126e+10 
+    1570    83.882594   -7.5821808   0.10200602   -7.4801748 2.6588339e+10 
+    1580    72.507932   -7.5786148  0.088173785    -7.490441 1.4487748e+10 
+    1590    62.399564   -7.5746898  0.075881432   -7.4988084 5.1130204e+09 
+    1600    53.874784   -7.5710452  0.065514813   -7.5055304 -1.9273156e+09 
+    1610    46.932632   -7.5679628   0.05707276     -7.51089 -7.1280395e+09 
+    1620    41.444812   -7.5655542  0.050399257   -7.5151549 -1.0907387e+10 
+    1630    37.248224    -7.563851  0.045295967   -7.5185551 -1.3582584e+10 
+    1640    34.185653   -7.5628484  0.041571705   -7.5212767  -1.5384e+10 
+    1650    32.120968   -7.5625256  0.039060931   -7.5234647 -1.6474666e+10 
+    1660    30.942222    -7.562855  0.037627508   -7.5252275 -1.6967211e+10 
+    1670    30.558913    -7.563805  0.037161383   -7.5266436 -1.6937147e+10 
+    1680    30.896078   -7.5653382  0.037571394   -7.5277668 -1.6433072e+10 
+    1690    31.886134   -7.5674077  0.038775359   -7.5286323 -1.5484705e+10 
+    1700    33.459052   -7.5699508  0.040688117   -7.5292627 -1.4110033e+10 
+    1710    35.532161   -7.5728822  0.043209136   -7.5296731 -1.2323868e+10 
+    1720    38.002362   -7.5760907  0.046213042   -7.5298776 -1.0150685e+10 
+    1730     40.74389   -7.5794411  0.049546896   -7.5298942 -7.641152e+09 
+    1740    43.612257   -7.5827852  0.053034995   -7.5297503 -4.8831844e+09 
+    1750    46.452904   -7.5859758  0.056489383   -7.5294864 -1.9954904e+09 
+    1760    49.115978   -7.5888843  0.059727833   -7.5291565 8.9722233e+08 
+    1770    51.480231   -7.5914256    0.0626029   -7.5288227 3.6978666e+09 
+    1780    53.479505   -7.5935826  0.065034131   -7.5285484 6.3685349e+09 
+    1790    55.115563   -7.5954171  0.067023672   -7.5283934 8.9477444e+09 
+    1800    56.449333   -7.5970566  0.068645611    -7.528411 1.1546187e+10 
+    1810    57.581542   -7.5986714  0.070022443    -7.528649 1.2718277e+10 
+    1820    58.641087   -7.6004626   0.07131091   -7.5291517 1.5527031e+10 
+    1830    59.791273   -7.6026747  0.072709601   -7.5299651 1.8874667e+10 
+    1840    61.249848   -7.6056303  0.074483312    -7.531147 2.2978186e+10 
+    1850    63.302965   -7.6097679   0.07698002   -7.5327878 2.8052835e+10 
+    1860     66.27549   -7.6156395   0.08059478   -7.5350448 3.4245322e+10 
+    1870    70.395186   -7.6237922  0.085604565   -7.5381877 4.1473757e+10 
+    1880    75.487397   -7.6344167  0.091796985   -7.5426197 4.9157458e+10 
+    1890    80.674546   -7.6468595  0.098104854   -7.5487547 5.592936e+10 
+    1900    84.722492   -7.6597035   0.10302739   -7.5566761 5.9668117e+10 
+    1910    86.928373   -7.6716813   0.10570986   -7.5659714 5.8688852e+10 
+    1920    87.374577    -7.682289   0.10625247   -7.5760366 5.3402187e+10 
+    1930    86.417464   -7.6915192   0.10508857   -7.5864306 4.5672781e+10 
+    1940    84.314085   -7.6994135   0.10253074   -7.5968828 3.7315841e+10 
+    1950    81.393637   -7.7061413  0.098979309    -7.607162 2.9590015e+10 
+    1960    78.109227    -7.712074  0.094985279   -7.6170887 2.3215342e+10 
+    1970    74.885876   -7.7176299    0.0910655   -7.6265644 1.8479409e+10 
+    1980    72.013459   -7.7231366  0.087572478   -7.6355641 1.537786e+10 
+    1990     69.63025   -7.7287895  0.084674359   -7.6441151 1.3738958e+10 
+    2000    67.735548   -7.7346462  0.082370293   -7.6522759 1.3271977e+10 
+    2010    66.185192   -7.7405997  0.080484972   -7.6601147 1.3549865e+10 
+    2020    64.666652   -7.7463221   0.07863834   -7.6676838 1.3985315e+10 
+    2030    62.695958   -7.7512218  0.076241864     -7.67498 1.3858321e+10 
+    2040    59.733782   -7.7545411  0.072639689   -7.6819014 1.2519562e+10 
+    2050     55.60451   -7.7558449  0.067618259   -7.6882266 9.8679815e+09 
+    2060    50.848193    -7.755569  0.061834305   -7.6937347 5.7776757e+09 
+    2070    46.162883   -7.7545386  0.056136701   -7.6984019 2.5106147e+09 
+    2080    41.928978   -7.7533016  0.050988031   -7.7023136 -4.7264385e+08 
+    2090    38.286329   -7.7521225  0.046558362   -7.7055642 -2.9950234e+09 
+    2100    35.257695   -7.7511191   0.04287537   -7.7082437 -5.0419958e+09 
+    2110    32.812108   -7.7503334  0.039901397    -7.710432 -6.6721398e+09 
+    2120    30.903787   -7.7497751   0.03758077   -7.7121943 -7.9672234e+09 
+    2130     29.49771   -7.7494529    0.0358709    -7.713582 -9.0024458e+09 
+    2140    28.581185   -7.7493912  0.034756353   -7.7146349 -9.8254285e+09 
+    2150    28.163384    -7.749632  0.034248283   -7.7153837 -1.0446375e+10 
+    2160    28.269457   -7.7502274  0.034377274   -7.7158501 -1.0842522e+10 
+    2170    28.935069   -7.7512335  0.035186695   -7.7160468 -1.0970608e+10 
+    2180    30.202866   -7.7527057   0.03672841   -7.7159773 -1.0777692e+10 
+    2190    32.119446   -7.7546983   0.03905908   -7.7156392 -1.0206032e+10 
+    2200    34.730654   -7.7572626  0.042234458   -7.7150281 -9.1933152e+09 
+    2210     38.07308   -7.7604442  0.046299039   -7.7141452 -7.6715018e+09 
+    2220    42.159336   -7.7642759  0.051268159   -7.7130077 -5.5680208e+09 
+    2230    46.953995   -7.7687625  0.057098739   -7.7116638 -2.8143288e+09 
+    2240    52.336194   -7.7738543    0.0636438   -7.7102105 6.2966273e+08 
+    2250    58.045611   -7.7794002  0.070586776   -7.7088135 4.7210096e+09 
+    2260    63.616635   -7.7850826  0.077361461   -7.7077212 9.2334828e+09 
+    2270    68.334638   -7.7903542  0.083098821   -7.7072554 1.3637003e+10 
+    2280    71.343872   -7.7944998  0.086758221   -7.7077416 1.7148603e+10 
+    2290    72.219155   -7.7971554  0.087822615   -7.7093327 1.9235345e+10 
+    2300     71.69602   -7.7991089  0.087186454   -7.7119224 2.0150296e+10 
+    2310    71.193324   -7.8019674  0.086575147   -7.7153922 2.0842024e+10 
+    2320    71.884711   -7.8071637  0.087415912   -7.7197478 2.239554e+10 
+    2330    74.519009   -7.8157367   0.09061937   -7.7251173 2.5489707e+10 
+    2340    79.495085   -7.8284865  0.096670561   -7.7318159 3.0366851e+10 
+    2350    86.764802     -7.84587   0.10551095    -7.740359 3.7601347e+10 
+    2360    95.931244   -7.8679283   0.11665787   -7.7512704 4.7560034e+10 
+    2370     105.6681   -7.8937442   0.12849844   -7.7652458 5.7746468e+10 
+    2380    112.21462   -7.9191345   0.13645939   -7.7826751 5.626858e+10 
+    2390    111.14613   -7.9369595   0.13516004   -7.8017994 5.1391318e+10 
+    2400    102.61271   -7.9441813   0.12478291   -7.8193984 3.9698064e+10 
+    2410    90.492437   -7.9442133   0.11004397   -7.8341693 2.7044983e+10 
+    2420    78.066565   -7.9412354    0.0949334    -7.846302 1.6479984e+10 
+    2430    66.815327   -7.9374193  0.081251252   -7.8561681 8.3838656e+09 
+    2440    57.175938   -7.9336197  0.069529204   -7.8640905 2.3158648e+09 
+    2450    49.158006   -7.9301691  0.059778941   -7.8703901 -2.2229937e+09 
+    2460      42.6206   -7.9272008  0.051829083   -7.8753717 -5.6211005e+09 
+    2470    37.387204   -7.9247666  0.045464975   -7.8793016 -8.1550579e+09 
+    2480     33.29083   -7.9228844  0.040483549   -7.8824009 -1.0016672e+10 
+    2490    30.189102   -7.9215578  0.036711672   -7.8848461 -1.1337691e+10 
+    2500    27.966635   -7.9207839  0.034009024   -7.8867749 -1.2208035e+10 
+    2510    26.532253   -7.9205556  0.032264735   -7.8882909 -1.2688508e+10 
+    2520    25.814262   -7.9208612  0.031391617   -7.8894696 -1.2819659e+10 
+    2530    25.754764   -7.9216817  0.031319264   -7.8903625 -1.2628399e+10 
+    2540     26.30297   -7.9229877  0.031985913   -7.8910017 -1.2133684e+10 
+    2550    27.406952    -7.924733  0.033328419   -7.8914046 -1.1352378e+10 
+    2560    29.003419   -7.9268483  0.035269814   -7.8915785 -1.0306018e+10 
+    2570    31.006255   -7.9292322  0.037705376   -7.8915269 -9.0285612e+09 
+    2580    33.297527   -7.9317467  0.040491694    -7.891255 -7.5737898e+09 
+    2590    35.729012   -7.9342236  0.043448518   -7.8907751 -6.0188037e+09 
+    2600    38.142414   -7.9364918  0.046383353   -7.8901085 -4.457771e+09 
+    2610    40.403415   -7.9384189  0.049132859   -7.8892861 -2.9818833e+09 
+    2620    42.427307   -7.9399413  0.051594028   -7.8883473 -1.65164e+09 
+    2630    44.181145   -7.9410643  0.053726795   -7.8873375 -4.7806007e+08 
+    2640    45.671758   -7.9418427  0.055539465   -7.8863033 5.7726315e+08 
+    2650    46.933461   -7.9423627  0.057073768    -7.885289 1.5895681e+09 
+    2660    48.018113   -7.9427276  0.058392767   -7.8843349 2.6555365e+09 
+    2670    48.985699   -7.9430468  0.059569407   -7.8834773 3.6162161e+09 
+    2680    49.895913   -7.9434265  0.060676278   -7.8827503 5.0017288e+09 
+    2690    50.802551   -7.9439656  0.061778802   -7.8821868 6.7252458e+09 
+    2700     51.75152   -7.9447546  0.062932803   -7.8818218 8.8791734e+09 
+    2710    52.781871   -7.9458802  0.064185769   -7.8816944 1.1558144e+10 
+    2720    53.928105   -7.9474305  0.065579654   -7.8818509 1.4859743e+10 
+    2730    55.220292   -7.9494998  0.067151028   -7.8823488 1.8875866e+10 
+    2740    56.674632   -7.9521816  0.068919589    -7.883262 2.3662411e+10 
+    2750    58.260718   -7.9555362  0.070848359   -7.8846879 2.9172047e+10 
+    2760    59.841214   -7.9595187  0.072770333   -7.8867484 3.5163076e+10 
+    2770    61.180009   -7.9639622  0.074398383   -7.8895638 4.1182817e+10 
+    2780    62.174863   -7.9687969  0.075608183   -7.8931887 4.6653831e+10 
+    2790    62.825308   -7.9740274  0.076399161   -7.8976283 5.0731894e+10 
+    2800     62.85255   -7.9792594   0.07643229   -7.9028271 5.2235163e+10 
+    2810    62.570534    -7.984618  0.076089342   -7.9085286 5.0949878e+10 
+    2820    63.149417   -7.9913294  0.076793296   -7.9145361 4.8303121e+10 
+    2830    65.210777   -8.0002211  0.079300027   -7.9209211 4.5520246e+10 
+    2840    68.369618   -8.0110199  0.083141359   -7.9278785 4.2756689e+10 
+    2850    71.584878    -8.022613  0.087051298   -7.9355617 3.9579975e+10 
+    2860     73.74222    -8.033625   0.08967475   -7.9439502 3.5660739e+10 
+    2870    74.334751    -8.043209  0.090395301   -7.9528137 3.1206012e+10 
+    2880    73.590486   -8.0513548  0.089490233   -7.9618646 2.6745185e+10 
+    2890    71.967921   -8.0584096  0.087517101   -7.9708925 2.2693315e+10 
+    2900    69.826311   -8.0646597  0.084912781   -7.9797469 1.9215092e+10 
+    2910    67.387375   -8.0702584  0.081946895   -7.9883115 1.6303187e+10 
+    2920    64.766191   -8.0752591  0.078759386   -7.9964997 1.3872182e+10 
+    2930     62.00049    -8.079644  0.075396135   -8.0042479 1.1800676e+10 
+    2940     59.07449   -8.0833438  0.071837953   -8.0115059 9.9406046e+09 
+    2950    55.941565   -8.0862571  0.068028137   -8.0182289 8.1268461e+09 
+    2960    52.551858    -8.088279  0.063906059    -8.024373 6.2092121e+09 
+    2970    48.889956   -8.0893473  0.059452978   -8.0298943 4.1040245e+09 
+    2980    45.011865   -8.0894928  0.054736998   -8.0347558 1.8290904e+09 
+    2990    41.049166   -8.0888579  0.049918129   -8.0389398 -5.1369942e+08 
+    3000    37.169163   -8.0876581  0.045199824   -8.0424583 -2.7937253e+09 
+    3010    33.526365   -8.0861212  0.040769974   -8.0453513 -4.9007462e+09 
+    3020    30.236768   -8.0844471  0.036769637   -8.0476775 -6.7658891e+09 
+    3030    27.374115   -8.0827924  0.033288486   -8.0495039 -8.3595385e+09 
+    3040    24.976901   -8.0812706  0.030373337   -8.0508973 -9.679081e+09 
+    3050    23.058855   -8.0799589  0.028040885    -8.051918 -1.073612e+10 
+    3060    21.619244   -8.0789064  0.026290235   -8.0526162 -1.1547173e+10 
+    3070    20.651294   -8.0781424  0.025113152   -8.0530293 -1.0973372e+10 
+    3080     20.14821   -8.0776831  0.024501374   -8.0531817 -1.1302203e+10 
+    3090    20.106869    -8.077536    0.0244511   -8.0530849 -1.1441528e+10 
+    3100    20.529369   -8.0777027  0.024964884   -8.0527378 -1.139461e+10 
+    3110    21.422531   -8.0781803  0.026051021   -8.0521293 -1.1161268e+10 
+    3120     22.79526    -8.078961  0.027720338   -8.0512406 -1.0739088e+10 
+    3130    24.653663   -8.0800302  0.029980262     -8.05005 -1.0125251e+10 
+    3140    26.994035   -8.0813641  0.032826288   -8.0485378 -9.3189682e+09 
+    3150    29.794323   -8.0829253  0.036231598   -8.0466937 -8.3243215e+09 
+    3160    33.005558   -8.0846594  0.040136643   -8.0445227 -7.1529871e+09 
+    3170    36.546008   -8.0864937  0.044442032   -8.0420516 -5.8259033e+09 
+    3180    40.301865   -8.0883427  0.049009368   -8.0393334 -4.3727078e+09 
+    3190    44.137295   -8.0901216  0.053673471   -8.0364481 -2.8280363e+09 
+    3200    47.912328   -8.0917658  0.058264126   -8.0335017 -1.2251893e+09 
+    3210    51.502105   -8.0932509    0.0626295   -8.0306214 4.0896419e+08 
+    3220    54.810065   -8.0946029  0.066652168   -8.0279507 2.0498784e+09 
+    3230    57.769114   -8.0958968  0.070250541   -8.0256462 3.6555657e+09 
+    3240    60.324362     -8.09724  0.073357869   -8.0238821 5.1392791e+09 
+    3250    62.394515   -8.0987373  0.075875293    -8.022862 6.3760791e+09 
+    3260    63.857501   -8.1004635  0.077654367   -8.0228091 7.3074178e+09 
+    3270    64.706008   -8.1025493    0.0786862   -8.0238631 8.0454068e+09 
+    3280     65.26795   -8.1053648  0.079369553   -8.0259952 8.7467507e+09 
+    3290    66.045519   -8.1094359  0.080315122   -8.0291208 9.5034773e+09 
+    3300    67.268657   -8.1150627  0.081802528   -8.0332602 1.0316723e+10 
+    3310     68.50272   -8.1218616  0.083303219   -8.0385584 1.1157254e+10 
+    3320    68.765472   -8.1286713  0.083622739   -8.0450486 1.1879368e+10 
+    3330    67.464179   -8.1344593  0.082040293    -8.052419 1.2096504e+10 
+    3340    65.691245   -8.1400035  0.079884305   -8.0601192 1.1914662e+10 
+    3350    66.409921   -8.1486208  0.080758255   -8.0678626 1.2531306e+10 
+    3360    72.150637   -8.1640771  0.087739293   -8.0763378 1.4933008e+10 
+    3370    83.003686   -8.1880776   0.10093722   -8.0871404 1.9221284e+10 
+    3380    96.339288   -8.2189813   0.11715407   -8.1018272 2.5439104e+10 
+    3390    108.78493   -8.2525841   0.13228869   -8.1202954 3.3191646e+10 
+    3400    117.70847   -8.2844259   0.14314021   -8.1412857 3.8996665e+10 
+    3410    120.09406   -8.3094074   0.14604123   -8.1633662 3.9194089e+10 
+    3420    114.70269   -8.3241672   0.13948502   -8.1846822 3.324292e+10 
+    3430    103.38471   -8.3294565   0.12572171   -8.2037348 2.2496298e+10 
+    3440    89.692239   -8.3288318   0.10907088   -8.2197609 1.4397218e+10 
+    3450    76.232059   -8.3255291  0.092702536   -8.2328266 7.5120176e+09 
+    3460    64.216018   -8.3213399  0.078090345   -8.2432496 2.0712576e+09 
+    3470    53.997068   -8.3170953  0.065663517   -8.2514318 -2.115915e+09 
+    3480    45.527264   -8.3131515  0.055363752   -8.2577878 -5.309751e+09 
+    3490    38.611354   -8.3096452  0.046953611   -8.2626916 -7.7397829e+09 
+    3500    33.022316    -8.306614  0.040157021    -8.266457 -9.5870671e+09 
+    3510    28.547922   -8.3040514  0.034715903   -8.2693355 -1.0988442e+10 
+    3520    25.006371   -8.3019326  0.030409175   -8.2715234 -1.2045556e+10 
+    3530    22.248932   -8.3002269  0.027055971   -8.2731709 -1.283342e+10 
+    3540    20.157661   -8.2989037  0.024512867   -8.2743908 -1.3407197e+10 
+    3550     18.64173   -8.2979346  0.022669408   -8.2752652 -1.3807246e+10 
+    3560    17.633784   -8.2972952  0.021443688   -8.2758515 -1.4062736e+10 
+    3570    17.086838   -8.2969653   0.02077857   -8.2761867 -1.4194202e+10 
+    3580    16.971749   -8.2969289  0.020638616   -8.2762903 -1.421533e+10 
+    3590    17.275068   -8.2971746  0.021007469   -8.2761671 -1.4134218e+10 
+    3600    17.996925   -8.2976949  0.021885288   -8.2758096 -1.3954299e+10 
+    3610    19.148551   -8.2984867  0.023285731    -8.275201 -1.367509e+10 
+    3620    20.749066   -8.2995503  0.025232048   -8.2743182 -1.3292877e+10 
+    3630    22.821299   -8.3008888  0.027752002   -8.2731368 -1.280142e+10 
+    3640    25.386649   -8.3025076  0.030871614    -8.271636 -1.2192699e+10 
+    3650    28.459079   -8.3044127  0.034607865   -8.2698048 -1.1457711e+10 
+    3660    32.038358   -8.3066091  0.038960472   -8.2676486 -1.0587314e+10 
+    3670    36.102494   -8.3090992  0.043902694   -8.2651965 -9.5731772e+09 
+    3680    40.599299   -8.3118806  0.049371066   -8.2625095 -8.4088728e+09 
+    3690    45.437249   -8.3149436  0.055254288   -8.2596893 -7.0911599e+09 
+    3700     50.47643   -8.3182689   0.06138222   -8.2568867 -5.6213954e+09 
+    3710    55.521408   -8.3218249  0.067517202   -8.2543077 -4.0068435e+09 
+    3720    60.319334   -8.3255656  0.073351754   -8.2522138 -2.2613846e+09 
+    3730    64.568452   -8.3294288  0.078518924   -8.2509099 -4.0477345e+08 
+    3740    67.943662   -8.3333364  0.082623372    -8.250713 1.5407544e+09 
+    3750     70.14469   -8.3371967  0.085299947   -8.2518968 3.5577192e+09 
+    3760    70.964257   -8.3409098  0.086296588   -8.2546132 5.6445714e+09 
+    3770    70.355473   -8.3443762  0.085556272   -8.2588199 7.8280481e+09 
+    3780    68.459088    -8.347506   0.08325016   -8.2642558 1.0170592e+10 
+    3790    65.559759   -8.3502244   0.07972441      -8.2705 1.2766907e+10 
+    3800     61.98608   -8.3524683  0.075378612   -8.2770897 1.4858864e+10 
+    3810     58.00789   -8.3541706  0.070540906   -8.2836297 1.8102368e+10 
+    3820    53.774947   -8.3552378  0.065393406   -8.2898444 2.185283e+10 
+    3830    49.309751   -8.3555409  0.059963473   -8.2955774 2.6084598e+10 
+    3840        44.54   -8.3549316  0.054163182   -8.3007684 3.0609907e+10 
+    3850    39.369526   -8.3532993  0.047875591   -8.3054237 3.5008827e+10 
+    3860    34.007618   -8.3509118  0.041355205   -8.3095566 3.8760781e+10 
+    3870    29.504885   -8.3490514  0.035879625   -8.3131718 4.1694218e+10 
+    3880    27.170882   -8.3494545  0.033041344   -8.3164131 4.4007269e+10 
+    3890    27.241347   -8.3526527  0.033127033   -8.3195257 4.551004e+10 
+    3900     29.00679   -8.3578355  0.035273913   -8.3225616 4.5509738e+10 
+    3910    32.027294   -8.3642759  0.038947018   -8.3253289 4.3753243e+10 
+    3920    36.215882   -8.3717766   0.04404058    -8.327736 4.0762117e+10 
+    3930    41.056651   -8.3798945  0.049927232   -8.3299672 3.7189711e+10 
+    3940     45.59874   -8.3877634  0.055450671   -8.3323127 3.3390678e+10 
+    3950    48.897272   -8.3944656  0.059461874   -8.3350037 2.9457126e+10 
+    3960    50.331184   -8.3993378  0.061205594   -8.3381322 2.5397565e+10 
+    3970    49.788619   -8.4021701  0.060545804   -8.3416243 2.1286717e+10 
+    3980    47.655111   -8.4032391  0.057951336   -8.3452877 1.7290622e+10 
+    3990    44.556629   -8.4030911  0.054183404   -8.3489077 1.3587359e+10 
+    4000    41.073846   -8.4022634  0.049948141   -8.3523153 1.0297214e+10 
+    4010    37.616335   -8.4011501  0.045743611   -8.3554064 7.4683144e+09 
+    4020    34.426785   -8.3999997  0.041864936   -8.3581347 5.0948845e+09 
+    4030    31.627428   -8.3989556  0.038460758   -8.3604949 3.1412899e+09 
+    4040    29.264482   -8.3980935   0.03558728   -8.3625062 1.5598828e+09 
+    4050     27.34008   -8.3974467  0.033247098   -8.3641996 3.0131204e+08 
+    4060     25.83289   -8.3970228  0.031414269   -8.3656085 -6.804212e+08 
+    4070    24.710885   -8.3968136  0.030049847   -8.3667637 -1.4258194e+09 
+    4080    23.939219   -8.3968026  0.029111457   -8.3676911 -1.9691261e+09 
+    4090    23.485241   -8.3969698  0.028559394   -8.3684104 -2.3381236e+09 
+    4100    23.321774   -8.3972961  0.028360608   -8.3689355 -2.5541618e+09 
+    4110     23.42913   -8.3977664  0.028491159   -8.3692753 -2.6324078e+09 
+    4120    23.795831   -8.3983715  0.028937089   -8.3694345 -2.5824984e+09 
+    4130    24.417752   -8.3991086   0.02969338   -8.3694152 -2.4098454e+09 
+    4140    25.295399   -8.3999794   0.03076065   -8.3692187 -2.1177981e+09 
+    4150    26.429222   -8.4009863  0.032139442   -8.3688469 -1.7107223e+09 
+    4160    27.813022   -8.4021269  0.033822223   -8.3683047 -1.1978093e+09 
+    4170    29.425847   -8.4033867   0.03578351   -8.3676032 -5.9698837e+08 
+    4180    31.223319   -8.4047318  0.037969339   -8.3667624     62436855 
+    4190    33.131081   -8.4061037  0.040289286   -8.3658144 7.4069226e+08 
+    4200    35.046293   -8.4074217  0.042618293   -8.3648034 1.3940101e+09 
+    4210    36.855586   -8.4086006  0.044818496   -8.3637821 1.9850414e+09 
+    4220    38.469917   -8.4095854  0.046781615   -8.3628038 2.4892135e+09 
+    4230    39.853582   -8.4103815  0.048464231   -8.3619173 2.8901439e+09 
+    4240    41.015356   -8.4110464  0.049877015   -8.3611694 3.1714597e+09 
+    4250    41.965638   -8.4116424  0.051032612   -8.3606098 3.3166269e+09 
+    4260    42.679134   -8.4121885  0.051900263   -8.3602882 3.3131097e+09 
+    4270    43.090682   -8.4126472   0.05240073   -8.3602465 3.1564105e+09 
+    4280    43.125866   -8.4129505  0.052443515   -8.3605069 2.8615077e+09 
+    4290    42.754989   -8.4130522  0.051992507   -8.3610597 2.4752689e+09 
+    4300    42.039379   -8.4129823  0.051122285     -8.36186 2.0602653e+09 
+    4310    41.123059   -8.4128564  0.050007987   -8.3628484 1.6597142e+09 
+    4320    40.169691   -8.4128271  0.048848637   -8.3639784 1.2974582e+09 
+    4330    39.306442   -8.4130212  0.047798877   -8.3652223 1.0017755e+09 
+    4340    38.609791   -8.4135147   0.04695171    -8.366563 8.0886638e+08 
+    4350    38.116727   -8.4143419  0.046352117   -8.3679898 7.5235908e+08 
+    4360    37.840885    -8.415516  0.046016676   -8.3694993 8.5748267e+08 
+    4370    37.791155   -8.4170516  0.045956202   -8.3710954 1.1436729e+09 
+    4380    38.002397   -8.4190034  0.046213084   -8.3727903 1.6367208e+09 
+    4390    38.585357   -8.4215296  0.046921997   -8.3746076 2.3936732e+09 
+    4400    39.784877   -8.4249761  0.048380681   -8.3765954 3.5387472e+09 
+    4410    42.012739   -8.4299448   0.05108989   -8.3788549 4.7285578e+09 
+    4420    45.806572   -8.4372957  0.055703407   -8.3815923 7.1130877e+09 
+    4430    51.653094   -8.4480072  0.062813111   -8.3851941 1.0527884e+10 
+    4440    59.583823   -8.4627576  0.072457331   -8.3903003 1.4816746e+10 
+    4450    68.524869   -8.4810313  0.083330152   -8.3977011 1.9155115e+10 
+    4460     76.24282   -8.5003938  0.092715622   -8.4076782 2.2104781e+10 
+    4470    80.603248   -8.5175562  0.098018151    -8.419538 2.2236519e+10 
+    4480    80.430232   -8.5299605  0.097807754   -8.4321527 1.9453226e+10 
+    4490    76.083289   -8.5368704  0.092521623   -8.4443488 1.4934576e+10 
+    4500    69.160593   -8.5394215  0.084103229   -8.4553183 1.0098319e+10 
+    4510    61.347548   -8.5393588   0.07460212   -8.4647567 5.7919391e+09 
+    4520     53.73837   -8.5380234  0.065348926   -8.4726744 2.2566693e+09 
+    4530    46.855002   -8.5361885  0.056978358   -8.4792102 -5.500498e+08 
+    4540    40.874334   -8.5342518  0.049705524   -8.4845463 -2.7484632e+09 
+    4550    35.802512   -8.5324101  0.043537898   -8.4888722 -4.459666e+09 
+    4560    31.572384   -8.5307577  0.038393821   -8.4923639 -5.7847003e+09 
+    4570     28.09242   -8.5293364  0.034161987   -8.4951744 -6.8026533e+09 
+    4580    25.269724    -8.528161  0.030729428   -8.4974316 -7.5740166e+09 
+    4590    23.019951   -8.5272322  0.027993575   -8.4992387 -8.144757e+09 
+    4600    21.270813   -8.5265439  0.025866523   -8.5006774 -8.5498134e+09 
+    4610    19.962528   -8.5260866  0.024275574    -8.501811 -8.8157969e+09 
+    4620    19.046816   -8.5258489  0.023162016   -8.5026869 -8.9629742e+09 
+    4630    18.485188   -8.5258183  0.022479043   -8.5033392 -9.0066681e+09 
+    4640    18.246765   -8.5259802  0.022189108   -8.5037911 -8.9582023e+09 
+    4650    18.305747   -8.5263174  0.022260834   -8.5040566 -8.8255456e+09 
+    4660    18.638676   -8.5268077  0.022665694    -8.504142 -8.6139316e+09 
+    4670    19.222053   -8.5274234  0.023375114   -8.5040483 -8.3269156e+09 
+    4680    20.031245   -8.5281316  0.024359138   -8.5037725 -7.96826e+09 
+    4690    21.041495   -8.5288972  0.025587659   -8.5033095 -7.5440933e+09 
+    4700    22.230556   -8.5296887  0.027033625    -8.502655 -7.0632623e+09 
+    4710    23.581135   -8.5304839  0.028676007   -8.5018079 -6.5342863e+09 
+    4720    25.081656   -8.5312732  0.030500726   -8.5007725 -5.9612326e+09 
+    4730    26.724824   -8.5320591  0.032498911   -8.4995602 -5.3427326e+09 
+    4740    28.503293   -8.5328523  0.034661632   -8.4981907 -4.6739525e+09 
+    4750    30.402363   -8.5336649  0.036971009   -8.4966939 -3.9480052e+09 
+    4760    32.391881    -8.534501  0.039390376   -8.4951106 -3.025195e+09 
+    4770      34.4203   -8.5353506   0.04185705   -8.4934936 -2.1963335e+09 
+    4780    36.412634    -8.536187  0.044279841   -8.4919071 -1.2945386e+09 
+    4790    38.273422   -8.5369679  0.046542666   -8.4904253 -3.2594701e+08 
+    4800    39.896523   -8.5376438  0.048516449   -8.4891274 6.9326961e+08 
+    4810    41.183591    -8.538172  0.050081598   -8.4880904 1.7401811e+09 
+    4820    42.069046   -8.5385371  0.051158361   -8.4873787 2.7925514e+09 
+    4830    42.540317   -8.5387692  0.051731454   -8.4870377 3.838219e+09 
+    4840    42.638768   -8.5389438  0.051851176   -8.4870926 4.8835604e+09 
+    4850    42.440442   -8.5391623  0.051610001   -8.4875523 5.9566156e+09 
+    4860    42.031641   -8.5395251  0.051112875   -8.4884122 7.1000245e+09 
+    4870    41.492199   -8.5401143  0.050456882   -8.4896575 8.3550796e+09 
+    4880    40.888379    -8.540989  0.049722603   -8.4912664 9.7430511e+09 
+    4890     40.27167   -8.5421874  0.048972649   -8.4932148 1.1247131e+10 
+    4900    39.678574   -8.5437293  0.048251412   -8.4954779 1.2794512e+10 
+    4910    39.126278    -8.545611  0.047579787   -8.4980312 1.4240059e+10 
+    4920    38.600648   -8.5477857  0.046940592   -8.5008451 1.5364559e+10 
+    4930    38.040847   -8.5501316  0.046259842   -8.5038717 1.591993e+10 
+    4940    37.349019   -8.5524407  0.045418539   -8.5070222 1.5741661e+10 
+    4950    36.460405   -8.5544952  0.044337934   -8.5101572 1.4846282e+10 
+    4960     35.40126   -8.5561982  0.043049953   -8.5131482 1.3408757e+10 
+    4970    34.242931   -8.5575858  0.041641359   -8.5159445 1.1678636e+10 
+    4980    33.045827   -8.5587333  0.040185613   -8.5185477 9.886767e+09 
+    4990    31.853101   -8.5597041  0.038735189   -8.5209689 8.1852167e+09 
+    5000    30.698226   -8.5605478  0.037330795    -8.523217 6.6499725e+09 
+    5010    29.608739   -8.5613039  0.036005917    -8.525298 5.3082777e+09 
+    5020    28.607312   -8.5620057  0.034788124   -8.5272176 4.1619443e+09 
+    5030    27.712246   -8.5626816  0.033699673   -8.5289819 3.2017361e+09 
+    5040       26.938    -8.563356  0.032758145   -8.5305979 2.3290671e+09 
+    5050    26.295762   -8.5640509  0.031977147   -8.5320737 1.7260084e+09 
+    5060    25.793972   -8.5647853  0.031366943   -8.5334184 1.2682175e+09 
+    5070     25.43877   -8.5655764  0.030934997   -8.5346414 9.4687291e+08 
+    5080    25.234342   -8.5664391  0.030686401   -8.5357527 7.5392703e+08 
+    5090    25.183093   -8.5673869  0.030624078   -8.5367628 6.8110073e+08 
+    5100    25.285407   -8.5684311  0.030748499   -8.5376826 7.1878784e+08 
+    5110    25.538653   -8.5695806   0.03105646   -8.5385242 8.550891e+08 
+    5120    25.934996   -8.5708393  0.031538436   -8.5393008 1.0753762e+09 
+    5130    26.457852   -8.5722023  0.032174258   -8.5400281 1.3629441e+09 
+    5140    27.077599   -8.5736513  0.032927906   -8.5407234 1.7009036e+09 
+    5150    27.749042   -8.5751501  0.033744419   -8.5414057 2.0740124e+09 
+    5160    28.414635   -8.5766461  0.034553819   -8.5420923 2.4679684e+09 
+    5170    29.015125   -8.5780811  0.035284049    -8.542797 2.8668235e+09 
+    5180     29.50276   -8.5794065  0.035877041   -8.5435295 3.2545459e+09 
+    5190    29.851368   -8.5805959  0.036300967    -8.544295 3.6204378e+09 
+    5200    30.061938   -8.5816515  0.036557032   -8.5450945 3.9575124e+09 
+    5210     30.15886   -8.5826022  0.036674895   -8.5459273 4.2569641e+09 
+    5220    30.173733   -8.5834884  0.036692982   -8.5467954 4.5131953e+09 
+    5230    30.128197   -8.5843402  0.036637608   -8.5477025 4.7305988e+09 
+    5240    30.026984   -8.5851659  0.036514526   -8.5486514 4.9170655e+09 
+    5250    29.858943   -8.5859522   0.03631018    -8.549642 5.0747579e+09 
+    5260    29.602168   -8.5866692  0.035997927   -8.5506713 5.2050028e+09 
+    5270     29.23877   -8.5872844  0.035556013   -8.5517283 5.3184423e+09 
+    5280    28.779514   -8.5877879  0.034997532   -8.5527903 5.4234907e+09 
+    5290     28.27098   -8.5882104  0.034379125   -8.5538312 5.5046725e+09 
+    5300    27.766189    -8.588602  0.033765272   -8.5548368 5.5347673e+09 
+    5310    27.289911   -8.5889916   0.03318609   -8.5558055 5.5031251e+09 
+    5320    26.829853   -8.5893655  0.032626633   -8.5567389 5.4194148e+09 
+    5330    26.351793   -8.5896784  0.032045284   -8.5576331 5.3018661e+09 
+    5340    25.828097   -8.5898836  0.031408441   -8.5584751 5.1673873e+09 
+    5350    25.264438   -8.5899676  0.030722999   -8.5592446 5.0274571e+09 
+    5360    24.704026   -8.5899647  0.030041506   -8.5599232 4.8914921e+09 
+    5370    24.208167   -8.5899409  0.029438513   -8.5605024 4.7747269e+09 
+    5380    23.835097   -8.5899669  0.028984839    -8.560982 4.7014598e+09 
+    5390     23.63117   -8.5901035  0.028736852   -8.5613667 4.7005425e+09 
+    5400    23.630958   -8.5903993  0.028736595   -8.5616627 4.7986515e+09 
+    5410    23.859292   -8.5908925  0.029014262   -8.5618782 5.0158056e+09 
+    5420    24.331983   -8.5916126  0.029589081   -8.5620236 5.3632322e+09 
+    5430    25.054551    -8.592581  0.030467765   -8.5621132 5.5546679e+09 
+    5440    26.019079   -8.5938083  0.031640685   -8.5621676 6.1260525e+09 
+    5450    27.199702   -8.5952918  0.033076391   -8.5622154 6.7939584e+09 
+    5460    28.548355   -8.5970112  0.034716429   -8.5622948 7.5300647e+09 
+    5470    29.994563    -8.598928  0.036475101   -8.5624529 8.2993624e+09 
+    5480    31.454291   -8.6009912  0.038250214    -8.562741 9.0584161e+09 
+    5490     32.84756   -8.6031531  0.039944508   -8.5632086 9.7482327e+09 
+    5500    34.113898   -8.6053854  0.041484448   -8.5639009 1.0294728e+10 
+    5510    35.215067   -8.6076832  0.042823532   -8.5648596 1.0628558e+10 
+    5520    36.126923   -8.6100531  0.043932401   -8.5661207 1.070857e+10 
+    5530    36.824632   -8.6124931  0.044780855   -8.5677123 1.0532037e+10 
+    5540    37.267709    -8.614969  0.045319661   -8.5696493 1.0135301e+10 
+    5550    37.403343   -8.6174038  0.045484601   -8.5719192 9.5838822e+09 
+    5560      37.1967   -8.6197044  0.045233311   -8.5744711 8.9487148e+09 
+    5570    36.664922     -8.62181  0.044586638   -8.5772233 8.2823055e+09 
+    5580    35.881651   -8.6237227  0.043634136   -8.5800885 7.6153173e+09 
+    5590    34.949762   -8.6254962  0.042500906   -8.5829953 6.9737013e+09 
+    5600    33.970417   -8.6272028  0.041309967   -8.5858929 6.3893934e+09 
+    5610    33.026648   -8.6289097  0.040162289   -8.5887474 5.8928819e+09 
+    5620    32.178245   -8.6306702  0.039130584   -8.5915396 5.5024845e+09 
+    5630    31.460754   -8.6325212  0.038258074   -8.5942631 5.2195779e+09 
+    5640    30.885189   -8.6344804  0.037558154   -8.5969222 5.0287484e+09 
+    5650    30.437248   -8.6365414  0.037013432    -8.599528 4.9021821e+09 
+    5660    30.076288   -8.6386686  0.036574483   -8.6020942 4.8109699e+09 
+    5670    29.738627   -8.6407938  0.036163869     -8.60463 4.7441968e+09 
+    5680    29.356199   -8.6428287  0.035698813   -8.6071299 4.723525e+09 
+    5690    28.894577   -8.6447048  0.035137455   -8.6095673 4.7890611e+09 
+    5700    28.381332   -8.6464213   0.03451332    -8.611908 4.959281e+09 
+    5710    27.887091   -8.6480476  0.033912295   -8.6141353 5.2122312e+09 
+    5720     27.47775   -8.6496747  0.033414512   -8.6162602 5.5046807e+09 
+    5730    27.183923   -8.6513655  0.033057203   -8.6183083 5.7896409e+09 
+    5740    26.995504    -8.653136  0.032828074   -8.6203079 6.0144074e+09 
+    5750    26.863443   -8.6549514   0.03266748    -8.622284 6.1179664e+09 
+    5760    26.698353    -8.656721  0.032466722   -8.6242542 6.0446612e+09 
+    5770    26.375175   -8.6582944  0.032073719   -8.6262206 5.7727801e+09 
+    5780    25.775187   -8.6594935  0.031344099   -8.6281494 5.3301138e+09 
+    5790    24.871486    -8.660208  0.030245147   -8.6299629 4.4921329e+09 
+    5800    23.762332   -8.6604797  0.028896352   -8.6315834 3.8731168e+09 
+    5810    22.594859   -8.6604606  0.027476639    -8.632984 3.2065207e+09 
+    5820    21.486914   -8.6603072  0.026129314   -8.6341779 2.542284e+09 
+    5830    20.510681     -8.66013   0.02494216   -8.6351878 1.9234189e+09 
+    5840    19.705191    -8.659997  0.023962637   -8.6360343 1.3758103e+09 
+    5850    19.089681   -8.6599483  0.023214141   -8.6367341 9.106515e+08 
+    5860     18.67204   -8.6600069  0.022706267   -8.6373007 5.2985676e+08 
+    5870    18.453377   -8.6601852  0.022440359   -8.6377448 2.3041276e+08 
+    5880     18.43029   -8.6604873  0.022412285    -8.638075    7195883.2 
+    5890    18.595979   -8.6609118  0.022613772    -8.638298 -1.4535777e+08 
+    5900       18.941   -8.6614523  0.023033337    -8.638419 -2.3235619e+08 
+    5910     19.45423   -8.6620999  0.023657454   -8.6384424 -2.5809886e+08 
+    5920    20.124182    -8.662845  0.024472155   -8.6383728 -2.2608505e+08 
+    5930    20.940207   -8.6636809  0.025464487   -8.6382164 -1.3912765e+08 
+    5940     21.89275    -8.664605  0.026622834   -8.6379822    781922.54 
+    5950    22.972177   -8.6656197  0.027935478   -8.6376842 1.931762e+08 
+    5960    24.166481   -8.6667304   0.02938782   -8.6373426 4.4039916e+08 
+    5970    25.458925   -8.6679441  0.030959506   -8.6369846 7.4894066e+08 
+    5980    26.826792   -8.6692682  0.032622911   -8.6366453 1.1296725e+09 
+    5990    28.241992   -8.6707111  0.034343874   -8.6363672 1.5956115e+09 
+    6000    29.673259   -8.6722855  0.036084377   -8.6362011 2.1565719e+09 
+    6010     31.08836   -8.6740115  0.037805221   -8.6362063 2.8119136e+09 
+    6020    32.453719   -8.6759175  0.039465575   -8.6364519 3.5444044e+09 
+    6030    33.728241   -8.6780336  0.041015467   -8.6370181 4.3187403e+09 
+    6040    34.847342   -8.6803717  0.042376358   -8.6379954 5.0881306e+09 
+    6050    35.699441   -8.6828883  0.043412558   -8.6394757 5.8107111e+09 
+    6060    36.134691    -8.685457  0.043941847   -8.6415152 6.4642588e+09 
+    6070    36.085262   -8.6879455  0.043881739   -8.6440638 7.0272241e+09 
+    6080    35.713942   -8.6903996  0.043430192   -8.6469694 7.4616782e+09 
+    6090    35.346389   -8.6930852  0.042983227    -8.650102 7.789332e+09 
+    6100    35.298622   -8.6963391  0.042925139   -8.6534139 8.106649e+09 
+    6110    35.798259   -8.7004623  0.043532726   -8.6569296 8.4799978e+09 
+    6120    36.938221   -8.7056623  0.044918985   -8.6607433 8.8987341e+09 
+    6130    38.600695   -8.7119411  0.046940649   -8.6650005 8.8634485e+09 
+    6140    40.437358   -8.7189832  0.049174136   -8.6698091 9.2775287e+09 
+    6150    42.099582   -8.7263092  0.051195495   -8.6751137 9.7396764e+09 
+    6160    43.497894   -8.7336534  0.052895923   -8.6807575 1.0213115e+10 
+    6170    44.627083   -8.7409405  0.054269081   -8.6866714 1.0552001e+10 
+    6180    45.289109   -8.7479294  0.055074142   -8.6928552 1.055286e+10 
+    6190    45.079236   -8.7540636  0.054818925   -8.6992447 1.0084563e+10 
+    6200    43.714508   -8.7587346  0.053159337   -8.7055753 9.1967581e+09 
+    6210    41.359832    -8.761787  0.050295917   -8.7114911 7.9637563e+09 
+    6220    38.383562   -8.7634891  0.046676603   -8.7168125 6.4976177e+09 
+    6230    35.134756   -8.7642058  0.042725869     -8.72148 4.9677833e+09 
+    6240    31.894666   -8.7642854  0.038785735   -8.7254997 3.4903573e+09 
+    6250    28.833666   -8.7639921  0.035063384   -8.7289287 2.1300443e+09 
+    6260    26.029463   -8.7634881  0.031653313   -8.7318348 9.1699067e+08 
+    6270    23.508288   -8.7628682  0.028587421   -8.7342808 -1.4355455e+08 
+    6280    21.273283   -8.7621929  0.025869527   -8.7363234 -1.0598547e+09 
+    6290    19.319009    -8.761507  0.023493018    -8.738014 -1.8459821e+09 
+    6300    17.637199   -8.7608472  0.021447841   -8.7393993 -2.5173557e+09 
+    6310    16.218185   -8.7602441  0.019722238   -8.7405218 -3.087929e+09 
+    6320    15.051179   -8.7597217  0.018303093   -8.7414186 -3.5688554e+09 
+    6330     14.12486   -8.7592975  0.017176636   -8.7421209 -3.9684548e+09 
+    6340     13.42838   -8.7589834  0.016329677   -8.7426537 -4.2928061e+09 
+    6350    12.952481   -8.7587869  0.015750957   -8.7430359 -4.5463451e+09 
+    6360    12.690441   -8.7587129  0.015432301   -8.7432806 -4.7322305e+09 
+    6370    12.638743   -8.7587647  0.015369433   -8.7433953 -4.8524958e+09 
+    6380    12.797403   -8.7589453  0.015562373    -8.743383 -4.9080721e+09 
+    6390    13.169891   -8.7592578   0.01601534   -8.7432425 -4.8987542e+09 
+    6400    13.762571   -8.7597061  0.016736072   -8.7429701 -4.8231524e+09 
+    6410    14.583591   -8.7602949  0.017734479   -8.7425604 -4.6786684e+09 
+    6420    15.641192   -8.7610294  0.019020582   -8.7420089 -4.4615209e+09 
+    6430    16.941433   -8.7619156  0.020601749   -8.7413139 -4.1668482e+09 
+    6440    18.485415   -8.7629591  0.022479321   -8.7404797 -3.7888973e+09 
+    6450    20.266077   -8.7641646  0.024644707   -8.7395199 -3.3212955e+09 
+    6460     22.26467   -8.7655356   0.02707511   -8.7384605 -2.7573813e+09 
+    6470    24.447101   -8.7670735   0.02972907   -8.7373444 -2.090545e+09 
+    6480     26.76047   -8.7687773   0.03254226   -8.7362351 -1.3144862e+09 
+    6490    29.130506   -8.7706439  0.035424358   -8.7352195 -4.2323097e+08 
+    6500    31.461102   -8.7726683  0.038258496   -8.7344098 5.8932199e+08 
+    6510    33.637902   -8.7748467  0.040905609   -8.7339411 1.7306099e+09 
+    6520     35.53846   -8.7771797  0.043216796   -8.7339629 3.0116178e+09 
+    6530    37.051427   -8.7796791   0.04505665   -8.7346224 4.449982e+09 
+    6540     38.10535   -8.7823774  0.046338281   -8.7360391 6.0723036e+09 
+    6550    38.703045   -8.7853415  0.047065112   -8.7382764 7.9093062e+09 
+    6560    38.948872   -8.7886915  0.047364053   -8.7413275 9.9704489e+09 
+    6570    39.040174   -8.7926101  0.047475081    -8.745135 1.218991e+10 
+    6580    39.179914   -8.7972884  0.047645013   -8.7496434 1.4373775e+10 
+    6590    39.440295   -8.8027682   0.04796165   -8.7548066 1.6213872e+10 
+    6600    39.814664   -8.8088875  0.048416905   -8.7604706 1.6515745e+10 
+    6610    40.380393   -8.8154877  0.049104863   -8.7663828 1.6784458e+10 
+    6620    41.084546   -8.8223618  0.049961153   -8.7724006 1.6275467e+10 
+    6630    41.632682   -8.8290843  0.050627719   -8.7784566 1.5172018e+10 
+    6640    41.701131     -8.83518  0.050710955    -8.784469 1.3646996e+10 
+    6650    41.112164   -8.8403375  0.049994738   -8.7903428 1.1861117e+10 
+    6660    39.858165   -8.8444556  0.048469804   -8.7959858 9.9612719e+09 
+    6670    38.045132   -8.8475784  0.046265052   -8.8013134 8.0651032e+09 
+    6680    35.829935   -8.8498241  0.043571247   -8.8062528 6.2528953e+09 
+    6690    33.376719   -8.8513396  0.040587996   -8.8107516 4.572135e+09 
+    6700    30.832887   -8.8522767  0.037494551   -8.8147821 3.0477974e+09 
+    6710    28.319401   -8.8527798  0.034438009   -8.8183418 1.6908731e+09 
+    6720    25.929432     -8.85298   0.03153167   -8.8214484 5.0289457e+08 
+    6730     23.73054   -8.8529923  0.028857691   -8.8241346 -5.2166809e+08 
+    6740    21.767873   -8.8529135  0.026470977   -8.8264425 -1.3930002e+09 
+    6750    20.067826    -8.852822  0.024403622   -8.8284184 -2.1232794e+09 
+    6760    18.642099   -8.8527785  0.022669856   -8.8301086 -2.7245473e+09 
+    6770    17.491832    -8.852828  0.021271066   -8.8315569 -3.2074965e+09 
+    6780    16.611291   -8.8530029  0.020200278   -8.8328027 -3.5809279e+09 
+    6790    15.990748   -8.8533259  0.019445662   -8.8338802 -3.8515072e+09 
+    6800    15.618484   -8.8538119  0.018992969   -8.8348189 -4.0235987e+09 
+    6810    15.482015   -8.8544705  0.018827014   -8.8356435 -4.0991102e+09 
+    6820     15.56867   -8.8553074  0.018932391    -8.836375 -4.077361e+09 
+    6830    15.865658   -8.8563254  0.019293546   -8.8370318 -3.9550301e+09 
+    6840    16.359594   -8.8575253    0.0198942   -8.8376311 -3.7262952e+09 
+    6850    17.035344   -8.8589062  0.020715951   -8.8381902 -3.3833301e+09 
+    6860    17.873926   -8.8604645  0.021735714   -8.8387288 -2.9174184e+09 
+    6870    18.849069   -8.8621919  0.022921544   -8.8392704 -2.3210736e+09 
+    6880    19.922159    -8.864071  0.024226483   -8.8398445 -1.5917716e+09 
+    6890    21.035433   -8.8660674  0.025580287   -8.8404871 -7.3810566e+08 
+    6900    22.103771     -8.86812  0.026879447   -8.8412406 2.1104911e+08 
+    6910    23.006493   -8.8701267  0.027977209   -8.8421495 1.1955678e+09 
+    6920    23.584103   -8.8719314  0.028679615   -8.8432518 2.1184268e+09 
+    6930    23.657354   -8.8733297  0.028768693    -8.844561 2.862986e+09 
+    6940    23.108354   -8.8741367  0.028101078   -8.8460356 3.3435866e+09 
+    6950     22.01015   -8.8743299  0.026765599   -8.8475643 3.5467102e+09 
+    6960    20.620025   -8.8741049  0.025075128   -8.8490298 3.5242172e+09 
+    6970    19.203424    -8.873727  0.023352459   -8.8503745 3.2737635e+09 
+    6980    17.931384   -8.8733893  0.021805586   -8.8515837 3.0916146e+09 
+    6990    16.893089   -8.8732016  0.020542961   -8.8526586 2.9406351e+09 
+    7000    16.129421   -8.8732237  0.019614297   -8.8536094 2.8527453e+09 
+    7010    15.653955   -8.8734883  0.019036103   -8.8544522 2.8381689e+09 
+    7020    15.463421   -8.8740108  0.018804403   -8.8552063 2.8948632e+09 
+    7030    15.542517   -8.8747929  0.018900588   -8.8558923 3.0141336e+09 
+    7040     15.86609   -8.8758249  0.019294071   -8.8565309 3.183501e+09 
+    7050    16.400577   -8.8770867  0.019944038   -8.8571427 3.3883369e+09 
+    7060    17.105901   -8.8785507  0.020801753   -8.8577489 3.6133599e+09 
+    7070    17.938191   -8.8801853  0.021813864   -8.8583714 3.8444592e+09 
+    7080    18.852831     -8.88196  0.022926119   -8.8590339 4.0706592e+09 
+    7090    19.806906   -8.8838487  0.024086328   -8.8597624 4.2854504e+09 
+    7100    20.760374    -8.885831    0.0252458   -8.8605852 4.4863682e+09 
+    7110    21.675744   -8.8878916  0.026358942   -8.8615326 4.6720064e+09 
+    7120    22.516089   -8.8900154   0.02738085   -8.8626346 4.8367845e+09 
+    7130    23.241627   -8.8921805  0.028263146   -8.8639173 4.965089e+09 
+    7140    23.805932   -8.8943484  0.028949372    -8.865399 5.0272102e+09 
+    7150    24.153647   -8.8964556  0.029372213   -8.8670834 4.9802335e+09 
+    7160    24.223239   -8.8984107  0.029456842   -8.8689539 4.7776744e+09 
+    7170      23.9627   -8.9001066  0.029140011   -8.8709666 4.3886401e+09 
+    7180     23.36377     -8.90146  0.028411678   -8.8730483 3.8172867e+09 
+    7190    22.492131   -8.9024629  0.027351715   -8.8751112 3.1072907e+09 
+    7200    21.472816   -8.9031955   0.02611217   -8.8770833 2.3291686e+09 
+    7210    20.441328   -8.9037843  0.024857822   -8.8789265 1.5601222e+09 
+    7220    19.507984    -8.904354  0.023722823   -8.8806311 8.6508883e+08 
+    7230    18.748385   -8.9050045  0.022799107   -8.8822054 2.8742115e+08 
+    7240    18.206436   -8.9058082  0.022140065   -8.8836681 -1.5035805e+08 
+    7250    17.899675   -8.9068113  0.021767027   -8.8850443 -4.4223057e+08 
+    7260    17.823304   -8.9080361  0.021674155   -8.8863619 -5.9548779e+08 
+    7270    17.951733   -8.9094805  0.021830332   -8.8876502 -6.2971387e+08 
+    7280    18.237218   -8.9111157  0.022177499   -8.8889382 -5.7663866e+08 
+    7290    18.606919   -8.9128799  0.022627076   -8.8902528 -4.7776468e+08 
+    7300    18.966429   -8.9146781   0.02306426   -8.8916139 -3.7590591e+08 
+    7310    19.227292   -8.9164062  0.023381485   -8.8930247 -3.0050458e+08 
+    7320    19.358864   -8.9180091  0.023541484   -8.8944677 -2.5466672e+08 
+    7330    19.410433   -8.9195253  0.023604195   -8.8959211 -2.0712282e+08 
+    7340    19.465861   -8.9210522  0.023671598   -8.8973806 -1.2573154e+08 
+    7350    19.584814   -8.9226751  0.023816253   -8.8988589     36407708 
+    7360    19.778711   -8.9244273  0.024052042   -8.9003753 2.9402421e+08 
+    7370    20.010334    -8.926283  0.024333709   -8.9019493 6.224658e+08 
+    7380    20.196056   -8.9281565  0.024559558    -8.903597 9.5409528e+08 
+    7390    20.205857   -8.9298963  0.024571476   -8.9053248 1.1914845e+09 
+    7400    19.889408   -8.9313004  0.024186656   -8.9071137 1.2499932e+09 
+    7410    19.181169   -8.9322165  0.023325397   -8.9088911 1.1082318e+09 
+    7420    18.199282   -8.9326846  0.022131366   -8.9105532 8.0895849e+08 
+    7430    17.156696   -8.9329091  0.020863522   -8.9120456 4.2873116e+08 
+    7440    16.218226   -8.9330935  0.019722289   -8.9133712     50322834 
+    7450    15.470719   -8.9333654  0.018813278   -8.9145521 -2.6534172e+08 
+    7460    14.948406   -8.9337913  0.018178115   -8.9156132 -4.8556776e+08 
+    7470    14.655387   -8.9344016  0.017821787   -8.9165798 -5.9705397e+08 
+    7480    14.578308   -8.9352047  0.017728055   -8.9174767 -5.9714005e+08 
+    7490    14.692868   -8.9361945  0.017867366   -8.9183271 -4.8900453e+08 
+    7500    14.966689   -8.9373536  0.018200349   -8.9191533 -2.8018355e+08 
+    7510    15.359857   -8.9386552  0.018678463   -8.9199767     16611376 
+    7520    15.823869   -8.9400613  0.019242728   -8.9208186 3.8134748e+08 
+    7530    16.299955    -8.941521  0.019821676   -8.9216993 7.8465485e+08 
+    7540    16.719586   -8.9429683  0.020331971   -8.9226363 1.1884884e+09 
+    7550    17.014407   -8.9443292  0.020690491   -8.9236387 1.5525064e+09 
+    7560    17.143307   -8.9455467   0.02084724   -8.9246995 1.8463512e+09 
+    7570    17.124588   -8.9466199  0.020824476   -8.9257955 2.0619951e+09 
+    7580    17.036566   -8.9476199  0.020717436   -8.9269024 2.2178644e+09 
+    7590    16.978434   -8.9486582  0.020646745   -8.9280115 2.3499225e+09 
+    7600    17.029623   -8.9498396  0.020708993   -8.9291306 2.4930165e+09 
+    7610    17.230381   -8.9512325  0.020953127   -8.9302793 2.6649055e+09 
+    7620    17.575058   -8.9528573  0.021372274    -8.931485 2.8622211e+09 
+    7630    18.012557   -8.9546816  0.021904298   -8.9327774 3.0693136e+09 
+    7640    18.470192   -8.9566365  0.022460808   -8.9341757 3.2744728e+09 
+    7650      18.9106   -8.9586719  0.022996369   -8.9356756 3.4768451e+09 
+    7660     19.36033   -8.9608078  0.023543267   -8.9372645 3.6736272e+09 
+    7670    19.849989   -8.9630923  0.024138719   -8.9389535 3.8430019e+09 
+    7680    20.332787   -8.9655003   0.02472583   -8.9407745 3.9334743e+09 
+    7690    20.668786   -8.9678816  0.025134424   -8.9427472 3.8774265e+09 
+    7700    20.722359    -8.970037  0.025199571   -8.9448375 3.6434038e+09 
+    7710    20.512357   -8.9719022  0.024944197    -8.946958 3.2055618e+09 
+    7720    20.183345   -8.9735914  0.024544099   -8.9490473 2.7920057e+09 
+    7730    19.843449   -8.9752301  0.024130767   -8.9510993 2.4083214e+09 
+    7740    19.506229   -8.9768442  0.023720688   -8.9531235 2.0902994e+09 
+    7750    19.122393   -8.9783739  0.023253921     -8.95512 1.8229844e+09 
+    7760    18.613632   -8.9797124  0.022635239   -8.9570772 1.555593e+09 
+    7770    17.891422   -8.9807274  0.021756991   -8.9589704 1.2244171e+09 
+    7780    16.889311   -8.9812944  0.020538366    -8.960756 7.8130965e+08 
+    7790    15.620268   -8.9813676  0.018995138   -8.9623724 2.2169973e+08 
+    7800    14.194885   -8.9810279   0.01726179   -8.9637661 -4.1009219e+08 
+    7810    12.758239   -8.9804342  0.015514748   -8.9649194 -1.0475289e+09 
+    7820    11.424669   -8.9797392   0.01389305   -8.9658461 -1.6334093e+09 
+    7830    10.265251   -8.9790557  0.012483131   -8.9665726 -2.1324024e+09 
+    7840    9.3206178   -8.9784627  0.011334403   -8.9671283 -2.5277751e+09 
+    7850    8.6125479   -8.9780154   0.01047335   -8.9675421 -2.8139911e+09 
+    7860    8.1506139   -8.9777511 0.0099116118   -8.9678395 -2.9909626e+09 
+    7870    7.9364449   -8.9776923   0.00965117   -8.9680412 -3.060801e+09 
+    7880    7.9666995   -8.9778498 0.0096879614   -8.9681618 -3.0263785e+09 
+    7890    8.2346041   -8.9782246  0.010013749   -8.9682109 -2.8910117e+09 
+    7900    8.7297512   -8.9788096  0.010615876   -8.9681937 -2.6589084e+09 
+    7910    9.4360636    -8.979589  0.011474792   -8.9681142 -2.3362042e+09 
+    7920    10.328174   -8.9805372  0.012559649   -8.9679775 -1.9323314e+09 
+    7930    11.367223   -8.9816171  0.013823192   -8.9677939 -1.4611459e+09 
+    7940     12.49862   -8.9827801  0.015199036   -8.9675811 -9.4086943e+08 
+    7950    13.656144   -8.9839712  0.016606651   -8.9673645 -3.9202051e+08 
+    7960    14.775604   -8.9851436  0.017967978   -8.9671757 1.6642609e+08 
+    7970     15.81298   -8.9862789  0.019229487   -8.9670494 7.2127367e+08 
+    7980    16.752858   -8.9873975  0.020372431   -8.9670251 1.2683639e+09 
+    7990     17.59931     -8.98855  0.021401765   -8.9671483 1.813457e+09 
+    8000    18.358299   -8.9897946  0.022324739   -8.9674698 2.3693406e+09 
+    8010      19.0254   -8.9911771  0.023135972   -8.9680411 2.950051e+09 
+    8020    19.584849    -8.992722  0.023816295   -8.9689058 3.5644595e+09 
+    8030    20.017553   -8.9944336  0.024342487   -8.9700911 4.2099062e+09 
+    8040    20.308929   -8.9962984  0.024696817   -8.9716016 4.8657677e+09 
+    8050    20.446872   -8.9982819  0.024864564   -8.9734173 5.4882119e+09 
+    8060    20.411821   -9.0003169  0.024821939    -8.975495 6.0097127e+09 
+    8070    20.174407   -9.0023006  0.024533231   -8.9777673 6.3500397e+09 
+    8080    19.715561   -9.0041185  0.023975248   -8.9801432 6.4439325e+09 
+    8090    19.063531   -9.0056994  0.023182342    -8.982517 6.2750287e+09 
+    8100    18.308094   -9.0070595  0.022263688   -8.9847958 5.8877949e+09 
+    8110    17.560681   -9.0082836  0.021354791   -8.9869289 5.2452471e+09 
+    8120    16.900021   -9.0094616   0.02055139   -8.9889103 4.6704434e+09 
+    8130     16.35444   -9.0106456  0.019887933   -8.9907576 4.0827281e+09 
+    8140    15.915956   -9.0118487  0.019354711    -8.992494 3.5054799e+09 
+    8150    15.561125   -9.0130627  0.018923216   -8.9941395 2.9493662e+09 
+    8160    15.266934   -9.0142745  0.018565463   -8.9957091 2.4227793e+09 
+    8170    15.020184   -9.0154789  0.018265402   -8.9972135 1.9369914e+09 
+    8180    14.820685   -9.0166842  0.018022799   -8.9986614 1.5065792e+09 
+    8190     14.67847   -9.0179123  0.017849858   -9.0000624 1.1469875e+09 
+    8200    14.606595   -9.0191914  0.017762454   -9.0014289 8.7102938e+08 
+    8210    14.612549   -9.0205462  0.017769694   -9.0027765 6.8551233e+08 
+    8220    14.691075   -9.0219882  0.017865186    -9.004123 5.8851569e+08 
+    8230    14.819498   -9.0235073  0.018021356   -9.0054859 5.6745031e+08 
+    8240    14.955498    -9.025067  0.018186739   -9.0068803 5.9815923e+08 
+    8250    15.038097   -9.0266012  0.018287185    -9.008314 6.4610982e+08 
+    8260    14.996164   -9.0280195  0.018236192   -9.0097834 6.7177001e+08 
+    8270    14.771077   -9.0292293  0.017962473   -9.0112669 6.4157055e+08 
+    8280    14.349005   -9.0301755  0.017449209   -9.0127263 5.4075689e+08 
+    8290    13.774531   -9.0308699  0.016750617   -9.0141193 3.7856879e+08 
+    8300    13.126078   -9.0313787   0.01596206   -9.0154166 1.8083621e+08 
+    8310    12.478416   -9.0317816  0.015174467   -9.0166071    -22776413 
+    8320    11.883693   -9.0321439  0.014451249   -9.0176927 -2.0753782e+08 
+    8330    11.371559     -9.03251  0.013828465   -9.0186815 -3.5628387e+08 
+    8340     10.95594    -9.032908  0.013323048   -9.0195849 -4.5851577e+08 
+    8350    10.641134   -9.0333553  0.012940227   -9.0204151 -5.086012e+08 
+    8360    10.425566   -9.0338629  0.012678084   -9.0211848 -5.0431573e+08 
+    8370    10.303512   -9.0344362  0.012529659   -9.0219066 -4.4601836e+08 
+    8380    10.265443   -9.0350759  0.012483364   -9.0225925 -3.3639256e+08 
+    8390    10.297507    -9.035777  0.012522356   -9.0232547 -1.8055434e+08 
+    8400    10.380695   -9.0365278  0.012623517   -9.0239043     13800538 
+    8410    10.490608   -9.0373088  0.012757179   -9.0245516 2.3667173e+08 
+    8420    10.599535   -9.0380941   0.01288964   -9.0252044 4.7688578e+08 
+    8430     10.68287   -9.0388573   0.01299098   -9.0258663 7.2422432e+08 
+    8440    10.729546   -9.0395839  0.013047741   -9.0265361 9.7230041e+08 
+    8450    10.750355   -9.0402828  0.013073045   -9.0272097 1.2213648e+09 
+    8460    10.775994   -9.0409889  0.013104224   -9.0278846 1.479236e+09 
+    8470      10.8447   -9.0417517  0.013187775    -9.028564 1.7585869e+09 
+    8480    10.987923   -9.0426195  0.013361942   -9.0292576 2.0288894e+09 
+    8490    11.220768   -9.0436263  0.013645095   -9.0299812 2.3719852e+09 
+    8500    11.537739   -9.0447849  0.014030549   -9.0307544 2.744805e+09 
+    8510    11.912024   -9.0460841  0.014485702   -9.0315984 3.1266028e+09 
+    8520    12.298214   -9.0474876  0.014955331   -9.0325323 3.4843512e+09 
+    8530     12.64095   -9.0489394  0.015372117   -9.0335673 3.7783368e+09 
+    8540    12.892042   -9.0503781  0.015677459   -9.0347007 3.9724664e+09 
+    8550    13.031268    -9.051761  0.015846766   -9.0359142 4.0465704e+09 
+    8560     13.07578   -9.0530818  0.015900895   -9.0371809 4.0040225e+09 
+    8570    13.068314   -9.0543686  0.015891816   -9.0384768  3.86876e+09 
+    8580    13.054669   -9.0556631  0.015875223   -9.0397879 3.6735773e+09 
+    8590    13.067371   -9.0570009  0.015890669   -9.0411102 3.4480865e+09 
+    8600    13.120857   -9.0584026  0.015955711   -9.0424469 3.2126649e+09 
+    8610    13.214458   -9.0598738  0.016069535   -9.0438042 2.9788546e+09 
+    8620    13.338868   -9.0614098  0.016220825    -9.045189 2.7536035e+09 
+    8630     13.48376   -9.0630036  0.016397022   -9.0466066 2.5443753e+09 
+    8640     13.64463   -9.0646534   0.01659265   -9.0480608 2.3625772e+09 
+    8650    13.826053   -9.0663682  0.016813269   -9.0495549 2.2238286e+09 
+    8660     14.03884   -9.0681668  0.017072031   -9.0510948 2.1452764e+09 
+    8670    14.291877   -9.0700697  0.017379738     -9.05269 2.1411767e+09 
+    8680    14.582693   -9.0720871  0.017733387   -9.0543537 2.2174938e+09 
+    8690    14.890647   -9.0742075  0.018107877   -9.0560996 2.365465e+09 
+    8700     15.17342   -9.0763897  0.018451745   -9.0579379 2.5545386e+09 
+    8710    15.364368   -9.0785546  0.018683949   -9.0598707 2.7272952e+09 
+    8720    15.368947   -9.0805755  0.018689517   -9.0618859 2.803306e+09 
+    8730     15.07418   -9.0822776  0.018331064   -9.0639465 2.7035536e+09 
+    8740    14.412769   -9.0834976  0.017526749   -9.0659709 2.3947182e+09 
+    8750    13.460884   -9.0842127  0.016369204   -9.0678434 1.9132148e+09 
+    8760    12.413652   -9.0845842  0.015095709   -9.0694885 1.3410788e+09 
+    8770    11.453065   -9.0848331  0.013927581   -9.0709055 7.6601412e+08 
+    8780    10.688388   -9.0851297   0.01299769   -9.0721321 2.5265435e+08 
+    8790    10.172365   -9.0855844  0.012370177   -9.0732142 -1.5995307e+08 
+    8800    9.9267135   -9.0862697   0.01207145   -9.0741982 -4.5457518e+08 
+    8810    9.9573099   -9.0872378  0.012108657   -9.0751292 -6.2674918e+08 
+    8820    10.260863   -9.0885296  0.012477795   -9.0760518 -6.7067417e+08 
+    8830    10.826244   -9.0901778  0.013165331   -9.0770125 -5.8055184e+08 
+    8840    11.632353   -9.0922073  0.014145605   -9.0780617 -3.4987749e+08 
+    8850    12.643714   -9.0946312  0.015375478   -9.0792557     27546145 
+    8860    13.804999   -9.0974431  0.016787667   -9.0806554 5.5473513e+08 
+    8870    15.036095   -9.1006068   0.01828475   -9.0823221 1.2261723e+09 
+    8880     16.22992   -9.1040428  0.019736509   -9.0843063 2.0190028e+09 
+    8890    17.255195   -9.1076172  0.020983303   -9.0866339 2.8803748e+09 
+    8900    17.962968   -9.1111345  0.021843994   -9.0892905 3.714185e+09 
+    8910    18.188839   -9.1143314  0.022118667   -9.0922127 4.3794085e+09 
+    8920    17.762408   -9.1168787  0.021600102   -9.0952786 4.7226563e+09 
+    8930    16.607494    -9.118482  0.020195661   -9.0982863 4.6528591e+09 
+    8940    14.898368    -9.119106  0.018117266   -9.1009888 4.1980438e+09 
+    8950    12.961697       -9.119  0.015762163   -9.1032378 3.4821195e+09 
+    8960    11.052218   -9.1184625  0.013440128   -9.1050224 2.6541504e+09 
+    8970    9.3168385   -9.1177203  0.011329808   -9.1063905 1.8288522e+09 
+    8980    7.8365975   -9.1169403 0.0095297499   -9.1074106 1.0744221e+09 
+    8990    6.6475873   -9.1162423 0.0080838457   -9.1081585 4.2510566e+08 
+    9000    5.7541461   -9.1157026 0.0069973702   -9.1087053 -1.0580852e+08 
+    9010    5.1429825   -9.1153638 0.0062541603   -9.1091097 -5.1681292e+08 
+    9020    4.7942046    -9.115247 0.0058300265    -9.109417 -8.1198723e+08 
+    9030    4.6873102   -9.1153609 0.0057000367   -9.1096609 -9.9723946e+08 
+    9040    4.8030037   -9.1157073 0.0058407267   -9.1098666 -1.0785003e+09 
+    9050    5.1220892   -9.1162824 0.0062287528   -9.1100536 -1.061363e+09 
+    9060    5.6222237   -9.1170768  0.006836945   -9.1102399 -9.51815e+08 
+    9070    6.2730114   -9.1180732 0.0076283399   -9.1104449 -7.5788063e+08 
+    9080    7.0300801   -9.1192423 0.0085489788   -9.1106933 -4.9200593e+08 
+    9090    7.8295722   -9.1205382 0.0095212068    -9.111017 -1.7372513e+08 
+    9100    8.5860264   -9.1218936  0.010441098   -9.1114525 1.6854643e+08 
+    9110    9.1987643   -9.1232197  0.011186223   -9.1120335 4.9861723e+08 
+    9120    9.5724772   -9.1244158  0.011640679   -9.1127752 7.7847361e+08 
+    9130    9.6505406   -9.1253956  0.011735608     -9.11366 9.7838114e+08 
+    9140    9.4420462   -9.1261186  0.011482067   -9.1146365 1.0861997e+09 
+    9150    9.0173408   -9.1266038  0.010965601   -9.1156382 1.110245e+09 
+    9160    8.4745679   -9.1269131  0.010305558   -9.1166075 1.0744039e+09 
+    9170    7.9058632   -9.1271226  0.009613981   -9.1175087 1.009047e+09 
+    9180    7.3807492   -9.1273027 0.0089754124   -9.1183273 9.4298017e+08 
+    9190    6.9439146   -9.1275092 0.0084441966    -9.119065 8.9924755e+08 
+    9200    6.6194389   -9.1277829 0.0080496156   -9.1197332 8.9415293e+08 
+    9210    6.4164481    -9.128151 0.0078027672   -9.1203483 9.3777825e+08 
+    9220    6.3339523   -9.1286307 0.0077024476   -9.1209282 1.0348259e+09 
+    9230    6.3640558   -9.1292308 0.0077390552   -9.1214918 1.1852567e+09 
+    9240    6.4934471   -9.1299539 0.0078964024   -9.1220575 1.3845235e+09 
+    9250    6.7034692   -9.1307958 0.0081518013    -9.122644 1.6233518e+09 
+    9260    6.9693698   -9.1317445 0.0084751515   -9.1232693 1.8872114e+09 
+    9270    7.2596832   -9.1327783 0.0088281893   -9.1239501 2.1559632e+09 
+    9280    7.5372047   -9.1338649 0.0091656712   -9.1246992 2.4046017e+09 
+    9290    7.7634604   -9.1349628  0.009440811    -9.125522 2.6061485e+09 
+    9300    7.9079423   -9.1360298 0.0096165093   -9.1264133 2.7370232e+09 
+    9310    7.9599956   -9.1370359 0.0096798091   -9.1273561 2.7834563e+09 
+    9320    7.9362801   -9.1379771 0.0096509697   -9.1283261 2.6830865e+09 
+    9330    7.8770522     -9.13888 0.0095789452   -9.1293011 2.5791787e+09 
+    9340    7.8332411   -9.1397941 0.0095256684   -9.1302684 2.4330362e+09 
+    9350    7.8531108   -9.1407786 0.0095498311   -9.1312288 2.274633e+09 
+    9360    7.9742639   -9.1418918 0.0096971601   -9.1321946 2.134347e+09 
+    9370    8.2204819   -9.1431849 0.0099965754   -9.1331883 2.0404033e+09 
+    9380    8.6004558   -9.1446981  0.010458645   -9.1342395 2.0175498e+09 
+    9390    9.1062421   -9.1464569   0.01107371   -9.1353832 2.0854114e+09 
+    9400    9.7108004   -9.1484662  0.011808888   -9.1366573 2.2549566e+09 
+    9410    10.365121   -9.1507021  0.012604579   -9.1380975 2.5220569e+09 
+    9420    10.995718    -9.153102  0.013371421   -9.1397306 2.8584346e+09 
+    9430    11.502011   -9.1555522  0.013987102   -9.1415651 3.2027602e+09 
+    9440    11.752179   -9.1578718  0.014291321   -9.1435805 3.4588142e+09 
+    9450    11.588792   -9.1598064  0.014092633   -9.1457137 3.5145935e+09 
+    9460    10.897972     -9.16109  0.013252556   -9.1478375 3.2951623e+09 
+    9470     9.754909   -9.1616271  0.011862526   -9.1497645 2.8165304e+09 
+    9480    8.4215974    -9.161595  0.010241143   -9.1513539 2.1743917e+09 
+    9490    7.1401949    -9.161275 0.0086828846   -9.1525922 1.4857786e+09 
+    9500    6.0324297   -9.1608723 0.0073357789   -9.1535366 8.3802504e+08 
+    9510    5.1361649   -9.1604993 0.0062458698   -9.1542534 2.7494189e+08 
+    9520    4.4515155   -9.1602144  0.005413297   -9.1548011 -1.892369e+08 
+    9530    3.9646728   -9.1600488 0.0048212685   -9.1552275 -5.5454245e+08 
+    9540    3.6580661   -9.1600194 0.0044484172    -9.155571 -8.2640188e+08 
+    9550    3.5142193   -9.1601353 0.0042734913   -9.1558618 -1.0114544e+09 
+    9560    3.5166528   -9.1604008 0.0042764506   -9.1561244 -1.1158479e+09 
+    9570    3.6492782    -9.160817 0.0044377307   -9.1563793 -1.1447642e+09 
+    9580     3.894987   -9.1613825 0.0047365266   -9.1566459 -1.1025746e+09 
+    9590    4.2339044   -9.1620928 0.0051486695   -9.1569442 -9.9337284e+08 
+    9600    4.6418284   -9.1629404 0.0056447284   -9.1572957 -8.2178636e+08 
+    9610     5.089495   -9.1639131 0.0061891165    -9.157724 -5.9400881e+08 
+    9620    5.5432406   -9.1649932  0.006740897   -9.1582523 -3.1894592e+08 
+    9630    5.9670945    -9.166156 0.0072563275   -9.1588997   -9231179.5 
+    9640    6.3254642   -9.1673679 0.0076921256   -9.1596757 3.1836835e+08 
+    9650    6.5855157   -9.1685853  0.008008363   -9.1605769 6.4393792e+08 
+    9660    6.7204851   -9.1697571 0.0081724935   -9.1615846 9.476412e+08 
+    9670      6.71779   -9.1708348 0.0081692162   -9.1626656 1.215094e+09 
+    9680    6.5917923   -9.1717927 0.0080159958   -9.1637767 1.4425217e+09 
+    9690     6.388702    -9.172645 0.0077690264   -9.1648759 1.6379452e+09 
+    9700    6.1705694   -9.1734417 0.0075037647   -9.1659379 1.8168044e+09 
+    9710    5.9876991   -9.1742407 0.0072813839   -9.1669593 1.9938259e+09 
+    9720    5.8605169   -9.1750791 0.0071267232   -9.1679524 2.1747424e+09 
+    9730     5.777487   -9.1759601 0.0070257541   -9.1689343 2.3518879e+09 
+    9740    5.7032156    -9.176853 0.0069354357   -9.1699176 2.5058994e+09 
+    9750    5.5920525   -9.1777039 0.0068002551   -9.1709036 2.6127414e+09 
+    9760    5.4059512   -9.1784531 0.0065739452   -9.1718792 2.6529395e+09 
+    9770    5.1317507   -9.1790593 0.0062405018   -9.1728188 2.6187706e+09 
+    9780    4.7862515   -9.1795153 0.0058203551   -9.1736949 2.5157766e+09 
+    9790    4.4033235   -9.1798428 0.0053546927   -9.1744881 2.3124148e+09 
+    9800    4.0145582   -9.1800735  0.004881932   -9.1751916 2.1198709e+09 
+    9810    3.6388707   -9.1802329 0.0044250745   -9.1758079 1.9025583e+09 
+    9820    3.2840416   -9.1803364  0.003993582   -9.1763428 1.6706788e+09 
+    9830    2.9537344   -9.1803945 0.0035919096   -9.1768025 1.432821e+09 
+    9840    2.6532867   -9.1804197 0.0032265481   -9.1771932 1.1972713e+09 
+    9850    2.3912943   -9.1804296 0.0029079503   -9.1775217 9.7243321e+08 
+    9860    2.1776845   -9.1804454 0.0026481887   -9.1777972 7.6646005e+08 
+    9870    2.0207527   -9.1804881 0.0024573507   -9.1780307 5.8655192e+08 
+    9880    1.9250789   -9.1805756 0.0023410058   -9.1782346 4.383131e+08 
+    9890    1.8907437   -9.1807208 0.0022992523   -9.1784215 3.253765e+08 
+    9900     1.913341   -9.1809306 0.0023267319   -9.1786039 2.4930729e+08 
+    9910    1.9842485   -9.1812067 0.0024129595   -9.1787937 2.0968204e+08 
+    9920    2.0909949   -9.1815458 0.0025427692   -9.1790031 2.0423718e+08 
+    9930    2.2179181   -9.1819403 0.0026971151   -9.1792432 2.2904943e+08 
+    9940    2.3474316   -9.1823783 0.0028546108   -9.1795237 2.7878254e+08 
+    9950    2.4619922    -9.182845 0.0029939231   -9.1798511 3.4705869e+08 
+    9960    2.5463931   -9.1833234 0.0030965594   -9.1802268 4.2697552e+08 
+    9970    2.5896727   -9.1837959 0.0031491899   -9.1806467 5.1172318e+08 
+    9980    2.5861271   -9.1842461 0.0031448782   -9.1811013 5.9521268e+08 
+    9990    2.5354294   -9.1846609 0.0030832268   -9.1815776 6.7262473e+08 
+   10000    2.4421347   -9.1850316 0.0029697752   -9.1820618 7.4079679e+08 
+   10010    2.3147238   -9.1853553 0.0028148363   -9.1825404 7.9837584e+08 
+   10020    2.1642093   -9.1856347 0.0026318021   -9.1830029 8.4569753e+08 
+   10030     2.002425    -9.185877 0.0024350631   -9.1834419 8.8441676e+08 
+   10040    1.8403019   -9.1860923 0.0022379122   -9.1838544 9.169801e+08 
+   10050    1.6864644   -9.1862917  0.002050837   -9.1842408 9.4606015e+08 
+   10060     1.546322   -9.1864854 0.0018804158    -9.184605 9.7405483e+08 
+   10070     1.421592    -9.186682  0.001728737   -9.1849533 1.0027078e+09 
+   10080    1.3099521   -9.1868873 0.0015929766   -9.1852943 1.0328502e+09 
+   10090    1.2040794   -9.1871041 0.0014642292   -9.1856399 1.0641919e+09 
+   10100    1.0869385   -9.1873318 0.0013217792   -9.1860101 1.0948478e+09 
+   10110 6.9804665e-90   -9.1875532 8.4886458e-93   -9.1875532 1.0394216e+09 
+Loop time of 76.7841 on 4 procs for 10000 steps with 257 atoms
+
+Performance: 689.205 fs/day, 0.035 hours/fs, 130.235 timesteps/s
+99.7% CPU use with 4 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 41.588     | 46.028     | 52.69      |  69.3 | 59.95
+Neigh   | 0.0014769  | 0.0023099  | 0.0035524  |   1.7 |  0.00
+Comm    | 1.0638     | 7.7988     | 12.282     | 170.2 | 10.16
+Output  | 0.017549   | 0.045132   | 0.054532   |   7.5 |  0.06
+Modify  | 22.807     | 22.877     | 22.986     |   1.4 | 29.79
+Other   |            | 0.0323     |            |       |  0.04
+
+Nlocal:    64.25 ave 122 max 32 min
+Histogram: 2 0 0 0 1 0 0 0 0 1
+Nghost:    192.75 ave 225 max 135 min
+Histogram: 1 0 0 0 0 0 1 0 0 2
+Neighs:    8160 ave 21207 max 1324 min
+Histogram: 1 1 1 0 0 0 0 0 0 1
+
+Total # of neighbors = 32640
+Ave neighs/atom = 127.004
+Neighbor list builds = 26
+Dangerous builds = 0
+
+unfix all_nvt
+fix all_nve2 all nve
+
+dump 3 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check2.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+dump 3 electron custom 1 /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check2.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+dump 3 electron custom 1 /data/tcampbell/LAMMPS/SPH_Bohm/hedp_SPH_H_ground_3k/ele_xyzh_data_check2.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+# save small dump of positions and widths for CoM checking
+run ${CoM_check_time_steps}
+run 100
+Neighbor list info ...
+  update every 1 steps, delay 10 steps, check yes
+  max neighbors/atom: 10000, page size: 100000
+  master list distance cutoff = 12
+  ghost atom cutoff = 12
+  binsize = 6, bins = 1 2 2
+  4 neighbor lists, perpetual/occasional/extra = 2 2 0
+  (1) pair bohm_SPH_dynamic_Mocz_rob, perpetual, skip from (2)
+      attributes: half, newton on
+      pair build: skip
+      stencil: none
+      bin: none
+  (2) pair coul/cut/SPH_nopseudo_sub, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d/newton
+      bin: standard
+  (3) compute rdf, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+  (4) compute rdf, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+Per MPI rank memory allocation (min/avg/max) = 6.238 | 6.238 | 6.238 Mbytes
+Step Temp PotEng KinEng TotEng Press 
+   10110 6.9804665e-90   -9.1875679 8.4886458e-93   -9.1875679 1.0314494e+09 
+   10120  0.015840048   -9.1876022 1.9262403e-05   -9.1875829 1.0387342e+09 
+   10130   0.06278783   -9.1876561 7.6353586e-05   -9.1875797 1.0485489e+09 
+   10140   0.13916791   -9.1877453 0.00016923612   -9.1875761 1.0643244e+09 
+   10150   0.24236518   -9.1878682 0.0002947299   -9.1875734 1.085082e+09 
+   10160   0.36907731   -9.1880209 0.00044881908   -9.1875721 1.1092179e+09 
+   10170   0.51565718   -9.1881992 0.00062706857   -9.1875721 1.1348936e+09 
+   10180   0.67852551   -9.1883986 0.00082512576   -9.1875735 1.1602427e+09 
+   10190   0.85461225   -9.1886153 0.0010392573   -9.1875761 1.1835751e+09 
+   10200    1.0417668   -9.1888462 0.0012668479   -9.1875794 1.2035662e+09 
+   10210    1.2390696   -9.1890898 0.0015067794    -9.187583 1.2194016e+09 
+Loop time of 0.963044 on 4 procs for 100 steps with 257 atoms
+
+Performance: 549.507 fs/day, 0.044 hours/fs, 103.837 timesteps/s
+99.8% CPU use with 4 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.48829    | 0.54097    | 0.64189    |   8.1 | 56.17
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0043808  | 0.10622    | 0.15957    |  18.5 | 11.03
+Output  | 0.036804   | 0.037841   | 0.038801   |   0.4 |  3.93
+Modify  | 0.2757     | 0.27644    | 0.27769    |   0.1 | 28.70
+Other   |            | 0.001577   |            |       |  0.16
+
+Nlocal:    64.25 ave 122 max 31 min
+Histogram: 2 0 0 0 1 0 0 0 0 1
+Nghost:    192.75 ave 226 max 135 min
+Histogram: 1 0 0 0 0 1 0 0 0 2
+Neighs:    8160 ave 21197 max 1342 min
+Histogram: 1 1 1 0 0 0 0 0 0 1
+
+Total # of neighbors = 32640
+Ave neighs/atom = 127.004
+Neighbor list builds = 0
+Dangerous builds = 0
+
+undump 3
+
+unfix all_nve2
+fix all_nvt2 all nvt temp ${temptouse} 0.0000001 ${e_temp_damping}
+fix all_nvt2 all nvt temp 58.0226105 0.0000001 ${e_temp_damping}
+fix all_nvt2 all nvt temp 58.0226105 0.0000001 0.006125
+
+run ${equi_time_steps}
+run 10000
+Neighbor list info ...
+  update every 1 steps, delay 10 steps, check yes
+  max neighbors/atom: 10000, page size: 100000
+  master list distance cutoff = 12
+  ghost atom cutoff = 12
+  binsize = 6, bins = 1 2 2
+  4 neighbor lists, perpetual/occasional/extra = 2 2 0
+  (1) pair bohm_SPH_dynamic_Mocz_rob, perpetual, skip from (2)
+      attributes: half, newton on
+      pair build: skip
+      stencil: none
+      bin: none
+  (2) pair coul/cut/SPH_nopseudo_sub, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d/newton
+      bin: standard
+  (3) compute rdf, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+  (4) compute rdf, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+Per MPI rank memory allocation (min/avg/max) = 4.978 | 4.978 | 4.978 Mbytes
+Step Temp PotEng KinEng TotEng Press 
+   10210    1.2390696   -9.1891135 0.0015067794   -9.1876067 1.2185382e+09 
+   10220    1.4608475   -9.1893676  0.001776474   -9.1875912 1.2305811e+09 
+   10230     1.729338   -9.1896411 0.0021029737   -9.1875381 1.2419326e+09 
+   10240    2.0488197   -9.1899371 0.0024914817   -9.1874456 1.2528003e+09 
+   10250    2.4061981   -9.1902612 0.0029260742   -9.1873351 1.262693e+09 
+   10260    2.7959632   -9.1906187 0.0034000508   -9.1872187 1.2720682e+09 
+   10270    3.2354123    -9.191016  0.003934446   -9.1870816 1.2834153e+09 
+   10280    3.7466903   -9.1914608 0.0045561893   -9.1869046 1.2995007e+09 
+   10290    4.3457817   -9.1919616 0.0052847186   -9.1866769 1.3223111e+09 
+   10300    5.0424199   -9.1925274 0.0061318705   -9.1863956 1.352992e+09 
+   10310    5.8453586   -9.1931671 0.0071082898   -9.1860588 1.3922686e+09 
+   10320    6.7664917   -9.1938896 0.0082284402   -9.1856612 1.4407995e+09 
+   10330    7.8210413    -9.194705 0.0095108327   -9.1851941 1.4992546e+09 
+   10340    9.0265036   -9.1956241  0.010976744   -9.1846473 1.5683756e+09 
+   10350    10.402521   -9.1966599  0.012650059   -9.1840099 1.6492219e+09 
+   10360    11.971628   -9.1978283  0.014558183   -9.1832702 1.7436301e+09 
+   10370    13.760243   -9.1991488  0.016733242   -9.1824156  1.85488e+09 
+   10380    15.799525   -9.2006458  0.019213124   -9.1814327 1.9886038e+09 
+   10390    18.125859   -9.2023496  0.022042079   -9.1803075 2.1539879e+09 
+   10400    20.780484   -9.2042962  0.025270255   -9.1790259 2.3652511e+09 
+   10410    23.807206   -9.2065264  0.028950921   -9.1775754 2.6431243e+09 
+   10420    27.246293   -9.2090799  0.033133047   -9.1759469 3.0153661e+09 
+   10430    31.121593   -9.2119843  0.037845634   -9.1741387 3.513786e+09 
+   10440    35.417233   -9.2152321  0.043069377   -9.1721627 4.162493e+09 
+   10450    40.039439   -9.2187431  0.048690244   -9.1700529 4.9490245e+09 
+   10460    44.750109   -9.2222963  0.054418688   -9.1678776 5.7720102e+09 
+   10470    49.052022   -9.2254004  0.059650059   -9.1657504 6.3913764e+09 
+   10480    52.268951   -9.2273077  0.063562028   -9.1637456 6.513515e+09 
+   10490    54.311466    -9.227781  0.066045843   -9.1617352 6.0968245e+09 
+   10500    55.761035   -9.2274703  0.067808602   -9.1596617 5.3662972e+09 
+   10510    57.071345    -9.227009  0.069402013   -9.1576069 4.9390951e+09 
+   10520    58.428152   -9.2266858  0.071051969   -9.1556338 4.8325805e+09 
+   10530    59.835072   -9.2265551  0.072762863   -9.1537922 5.0090722e+09 
+   10540    61.151268   -9.2264979  0.074363433   -9.1521345 5.3092009e+09 
+   10550    62.095901   -9.2262305  0.075512161   -9.1507183 5.5032418e+09 
+   10560     62.34736   -9.2253766  0.075817949   -9.1495587 5.3920183e+09 
+   10570    61.887042   -9.2238147  0.075258176   -9.1485565 4.9427666e+09 
+   10580    61.033356   -9.2218541  0.074220045   -9.1476341 4.3052171e+09 
+   10590    60.077388   -9.2198552  0.073057534   -9.1467977 3.6676144e+09 
+   10600    59.181013   -9.2180189  0.071967491   -9.1460514 3.1332214e+09 
+   10610    58.425458   -9.2164347  0.071048692    -9.145386 2.7298415e+09 
+   10620    57.847142    -9.215135  0.070345427   -9.1447896 2.4498834e+09 
+   10630     57.45737   -9.2141228  0.069871442   -9.1442514 2.2737418e+09 
+   10640    57.253826   -9.2133873   0.06962392   -9.1437634 2.1298578e+09 
+   10650    57.227276   -9.2129133  0.069591635   -9.1433216 2.1050631e+09 
+   10660    57.365228   -9.2126856  0.069759392   -9.1429262 2.1355462e+09 
+   10670    57.653541   -9.2126917  0.070109997   -9.1425817 2.2160017e+09 
+   10680    58.076659   -9.2129217  0.070624532   -9.1422972 2.3452723e+09 
+   10690    58.616792   -9.2133674  0.071281365    -9.142086 2.5251444e+09 
+   10700    59.252201   -9.2140205   0.07205406   -9.1419665 2.7589692e+09 
+   10710    59.954521   -9.2148694   0.07290812   -9.1419613 3.0499348e+09 
+   10720    60.684952   -9.2158941  0.073796366   -9.1420977 3.3986334e+09 
+   10730    61.389173   -9.2170597  0.074652739   -9.1424069 3.7993971e+09 
+   10740    61.991022   -9.2183063  0.075384622   -9.1429216 4.2348879e+09 
+   10750    62.386074   -9.2195375  0.075865028   -9.1436725 4.6692342e+09 
+   10760    62.440349   -9.2206108   0.07593103   -9.1446798 5.0430371e+09 
+   10770    62.010755    -9.221348  0.075408618   -9.1459394 5.2794753e+09 
+   10780    61.010595   -9.2215956  0.074192367   -9.1474032 5.312224e+09 
+   10790    59.490738   -9.2213215  0.072344134   -9.1489773 5.1253438e+09 
+   10800    57.631758   -9.2206435  0.070083508     -9.15056 4.7677833e+09 
+   10810    55.644114   -9.2197438   0.06766642   -9.1520774 4.1739225e+09 
+   10820    53.693882   -9.2187781  0.065294826   -9.1534832 3.7348912e+09 
+   10830    51.888774   -9.2178494  0.063099712   -9.1547497 3.3310926e+09 
+   10840    50.289726   -9.2170163  0.061155177   -9.1558612 2.9832904e+09 
+   10850    48.925784   -9.2163064  0.059496546   -9.1568098 2.6966491e+09 
+   10860    47.806386   -9.2157276  0.058135295   -9.1575923 2.4684496e+09 
+   10870    46.930167   -9.2152771  0.057069763   -9.1582073 2.2929169e+09 
+   10880    46.290696    -9.214946  0.056292129   -9.1586538 2.1637814e+09 
+   10890    45.879854   -9.2147236  0.055792522   -9.1589311 2.0754272e+09 
+   10900     45.68954   -9.2145992   0.05556109   -9.1590381 2.0232687e+09 
+   10910    45.712223    -9.214563  0.055588673   -9.1589743  2.00375e+09 
+   10920    45.940739   -9.2146067  0.055866562   -9.1587402 2.0141841e+09 
+   10930     46.36761   -9.2147241  0.056385661   -9.1583385 2.0525427e+09 
+   10940    46.984132   -9.2149106  0.057135387   -9.1577752 2.1172519e+09 
+   10950    47.779495   -9.2151633  0.058102593   -9.1570607 2.2070294e+09 
+   10960    48.740154    -9.215481   0.05927081   -9.1562102 2.3207811e+09 
+   10970    49.849638   -9.2158643  0.060620005   -9.1552443 2.4575706e+09 
+   10980    51.088796   -9.2163151  0.062126892   -9.1541882 2.6166606e+09 
+   10990    52.436358   -9.2168369  0.063765605   -9.1530713 2.7976095e+09 
+   11000    53.869554   -9.2174346  0.065508453   -9.1519261 3.000397e+09 
+   11010    55.364544   -9.2181145  0.067326446   -9.1507881 3.0876248e+09 
+   11020    56.896516   -9.2188842  0.069189411   -9.1496948 3.3256212e+09 
+   11030    58.439379   -9.2197524  0.071065622   -9.1486868 3.5877116e+09 
+   11040    59.965119   -9.2207284  0.072921009   -9.1478074 3.8758216e+09 
+   11050    61.442921   -9.2218218    0.0747181   -9.1471037 4.1916511e+09 
+   11060     62.83829   -9.2230413  0.076414948   -9.1466264 4.5356927e+09 
+   11070    64.112492    -9.224394  0.077964451   -9.1464295 4.9056878e+09 
+   11080    65.222771    -9.225883  0.079314613   -9.1465684 5.294564e+09 
+   11090    66.123716   -9.2275056  0.080410214   -9.1470953 5.6882527e+09 
+   11100    66.769887   -9.2292485  0.081195995   -9.1480525 6.0644065e+09 
+   11110    67.119926   -9.2310829  0.081621662   -9.1494613 6.3937512e+09 
+   11120    67.145164   -9.2329604  0.081652352    -9.151308 6.6459703e+09 
+   11130    66.849241   -9.2348243  0.081292493   -9.1535318 6.7999666e+09 
+   11140    66.292248    -9.236643  0.080615158   -9.1560279 6.853523e+09 
+   11150    65.586144   -9.2384372  0.079756495   -9.1586808 6.8258472e+09 
+   11160    64.852068   -9.2402647  0.078863817   -9.1614009 6.7512445e+09 
+   11170    64.181119   -9.2421816  0.078047905   -9.1641337 6.6666537e+09 
+   11180    63.623282   -9.2442214  0.077369543   -9.1668519 6.6004556e+09 
+   11190    63.193103   -9.2463925  0.076846421   -9.1695461 6.5677727e+09 
+   11200    62.878513   -9.2486813  0.076463862   -9.1722175 6.5705351e+09 
+   11210    62.648174   -9.2510558  0.076183757    -9.174872 6.2786986e+09 
+   11220    62.457294   -9.2534674  0.075951635   -9.1775158 6.311891e+09 
+   11230    62.252787   -9.2558545  0.075702943   -9.1801515 6.3254127e+09 
+   11240    61.978478   -9.2581459  0.075369367   -9.1827765 6.2898938e+09 
+   11250    61.580843   -9.2602674  0.074885821   -9.1853816 6.1779593e+09 
+   11260    61.015847   -9.2621493  0.074198754   -9.1879505 5.9713246e+09 
+   11270    60.256787   -9.2637368  0.073275694   -9.1904611 5.6663914e+09 
+   11280    59.300608   -9.2650008  0.072112925   -9.1928879 5.2749532e+09 
+   11290    58.168434    -9.265943  0.070736137   -9.1952068 4.8196616e+09 
+   11300    56.899322   -9.2665918  0.069192824    -9.197399 4.3271704e+09 
+   11310    55.541162   -9.2669926  0.067541223   -9.1994514 3.8221457e+09 
+   11320    54.142846   -9.2671973  0.065840792   -9.2013565 3.3240604e+09 
+   11330    52.749151   -9.2672568  0.064145979   -9.2031109 2.846832e+09 
+   11340    51.398214   -9.2672167  0.062503162   -9.2047135 2.3998865e+09 
+   11350     50.12098   -9.2671153  0.060949973   -9.2061653 1.9893706e+09 
+   11360    48.941789   -9.2669839  0.059516009   -9.2074679 1.6190928e+09 
+   11370    47.879435   -9.2668476  0.058224126   -9.2086234 1.2912138e+09 
+   11380    46.948299   -9.2667261  0.057091812   -9.2096343 1.0067548e+09 
+   11390    46.159358   -9.2666351  0.056132414   -9.2105027 7.6595461e+08 
+   11400    45.520992   -9.2665867  0.055356125   -9.2112306 5.6850004e+08 
+   11410    45.039588   -9.2665904   0.05477071   -9.2118197 4.1366322e+08 
+   11420    44.719921   -9.2666536  0.054381977   -9.2122716 3.0038261e+08 
+   11430    44.565324   -9.2667816  0.054193979   -9.2125876 2.273158e+08 
+   11440    44.577645   -9.2669783  0.054208962   -9.2127694 1.7820232e+08 
+   11450    44.757001   -9.2672464  0.054427069   -9.2128193 1.8037355e+08 
+   11460    45.101348   -9.2675869  0.054845814   -9.2127411 2.1459183e+08 
+   11470    45.605905       -9.268  0.055459384   -9.2125407 2.7857586e+08 
+   11480    46.262508   -9.2684843  0.056257851   -9.2122265 3.6959143e+08 
+   11490    47.058972   -9.2690372  0.057226397   -9.2118108 4.8431377e+08 
+   11500    47.978569   -9.2696542  0.058344679   -9.2113095 6.1870574e+08 
+   11510    48.999686   -9.2703293  0.059586416   -9.2107429 7.6795437e+08 
+   11520    50.095717   -9.2710542  0.060919252    -9.210135 9.2651043e+08 
+   11530    51.235225   -9.2718182  0.062304959   -9.2095133 1.0882693e+09 
+   11540    52.382487   -9.2726079  0.063700095   -9.2089079 1.2469105e+09 
+   11550     53.49865   -9.2734078  0.065057413   -9.2083504 1.3963721e+09 
+   11560    54.543801   -9.2742012  0.066328376   -9.2078728 1.531378e+09 
+   11570    55.479969    -9.274973  0.067466809   -9.2075061 1.647906e+09 
+   11580    56.274463   -9.2757124   0.06843296   -9.2072794 1.7435202e+09 
+   11590    56.902396   -9.2764152  0.069196562   -9.2072187 1.8175601e+09 
+   11600    57.347567   -9.2770843  0.069737915   -9.2073464 1.8711586e+09 
+   11610    57.602013   -9.2777272  0.070047336   -9.2076799 1.9069834e+09 
+   11620    57.665226   -9.2783534  0.070124207   -9.2082292 1.9286211e+09 
+   11630    57.543737   -9.2789717   0.06997647   -9.2089952 1.9396701e+09 
+   11640    57.250895   -9.2795881  0.069620357   -9.2099677 1.9427553e+09 
+   11650    56.806072   -9.2802049  0.069079426   -9.2111255 1.9387525e+09 
+   11660     56.23257   -9.2808196  0.068382015   -9.2124376 1.9265555e+09 
+   11670    55.554361   -9.2814242  0.067557274   -9.2138669 1.9036253e+09 
+   11680    54.793059   -9.2820053  0.066631488   -9.2153738 1.8672605e+09 
+   11690    53.967474   -9.2825467  0.065627529   -9.2169192 1.8160746e+09 
+   11700    53.097185   -9.2830359  0.064569209   -9.2184667 1.7510153e+09 
+   11710    52.208259   -9.2834724  0.063488223   -9.2199842 1.675828e+09 
+   11720    51.336195    -9.283874  0.062427744   -9.2214463 1.5974189e+09 
+   11730     50.52317   -9.2842746  0.061439059   -9.2228355 1.3110156e+09 
+   11740    49.811833   -9.2847173  0.060574033   -9.2241432 1.2666469e+09 
+   11750    49.239875   -9.2852462  0.059878499   -9.2253677 1.2511363e+09 
+   11760     48.83722   -9.2859017  0.059388847   -9.2265128 1.275919e+09 
+   11770    48.625189    -9.286718  0.059131006    -9.227587 1.3508916e+09 
+   11780     48.61632   -9.2877229   0.05912022   -9.2286027 1.4833029e+09 
+   11790      48.8139   -9.2889372  0.059360489   -9.2295767 1.6763641e+09 
+   11800    49.210558   -9.2903731  0.059842848   -9.2305303 1.9274999e+09 
+   11810    49.784987   -9.2920317  0.060541387   -9.2314903 2.2266778e+09 
+   11820    50.495568   -9.2938952  0.061405494   -9.2324897 2.5561457e+09 
+   11830    51.272852   -9.2959154  0.062350715   -9.2335647 2.8936681e+09 
+   11840    52.025967   -9.2980109  0.063266546   -9.2347443 3.2196171e+09 
+   11850    52.685897   -9.3001004  0.064069058   -9.2360314 3.5227122e+09 
+   11860    53.257541    -9.302171   0.06476421   -9.2374068 3.8011085e+09 
+   11870    53.805762   -9.3042926  0.065430878   -9.2388617 4.0631708e+09 
+   11880    54.391009   -9.3065511  0.066142572   -9.2404085 4.3217699e+09 
+   11890    55.025829    -9.308982   0.06691455   -9.2420674 4.5802051e+09 
+   11900     55.66585   -9.3115474  0.067692852   -9.2438546 4.8212231e+09 
+   11910    56.217067   -9.3141396  0.068363163   -9.2457764 5.0052848e+09 
+   11920    56.546994   -9.3165913  0.068764373   -9.2478269 5.0812671e+09 
+   11930    56.506339   -9.3186964  0.068714934   -9.2499815 5.0096675e+09 
+   11940    55.988771   -9.3202637  0.068085542   -9.2521781 4.7836317e+09 
+   11950     55.01123   -9.3212074  0.066896796   -9.2543106 4.424335e+09 
+   11960     53.70523   -9.3215934  0.065308626   -9.2562848 3.9612068e+09 
+   11970    52.213181   -9.3215683  0.063494209   -9.2580741 3.0976151e+09 
+   11980    50.630475   -9.3212619  0.061569548   -9.2596924 2.6001194e+09 
+   11990      49.0164   -9.3207599   0.05960674   -9.2611532 2.1161632e+09 
+   12000    47.413448   -9.3201193   0.05765746   -9.2624619 1.6652336e+09 
+   12010    45.855929   -9.3193827  0.055763427   -9.2636193 1.2561141e+09 
+   12020    44.372781   -9.3185849  0.053959835   -9.2646251 8.9114703e+08 
+   12030    42.988671   -9.3177547  0.052276678    -9.265478 5.6921543e+08 
+   12040    41.724669   -9.3169164  0.050739579   -9.2661769 2.8756695e+08 
+   12050    40.598848     -9.31609  0.049370517   -9.2667195     42955679 
+   12060    39.626865   -9.3152918   0.04818853   -9.2671033 -1.6774296e+08 
+   12070    38.822489   -9.3145346  0.047210363   -9.2673242 -3.4720737e+08 
+   12080    38.197992   -9.3138283  0.046450939   -9.2673774 -4.9756371e+08 
+   12090    37.764211   -9.3131804  0.045923436   -9.2672569 -6.2040888e+08 
+   12100    37.530075   -9.3125963  0.045638714   -9.2669576 -7.169062e+08 
+   12110    37.501438   -9.3120802   0.04560389   -9.2664763 -7.8801305e+08 
+   12120    37.679273   -9.3116351  0.045820147   -9.2658149 -8.3457026e+08 
+   12130    38.057764   -9.3112631  0.046280413   -9.2649827 -8.5748932e+08 
+   12140    38.623269   -9.3109661    0.0469681    -9.263998 -8.5789282e+08 
+   12150     39.35517   -9.3107458  0.047858134   -9.2628877 -8.3707173e+08 
+   12160    40.228687   -9.3106035   0.04892038   -9.2616831 -7.9642072e+08 
+   12170    41.218514   -9.3105403  0.050124066   -9.2604162 -7.3720555e+08 
+   12180    42.301607   -9.3105571  0.051441169    -9.259116 -6.6049767e+08 
+   12190    43.458181   -9.3106545   0.05284763   -9.2578069 -5.6712683e+08 
+   12200    44.671168   -9.3108324  0.054322691   -9.2565097 -4.5767503e+08 
+   12210    45.924894   -9.3110904  0.055847294   -9.2552431 -3.326602e+08 
+   12220    47.203659   -9.3114275  0.057402344   -9.2540252 -1.9246837e+08 
+   12230    48.490546   -9.3118418  0.058967273   -9.2528745    -34232637 
+   12240    49.766501   -9.3123306  0.060518906   -9.2518117 1.201144e+08 
+   12250    51.009643   -9.3128905  0.062030637   -9.2508599 2.8685641e+08 
+   12260    52.194784   -9.3135168  0.063471838    -9.250045 4.651532e+08 
+   12270    53.293165   -9.3142037  0.064807531   -9.2493961 6.5391293e+08 
+   12280    54.272569    -9.314944  0.065998542   -9.2489455 8.5169848e+08 
+   12290    55.098084   -9.3157293  0.067002416   -9.2487269 1.0566272e+09 
+   12300    55.733946   -9.3165496  0.067775661    -9.248774 1.2663186e+09 
+   12310     56.14703   -9.3173939  0.068277994   -9.2491159 1.4778838e+09 
+   12320    56.312312   -9.3182501  0.068478986   -9.2497711 1.6879527e+09 
+   12330    56.219762   -9.3191056  0.068366441   -9.2507391 1.8928431e+09 
+   12340    55.880347   -9.3199478  0.067953693   -9.2519941 2.0886853e+09 
+   12350     55.32713   -9.3207648  0.067280949   -9.2534838 2.2716873e+09 
+   12360    54.608491   -9.3215452  0.066407043   -9.2551382 2.4381192e+09 
+   12370    53.775257   -9.3222783  0.065393783   -9.2568845 2.5845315e+09 
+   12380    52.868686   -9.3229532   0.06429134   -9.2586619 2.7080595e+09 
+   12390    51.916018   -9.3235593  0.063132842   -9.2604264 2.8063614e+09 
+   12400    50.934626   -9.3240879  0.061939413   -9.2621485 2.876897e+09 
+   12410    49.939683   -9.3245369  0.060729505   -9.2638074 2.9155579e+09 
+   12420    48.948801   -9.3249128  0.059524536   -9.2653883 2.9168812e+09 
+   12430     47.98168   -9.3252296  0.058348463   -9.2668812 2.8764063e+09 
+   12440    47.058138   -9.3255044  0.057225382    -9.268279 2.7933436e+09 
+   12450    46.197989   -9.3257553  0.056179393   -9.2695759 2.6719258e+09 
+   12460    45.422824   -9.3260039  0.055236747   -9.2707672 2.5210942e+09 
+   12470    44.758046   -9.3262787  0.054428339   -9.2718504 2.3533171e+09 
+   12480    44.233917   -9.3266173  0.053790969   -9.2728263 2.1830669e+09 
+   12490    43.885321   -9.3270672  0.053367056   -9.2737001 1.8315336e+09 
+   12500    43.750681   -9.3276845  0.053203326   -9.2744811 1.7121114e+09 
+   12510    43.870749   -9.3285329  0.053349336   -9.2751836 1.6272811e+09 
+   12520    44.287675   -9.3296831  0.053856342   -9.2758268 1.5871467e+09 
+   12530    45.044296   -9.3312136  0.054776435   -9.2764371 1.6014573e+09 
+   12540    46.183024    -9.333212  0.056161194   -9.2770508 1.6807709e+09 
+   12550    47.743271   -9.3357766  0.058058543    -9.277718 1.8371059e+09 
+   12560    49.756081   -9.3390147  0.060506235   -9.2785084 2.0839334e+09 
+   12570     52.23488   -9.3430368  0.063520596   -9.2795162 2.433761e+09 
+   12580    55.162764   -9.3479432   0.06708107   -9.2808621 2.891615e+09 
+   12590    58.480067   -9.3537997  0.071115101   -9.2826846 3.4433502e+09 
+   12600    62.077462   -9.3606043  0.075489738   -9.2851146 4.0419519e+09 
+   12610    65.783174   -9.3682356  0.079996095   -9.2882395 4.6047901e+09 
+   12620    69.314041   -9.3763616  0.084289831   -9.2920718 5.0441158e+09 
+   12630     72.36557   -9.3844466  0.088000665   -9.2964459 5.3268831e+09 
+   12640    74.957268   -9.3921531  0.091152317   -9.3010008 5.4545295e+09 
+   12650    77.168151   -9.3994372  0.093840877   -9.3055963 5.4145964e+09 
+   12660     78.74426   -9.4060639  0.095757515   -9.3103064 5.2246828e+09 
+   12670    79.380662   -9.4116343  0.096531416   -9.3151029 4.9095377e+09 
+   12680    78.979647   -9.4159202   0.09604376   -9.3198765 4.477661e+09 
+   12690    77.568268   -9.4188905  0.094327442    -9.324563 3.9477394e+09 
+   12700    75.246891   -9.4206071  0.091504515   -9.3291026 3.3597136e+09 
+   12710    72.217767   -9.4212363  0.087820928   -9.3334153 2.750567e+09 
+   12720    68.734477   -9.4210284  0.083585048   -9.3374434 2.1477926e+09 
+   12730    65.025428   -9.4202353  0.079074632   -9.3411606 1.5727901e+09 
+   12740    61.264915   -9.4190584  0.074501635   -9.3445568 9.6133108e+08 
+   12750    57.576809    -9.417646  0.070016687   -9.3476293 5.154049e+08 
+   12760    54.045216   -9.4161045  0.065722069   -9.3503824 1.1750778e+08 
+   12770    50.724188     -9.41451  0.061683509   -9.3528265 -2.3387421e+08 
+   12780      47.6457   -9.4129156  0.057939892   -9.3549757 -5.4186512e+08 
+   12790    44.826091   -9.4113578  0.054511085   -9.3568467 -8.1041316e+08 
+   12800    42.271129   -9.4098609  0.051404106   -9.3584568 -1.0435408e+09 
+   12810    39.979916   -9.4084407   0.04861786   -9.3598228 -1.245231e+09 
+   12820    37.947789   -9.4071065  0.046146678   -9.3609598 -1.4189311e+09 
+   12830    36.168478   -9.4058634  0.043982934   -9.3618805 -1.5676789e+09 
+   12840     34.63565   -9.4047139  0.042118927   -9.3625949 -1.6940817e+09 
+   12850    33.343996    -9.403658  0.040548203   -9.3631098 -1.8002637e+09 
+   12860    32.289937   -9.4026951  0.039266407   -9.3634287 -1.8879664e+09 
+   12870     31.47191   -9.4018231  0.038271639   -9.3635515 -1.9584625e+09 
+   12880    30.890122   -9.4010403  0.037564151   -9.3634762 -2.0128709e+09 
+   12890     30.54557   -9.4003442  0.037145157    -9.363199 -2.0518459e+09 
+   12900    30.438128   -9.3997326  0.037014501   -9.3627181 -2.0760758e+09 
+   12910    30.563848   -9.3992037  0.037167384   -9.3620363 -2.086189e+09 
+   12920    30.912276   -9.3987558  0.037591093   -9.3611647 -2.0829123e+09 
+   12930    31.465242   -9.3983878   0.03826353   -9.3601243 -2.0672033e+09 
+   12940    32.198317    -9.398099  0.039154992    -9.358944 -2.0402095e+09 
+   12950    33.084539   -9.3978888  0.040232689   -9.3576561 -2.0030076e+09 
+   12960    34.098343   -9.3977568  0.041465532   -9.3562912 -1.9565889e+09 
+   12970    35.217785   -9.3977025  0.042826837   -9.3548757 -1.9017694e+09 
+   12980    36.424626   -9.3977255  0.044294425   -9.3534311 -1.8392645e+09 
+   12990     37.70313   -9.3978244  0.045849158   -9.3519753 -1.6766129e+09 
+   13000    39.038468   -9.3979978  0.047473006   -9.3505248 -1.604231e+09 
+   13010    40.415338    -9.398243  0.049147358   -9.3490957 -1.525964e+09 
+   13020    41.816883   -9.3985571  0.050851717   -9.3477054 -1.4424493e+09 
+   13030     43.22397    -9.398936  0.052562816   -9.3463732 -1.3543732e+09 
+   13040    44.614712   -9.3993746  0.054254036   -9.3451206 -1.2625625e+09 
+   13050    45.964256   -9.3998674   0.05589516   -9.3439722 -1.16805e+09 
+   13060    47.244852   -9.4004081  0.057452437   -9.3429557 -1.0720741e+09 
+   13070    48.426231   -9.4009903  0.058889062   -9.3421013 -9.7592793e+08 
+   13080    49.476346    -9.401608  0.060166061   -9.3414419 -8.8101166e+08 
+   13090    50.362537   -9.4022557   0.06124372    -9.341012 -7.8884751e+08 
+   13100    51.053312   -9.4029293  0.062083742   -9.3408456 -7.0077457e+08 
+   13110    51.521012   -9.4036254  0.062652492   -9.3409729 -6.1779684e+08 
+   13120    51.745588   -9.4043417  0.062925589   -9.3414161 -5.4054688e+08 
+   13130    51.719388   -9.4050763  0.062893728   -9.3421826 -4.6890789e+08 
+   13140     51.45183   -9.4058276  0.062568362   -9.3432593 -4.0208357e+08 
+   13150    50.971626   -9.4065934  0.061984408   -9.3446089 -3.3838873e+08 
+   13160    50.323998   -9.4073707  0.061196854   -9.3461739 -2.7566358e+08 
+   13170     49.56241   -9.4081564  0.060270721   -9.3478857 -2.1175686e+08 
+   13180    48.737975   -9.4089459   0.05926816   -9.3496777 -1.4490782e+08 
+   13190    47.891118   -9.4097332  0.058238334   -9.3514949    -74196381 
+   13200    47.048191    -9.410511  0.057213287   -9.3532977    281376.01 
+   13210    46.222308   -9.4112698  0.056208965   -9.3550608     77493911 
+   13220    45.416364   -9.4119986  0.055228891   -9.3567697 1.5562072e+08 
+   13230    44.626729   -9.4126846   0.05426865    -9.358416 2.3255258e+08 
+   13240     43.84725   -9.4133149  0.053320759   -9.3599942 2.8784628e+08 
+   13250    43.073336   -9.4138792  0.052379635   -9.3614996 3.5167184e+08 
+   13260    42.305388   -9.4143727  0.051445767    -9.362927 4.0834085e+08 
+   13270    41.550288   -9.4147988  0.050527523   -9.3642713 4.5644055e+08 
+   13280    40.820551   -9.4151686   0.04964012   -9.3655285 4.9567123e+08 
+   13290    40.132185   -9.4154995  0.048803029   -9.3666964 5.2710484e+08 
+   13300     39.50271   -9.4158122   0.04803755   -9.3677746 5.5319968e+08 
+   13310    38.949943   -9.4161291  0.047365355   -9.3687637 5.7757071e+08 
+   13320    38.491466   -9.4164738   0.04680782    -9.369666 6.0434881e+08 
+   13330    38.144422   -9.4168702  0.046385794   -9.3704844 6.3797404e+08 
+   13340    37.925466   -9.4173432  0.046119532   -9.3712237 6.8274867e+08 
+   13350    37.850777   -9.4179187  0.046028705     -9.37189 7.4276848e+08 
+   13360    37.936144   -9.4186236  0.046132517   -9.3724911 8.2197676e+08 
+   13370    38.197242   -9.4194881  0.046450026   -9.3730381 9.2360649e+08 
+   13380    38.650346   -9.4205451  0.047001028   -9.3735441 1.050972e+09 
+   13390    39.313659   -9.4218347  0.047807654   -9.3740271 1.2066321e+09 
+   13400     40.20905   -9.4234066    0.0488965   -9.3745101 1.392793e+09 
+   13410    41.363144   -9.4253239  0.050299944   -9.3750239 1.611223e+09 
+   13420    42.805733    -9.427665  0.052054215   -9.3756108 1.8634983e+09 
+   13430    44.564122   -9.4305203  0.054192517   -9.3763278 2.1521467e+09 
+   13440    46.657627   -9.4339865  0.056738338   -9.3772482 2.483097e+09 
+   13450     49.10583   -9.4381701  0.059715493   -9.3784546 2.8672013e+09 
+   13460    51.954219   -9.4432127  0.063179297   -9.3800334 3.3140107e+09 
+   13470     55.27351   -9.4493018  0.067215744    -9.382086 3.8179359e+09 
+   13480    59.079412   -9.4565886  0.071843937   -9.3847447 4.3496852e+09 
+   13490    63.195041   -9.4649953  0.076848777   -9.3881466 4.8575568e+09 
+   13500    67.186382    -9.474042  0.081702477   -9.3923395 5.2752737e+09 
+   13510    70.608411   -9.4830163  0.085863859   -9.3971525 5.5358605e+09 
+   13520    73.316768   -9.4914525  0.089157376   -9.4022951 5.2583728e+09 
+   13530    75.235154   -9.4991203  0.091490242     -9.40763 5.1340177e+09 
+   13540    76.143429   -9.5056981  0.092594757   -9.4131033 4.8521971e+09 
+   13550    75.832367   -9.5108239  0.092216488   -9.4186075 4.4288539e+09 
+   13560    74.300884    -9.514341  0.090354116   -9.4239869 3.8965064e+09 
+   13570    71.781901   -9.5164003   0.08729089   -9.4291094 3.3071064e+09 
+   13580    68.604689   -9.5173354  0.083427219   -9.4339081 2.7118813e+09 
+   13590    65.066332   -9.5174846  0.079124374   -9.4383602 2.1464225e+09 
+   13600    61.389505   -9.5171104  0.074653143   -9.4424572 1.6288292e+09 
+   13610    57.728281    -9.516398  0.070200885   -9.4461972 1.1652701e+09 
+   13620    54.184491   -9.5154758  0.065891435   -9.4495843 7.551967e+08 
+   13630    50.822451   -9.5144326  0.061803001   -9.4526296 3.9514802e+08 
+   13640    47.680206   -9.5133306  0.057981852   -9.4553487     80459296 
+   13650    44.777783   -9.5122131  0.054452341   -9.4577608 -1.9374629e+08 
+   13660    42.123166   -9.5111106  0.051224174   -9.4598864 -4.3202998e+08 
+   13670    39.716571    -9.510044  0.048297617   -9.4617464 -6.3854881e+08 
+   13680    37.553505   -9.5090279  0.045667207   -9.4633607 -8.1692862e+08 
+   13690    35.626928   -9.5080724  0.043324379    -9.464748 -9.7028655e+08 
+   13700    33.928772   -9.5071837  0.041259324   -9.4659244 -1.1014938e+09 
+   13710    32.451021   -9.5063662  0.039462295   -9.4669039 -1.2126989e+09 
+   13720    31.186458   -9.5056225  0.037924513    -9.467698 -1.3058421e+09 
+   13730    30.129169   -9.5049541  0.036638789   -9.4683153 -1.3825908e+09 
+   13740    29.274863   -9.5043614  0.035599905   -9.4687615 -1.4441045e+09 
+   13750    28.621011   -9.5038447  0.034804784   -9.4690399 -1.4914996e+09 
+   13760    28.166717   -9.5034035  0.034252337   -9.4691512 -1.5256031e+09 
+   13770    27.912296   -9.5030371  0.033942946   -9.4690942 -1.5471151e+09 
+   13780    27.858417   -9.5027447  0.033877426   -9.4688673 -1.5565402e+09 
+   13790    28.004765   -9.5025251  0.034055393   -9.4684697 -1.5545001e+09 
+   13800    28.348325   -9.5023771  0.034473182   -9.4679039 -1.5414265e+09 
+   13810     28.88167   -9.5022988  0.035121759   -9.4671771 -1.5180645e+09 
+   13820    29.591798   -9.5022882  0.035985316   -9.4663029 -1.4133468e+09 
+   13830    30.460063   -9.5023423  0.037041176   -9.4653011 -1.374508e+09 
+   13840    31.463135   -9.5024567  0.038260968   -9.4641957 -1.3292402e+09 
+   13850    32.574418   -9.5026256  0.039612352   -9.4630132 -1.2790654e+09 
+   13860    33.765267   -9.5028412  0.041060492   -9.4617807 -1.2256189e+09 
+   13870    35.005716   -9.5030934  0.042568949   -9.4605245 -1.1705906e+09 
+   13880    36.265054   -9.5033708  0.044100376   -9.4592704 -1.115448e+09 
+   13890    37.512818   -9.5036612  0.045617728   -9.4580435 -1.0617132e+09 
+   13900    38.720442   -9.5039538  0.047086268   -9.4568675 -1.0106809e+09 
+   13910    39.863099    -9.504242  0.048475804   -9.4557662 -9.6340444e+08 
+   13920     40.92053   -9.5045257    0.0497617    -9.454764 -9.2068845e+08 
+   13930    41.876325   -9.5048095  0.050924002   -9.4538855 -8.8294698e+08 
+   13940    42.716131   -9.5051015  0.051945254   -9.4531562 -8.5031618e+08 
+   13950     43.42601   -9.5054103  0.052808508   -9.4526018 -8.226321e+08 
+   13960    43.991746   -9.5057443  0.053496475   -9.4522478 -7.9918688e+08 
+   13970    44.399401   -9.5061096  0.053992206   -9.4521174 -7.7946725e+08 
+   13980    44.636898   -9.5065108  0.054281016   -9.4522298 -7.6256827e+08 
+   13990    44.696464   -9.5069508  0.054353452   -9.4525973 -7.4790806e+08 
+   14000    44.577486   -9.5074306  0.054208768   -9.4532219 -7.3459307e+08 
+   14010    44.288991     -9.50795  0.053857941   -9.4540921 -7.2185515e+08 
+   14020    43.850721   -9.5085075   0.05332498   -9.4551825 -7.0824498e+08 
+   14030    43.291697   -9.5090993  0.052645175   -9.4564541 -6.9314546e+08 
+   14040    42.646234   -9.5097213  0.051860256    -9.457861 -6.7512412e+08 
+   14050    41.948612   -9.5103671  0.051011908   -9.4593552 -6.5350178e+08 
+   14060      41.2283   -9.5110299  0.050135967   -9.4608939 -6.2722089e+08 
+   14070     40.50727   -9.5117009  0.049259153   -9.4624417 -5.6961232e+08 
+   14080    39.799559   -9.5123716  0.048398536   -9.4639731 -5.3543389e+08 
+   14090    39.112453   -9.5130325  0.047562976   -9.4654696 -4.9698078e+08 
+   14100    38.448247   -9.5136745  0.046755263   -9.4669192 -4.5471712e+08 
+   14110    37.805994   -9.5142882  0.045974247   -9.4683139 -4.0931836e+08 
+   14120    37.183128   -9.5148652  0.045216806   -9.4696484 -3.6133717e+08 
+   14130    36.577207   -9.5153988  0.044479972   -9.4709188 -3.1113526e+08 
+   14140    35.987896   -9.5158854  0.043763336   -9.4721221 -2.589889e+08 
+   14150    35.418441   -9.5163258  0.043070846   -9.4732549 -2.0545104e+08 
+   14160    34.875475   -9.5167256  0.042410569    -9.474315 -1.512984e+08 
+   14170    34.366838   -9.5170938  0.041792037   -9.4753018    -97379861 
+   14180    33.898758   -9.5174389  0.041222825   -9.4762161    -44153659 
+   14190    33.474028   -9.5177659  0.040706329   -9.4770596    7931497.7 
+   14200     33.09186   -9.5180759  0.040241591   -9.4778343     58613889 
+   14210    32.749008   -9.5183664  0.039824664   -9.4785417 1.0763188e+08 
+   14220    32.441481    -9.518633  0.039450693   -9.4791823 1.5441046e+08 
+   14230    32.166606   -9.5188727  0.039116429   -9.4797563 1.9891207e+08 
+   14240    31.925511   -9.5190853  0.038823244    -9.480262 2.4115053e+08 
+   14250     31.72562   -9.5192778  0.038580165   -9.4806976 2.8190976e+08 
+   14260    31.581828   -9.5194659  0.038405306   -9.4810606 3.2232134e+08 
+   14270    31.515246   -9.5196744  0.038324338     -9.48135 3.6418162e+08 
+   14280    31.550065   -9.5199334  0.038366681   -9.4815667 4.1015449e+08 
+   14290    31.710235   -9.5202754  0.038561456   -9.4817139 4.6332619e+08 
+   14300    32.017123   -9.5207325   0.03893465   -9.4817979 5.2746527e+08 
+   14310     32.48825   -9.5213352  0.039507566   -9.4818276 6.0644907e+08 
+   14320    33.136465   -9.5221106  0.040295833   -9.4818148 7.0269578e+08 
+   14330    33.969226    -9.523085  0.041308519   -9.4817765 8.1966486e+08 
+   14340    34.987643   -9.5242821  0.042546972   -9.4817352 9.5928285e+08 
+   14350    36.184933   -9.5257237  0.044002945   -9.4817208 1.1229036e+09 
+   14360    37.544107   -9.5274276  0.045655777   -9.4817719 1.3100799e+09 
+   14370    39.034389   -9.5294049  0.047468045   -9.4819368 1.5180139e+09 
+   14380    40.606799    -9.531656  0.049380186   -9.4822758 1.7420673e+09 
+   14390    42.190317   -9.5341625  0.051305835   -9.4828567 1.9725049e+09 
+   14400    43.693729   -9.5368821  0.053134069    -9.483748 2.1979613e+09 
+   14410     45.02221   -9.5397526  0.054749577   -9.4850031 2.4062261e+09 
+   14420    46.113382   -9.5427144  0.056076505   -9.4866379 2.5866891e+09 
+   14430    46.973325   -9.5457434  0.057122244   -9.4886212 2.733184e+09 
+   14440    47.673853   -9.5488638  0.057974127   -9.4908897 2.8456374e+09 
+   14450     48.30833    -9.552121  0.058745688   -9.4933753 2.9314741e+09 
+   14460    48.950051    -9.555549  0.059526057    -9.496023 3.0018308e+09 
+   14470    49.642219   -9.5591634  0.060367772   -9.4987957 2.8823451e+09 
+   14480    50.407586   -9.5629725  0.061298502    -9.501674 2.9457595e+09 
+   14490    51.250997   -9.5669811  0.062324138    -9.504657 3.0098053e+09 
+   14500    52.145781   -9.5711702  0.063412246    -9.507758 3.0663712e+09 
+   14510    53.016197   -9.5754653  0.064470723   -9.5109946 3.1011727e+09 
+   14520    53.732531   -9.5797185  0.065341825   -9.5143767 3.0958213e+09 
+   14530    54.136185   -9.5837204  0.065832692   -9.5178877 3.0312645e+09 
+   14540    54.100441   -9.5872634  0.065789225   -9.5214742 2.8951044e+09 
+   14550    53.582798   -9.5902177  0.065159742    -9.525058 2.6868219e+09 
+   14560    52.615364   -9.5925527  0.063983286   -9.5285695 2.4189444e+09 
+   14570    51.265973   -9.5942985   0.06234235   -9.5319562 2.1111869e+09 
+   14580    49.618508   -9.5955163  0.060338938   -9.5351774 1.7834054e+09 
+   14590    47.761081    -9.596285  0.058080201   -9.5382048 1.4513569e+09 
+   14600    45.773421   -9.5966863  0.055663093   -9.5410232 1.1269819e+09 
+   14610    43.722938   -9.5967952  0.053169589   -9.5436256 8.1856511e+08 
+   14620     41.66689   -9.5966801  0.050669317   -9.5460108 5.324408e+08 
+   14630    39.653024   -9.5964016  0.048220341   -9.5481813 2.711806e+08 
+   14640    37.718347    -9.596011  0.045867663   -9.5501434     35458871 
+   14650     35.88864   -9.5955487  0.043642635   -9.5519061 -1.7545088e+08 
+   14660    34.179752   -9.5950437   0.04156453   -9.5534791 -3.6347985e+08 
+   14670    32.600105   -9.5945168  0.039643589   -9.5548732 -5.3001405e+08 
+   14680    31.153423   -9.5939819  0.037884341   -9.5560976 -6.7692216e+08 
+   14690    29.841063     -9.59345  0.036288436   -9.5571615 -8.0538718e+08 
+   14700    28.663694   -9.5929301  0.034856688   -9.5580734 -9.1666508e+08 
+   14710    27.622253   -9.5924296  0.033590237   -9.5588394 -9.8283356e+08 
+   14720    26.718364   -9.5919559  0.032491056   -9.5594649 -1.0604107e+09 
+   14730     25.95443   -9.5915164  0.031562068   -9.5599543 -1.1240869e+09 
+   14740    25.333515   -9.5911171     0.030807   -9.5603101 -1.1748321e+09 
+   14750    24.859108   -9.5907642  0.030230095   -9.5605341 -1.2131144e+09 
+   14760    24.534775   -9.5904614  0.029835687   -9.5606257 -1.2398928e+09 
+   14770    24.363622    -9.590213  0.029627556   -9.5605854 -1.2559359e+09 
+   14780    24.347512   -9.5900191  0.029607964   -9.5604111 -1.2621423e+09 
+   14790    24.485908   -9.5898792  0.029776262   -9.5601029 -1.2592627e+09 
+   14800    24.774407   -9.5897907  0.030127093   -9.5596636 -1.2485624e+09 
+   14810    25.203128   -9.5897472  0.030648442   -9.5590987 -1.230901e+09 
+   14820    25.755366   -9.5897394  0.031319995   -9.5584194 -1.2078053e+09 
+   14830    26.407042   -9.5897541   0.03211247   -9.5576417 -1.1811037e+09 
+   14840    27.127672   -9.5897741  0.032988797   -9.5567853 -1.1525374e+09 
+   14850    27.883293    -9.589779  0.033907676   -9.5558713 -1.1233244e+09 
+   14860    28.641597   -9.5893861  0.034829817   -9.5545563 -1.0908514e+09 
+   14870    29.377209   -9.5893094  0.035724363    -9.553585 -1.0648148e+09 
+   14880    30.074782   -9.5891825  0.036572652   -9.5526099 -1.0424933e+09 
+   14890    30.727415    -9.589012  0.037366291   -9.5516457 -1.0245748e+09 
+   14900    31.332067   -9.5888079  0.038101582   -9.5507063 -1.0112916e+09 
+   14910     31.88566   -9.5885797  0.038774783   -9.5498049 -1.0016618e+09 
+   14920    32.383606   -9.5883333  0.039380314    -9.548953 -9.9476289e+08 
+   14930     32.82008   -9.5880726  0.039911091   -9.5481615 -9.8944119e+08 
+   14940    33.189095    -9.587799  0.040359834   -9.5474392 -9.8515784e+08 
+   14950    33.485447   -9.5875141  0.040720215   -9.5467939 -9.5575685e+08 
+   14960    33.705399   -9.5872191   0.04098769   -9.5462314 -9.5270065e+08 
+   14970    33.847045   -9.5869182  0.041159939   -9.5457583 -9.5024555e+08 
+   14980     33.91052   -9.5866171  0.041237128   -9.5453799 -9.4868117e+08 
+   14990    33.898058   -9.5863196  0.041221973   -9.5450976 -9.4782691e+08 
+   15000    33.814031   -9.5860314  0.041119792   -9.5449116 -9.478448e+08 
+   15010    33.664793   -9.5857602  0.040938311   -9.5448219 -9.4833917e+08 
+   15020    33.458489    -9.585513  0.040687432   -9.5448255 -9.4919418e+08 
+   15030     33.20476   -9.5852965  0.040378884   -9.5449176 -9.4976426e+08 
+   15040    32.914345   -9.5851173  0.040025723   -9.5450916 -9.4954108e+08 
+   15050    32.598633   -9.5849825  0.039641799   -9.5453407 -9.481018e+08 
+   15060    32.269172   -9.5848969  0.039241155   -9.5456558 -9.4484269e+08 
+   15070    31.937233   -9.5845039  0.038837499   -9.5456664 -9.3513968e+08 
+   15080    31.613276   -9.5845306  0.038443549   -9.5460871 -9.2630567e+08 
+   15090    31.306476   -9.5846176  0.038070462   -9.5465471 -9.1422206e+08 
+   15100    31.024567   -9.5847662  0.037727644   -9.5470385 -8.9789496e+08 
+   15110    30.773528   -9.5849766  0.037422367   -9.5475542 -8.7733823e+08 
+   15120    30.557384    -9.585248  0.037159523   -9.5480884 -8.5212494e+08 
+   15130    30.378099   -9.5855782  0.036941502   -9.5486367 -8.223472e+08 
+   15140     30.23552   -9.5859639  0.036768118   -9.5491958 -7.8760828e+08 
+   15150    30.127423   -9.5864005  0.036636666   -9.5497638 -7.4792824e+08 
+   15160     30.04952   -9.5868817  0.036541932   -9.5503398 -7.035235e+08 
+   15170    29.995585      -9.5874  0.036476344   -9.5509236 -6.5506348e+08 
+   15180    29.957637    -9.587946  0.036430196   -9.5515158 -6.0309032e+08 
+   15190    29.926279   -9.5885093  0.036392064   -9.5521172 -5.486649e+08 
+   15200    29.891263   -9.5890779  0.036349482   -9.5527284 -4.9253521e+08 
+   15210    29.842242   -9.5896394   0.03628987   -9.5533495 -4.3613397e+08 
+   15220    29.769919   -9.5901818  0.036201921   -9.5539799 -3.8062515e+08 
+   15230    29.667364   -9.5906946  0.036077208   -9.5546174 -3.2735249e+08 
+   15240    29.531339   -9.5911705  0.035911794   -9.5552587 -2.7733404e+08 
+   15250    29.363214   -9.5916066  0.035707345   -9.5558993 -2.2212664e+08 
+   15260    29.169096   -9.5920051  0.035471286   -9.5565338 -1.8127878e+08 
+   15270    28.958992   -9.5923729  0.035215787   -9.5571571 -1.439552e+08 
+   15280    28.745332   -9.5927204  0.034955964   -9.5577645 -1.0914285e+08 
+   15290    28.541242   -9.5930603   0.03470778   -9.5583525    -75564470 
+   15300    28.359141   -9.5934051  0.034486335   -9.5589187    -41518240 
+   15310    28.209758   -9.5937669  0.034304676   -9.5594622   -5871589.6 
+   15320    28.101562   -9.5941561  0.034173104    -9.559983     33126248 
+   15330    28.040595   -9.5945812  0.034098964   -9.5604822     77158213 
+   15340    28.030552   -9.5950491  0.034086751   -9.5609624 1.2688248e+08 
+   15350    28.072992    -9.595565   0.03413836   -9.5614267 1.8347784e+08 
+   15360    28.167677   -9.5961329  0.034253504   -9.5618794 2.4810768e+08 
+   15370    28.312992   -9.5967559  0.034430214   -9.5623257 3.2096069e+08 
+   15380    28.506427   -9.5974373  0.034665443   -9.5627719 4.026952e+08 
+   15390    28.745145   -9.5981806  0.034955738   -9.5632249 4.9380161e+08 
+   15400    29.026575   -9.5989906  0.035297972   -9.5636926 5.9451239e+08 
+   15410    29.349031    -9.599874  0.035690097   -9.5641839 7.0556061e+08 
+   15420    29.712332   -9.6008405  0.036131892   -9.5647086 8.2832013e+08 
+   15430    30.118296    -9.601903  0.036625568   -9.5652774 9.6322161e+08 
+   15440    30.571041   -9.6030784  0.037176131   -9.5659023 1.1114419e+09 
+   15450    31.077191   -9.6043882  0.037791639   -9.5665966 1.2751663e+09 
+   15460    31.645602   -9.6058584  0.038482858   -9.5673756 1.4562787e+09 
+   15470    32.286629   -9.6075192  0.039262384   -9.5682568 1.6559359e+09 
+   15480    33.010782   -9.6094039  0.040142996   -9.5692609 1.8745878e+09 
+   15490    33.827106   -9.6115476  0.041135692   -9.5704119 2.1138985e+09 
+   15500     34.74228   -9.6139851  0.042248596   -9.5717365 2.3706181e+09 
+   15510    35.760412   -9.6167485  0.043486703   -9.5732618 2.6377824e+09 
+   15520    36.880491   -9.6198636  0.044848782   -9.5750148 2.9005366e+09 
+   15530    38.084478   -9.6233345    0.0463129   -9.5770216 3.1421542e+09 
+   15540    39.322269   -9.6271145  0.047818124   -9.5792964 3.341784e+09 
+   15550     40.52027   -9.6310894  0.049274961   -9.5818144 3.4799885e+09 
+   15560    41.609795   -9.6351033  0.050599886   -9.5845034 3.5326305e+09 
+   15570    42.521451   -9.6389933  0.051708513   -9.5872848 3.4775528e+09 
+   15580    43.156025   -9.6425848  0.052480191   -9.5901046 3.3103514e+09 
+   15590    43.402282   -9.6456978  0.052779653   -9.5929182 3.0506538e+09 
+   15600    43.199761   -9.6482091  0.052533375   -9.5956757 2.6205047e+09 
+   15610    42.577505   -9.6501126  0.051776677   -9.5983359 2.2901491e+09 
+   15620     41.62911   -9.6515041  0.050623375   -9.6008807 1.960281e+09 
+   15630     40.46453   -9.6525142  0.049207179    -9.603307 1.650477e+09 
+   15640    39.181285     -9.65326  0.047646679   -9.6056133 1.3698403e+09 
+   15650    37.855642   -9.6538327  0.046034621   -9.6077981 1.1204843e+09 
+   15660    36.542768   -9.6542992  0.044438092   -9.6098611 9.0286076e+08 
+   15670    35.279851   -9.6547064  0.042902314   -9.6118041 7.1419827e+08 
+   15680    34.089673    -9.655086  0.041454989    -9.613631 5.492803e+08 
+   15690    32.983996   -9.6554574  0.040110422    -9.615347 4.0625683e+08 
+   15700    31.966393   -9.6558311  0.038872959   -9.6169581 2.8127201e+08 
+   15710    31.034695   -9.6562108  0.037739961   -9.6184708 1.7137173e+08 
+   15720    30.183212   -9.6565953  0.036704509   -9.6198908     74861008 
+   15730    29.404682   -9.6569814  0.035757773   -9.6212237    -10895816 
+   15740    28.691796   -9.6573649  0.034890862   -9.6224741    -87373871 
+   15750    28.037993   -9.6577421    0.0340958   -9.6236463 -1.5672201e+08 
+   15760    27.437571   -9.6581101  0.033365652   -9.6247445 -2.2022939e+08 
+   15770    26.885388   -9.6584664  0.032694166   -9.6257722 -2.7897479e+08 
+   15780    26.376671   -9.6588083  0.032075537   -9.6267328 -3.3365481e+08 
+   15790    25.907238   -9.6591336  0.031504681   -9.6276289 -3.8471296e+08 
+   15800    25.474261   -9.6594409  0.030978155   -9.6284627 -4.3237259e+08 
+   15810    25.077175   -9.6597312  0.030495277   -9.6292359 -4.7672165e+08 
+   15820    24.718222   -9.6600086   0.03005877   -9.6299498 -5.177273e+08 
+   15830    24.402241   -9.6602804  0.029674519   -9.6306058 -5.5511538e+08 
+   15840    24.135778   -9.6605563  0.029350484   -9.6312058 -5.8873665e+08 
+   15850     23.92593   -9.6608473  0.029095297    -9.631752 -6.1800802e+08 
+   15860    23.779374   -9.6611644  0.028917076   -9.6322474 -6.4234384e+08 
+   15870    23.701804   -9.6615179  0.028822747   -9.6326951 -6.6110941e+08 
+   15880    23.697805   -9.6619171  0.028817884   -9.6330992 -6.7365153e+08 
+   15890    23.770999   -9.6623711  0.028906892   -9.6334643 -6.7902878e+08 
+   15900    23.924309   -9.6628889  0.029093325   -9.6337956 -6.7710988e+08 
+   15910    24.160179     -9.66348  0.029380157   -9.6340998 -6.6675867e+08 
+   15920    24.480602   -9.6641546   0.02976981   -9.6343848 -6.4731971e+08 
+   15930    24.886858   -9.6649241   0.03026384   -9.6346603 -6.177035e+08 
+   15940    25.379032   -9.6658006  0.030862351   -9.6349383 -5.5969899e+08 
+   15950    25.955323   -9.6667965  0.031563154   -9.6352334 -5.0862595e+08 
+   15960    26.611229   -9.6679239  0.032360773   -9.6355632 -4.4452251e+08 
+   15970    27.338557   -9.6691935  0.033245245   -9.6359482 -3.6685381e+08 
+   15980    28.124643   -9.6706133  0.034201171   -9.6364122 -2.7386755e+08 
+   15990    28.951743   -9.6721874  0.035206972   -9.6369805 -1.6502095e+08 
+   16000    29.796761   -9.6739136  0.036234563   -9.6376791    -39740006 
+   16010    30.631628   -9.6757812  0.037249808   -9.6385314 1.0224563e+08 
+   16020    31.424505    -9.677769  0.038213992    -9.639555 2.6100771e+08 
+   16030    32.142627   -9.6798447  0.039087269   -9.6407575 4.3717269e+08 
+   16040    32.758227   -9.6819696  0.039835874   -9.6421337 6.3097052e+08 
+   16050    33.258339   -9.6841098  0.040444039   -9.6436658 8.4232001e+08 
+   16060    33.653626   -9.6862521  0.040924731   -9.6453274 1.0666506e+09 
+   16070    33.974588   -9.6884096  0.041315039   -9.6470946 1.2965439e+09 
+   16080    34.249151   -9.6906046  0.041648923   -9.6489557 1.5203878e+09 
+   16090    34.471796   -9.6928333  0.041919672   -9.6509137 1.7272087e+09 
+   16100    34.586132    -9.695034  0.042058711   -9.6529753 1.9081768e+09 
+   16110    34.507278   -9.6970928   0.04196282     -9.65513 2.0564611e+09 
+   16120    34.189746   -9.6989095  0.041576683   -9.6573328 2.1641244e+09 
+   16130    33.672775   -9.7004709  0.040948017   -9.6595228 2.2235683e+09 
+   16140    33.040103   -9.7018372  0.040178652   -9.6616585 2.2307894e+09 
+   16150    32.358902   -9.7030709  0.039350272   -9.6637207 2.1918161e+09 
+   16160    31.666841   -9.7042049  0.038508687   -9.6656962 2.1171994e+09 
+   16170    30.984921   -9.7052536  0.037679433   -9.6675742 2.0149007e+09 
+   16180     30.31867     -9.70622  0.036869233   -9.6693508 1.8886896e+09 
+   16190    29.647042    -9.707084  0.036052496   -9.6710316 1.7386021e+09 
+   16200    28.920269   -9.7077938  0.035168698   -9.6726251 1.5656285e+09 
+   16210    28.089671   -9.7082877  0.034158643    -9.674129 1.376507e+09 
+   16220    27.164122   -9.7085525  0.033033123   -9.6755194 1.181858e+09 
+   16230    26.224066   -9.7086618  0.031889961   -9.6767718 9.8940102e+08 
+   16240     25.36295   -9.7087328  0.030842795     -9.67789 8.0447747e+08 
+   16250    24.639041   -9.7088603  0.029962481   -9.6788978 6.3389472e+08 
+   16260    24.075408   -9.7090954  0.029277071   -9.6798184 4.8351379e+08 
+   16270     23.67438   -9.7094592  0.028789397   -9.6806698 3.5599218e+08 
+   16280    23.426806   -9.7099554  0.028488333   -9.6814671 2.5108748e+08 
+   16290     23.31618   -9.7105771  0.028353806   -9.6822233 1.6663398e+08 
+   16300    23.320449     -9.71131  0.028358997    -9.682951     99943751 
+   16310    23.413259   -9.7121335  0.028471859   -9.6836617     47969956 
+   16320    23.565682   -9.7130229  0.028657214   -9.6843657    8052753.4 
+   16330    23.748909   -9.7139518   0.02888003   -9.6850718    -21832040 
+   16340    23.937753   -9.7148963  0.029109674   -9.6857866    -43980099 
+   16350    24.113562   -9.7158382  0.029323468   -9.6865147    -60521033 
+   16360    24.264756   -9.7167664  0.029507328   -9.6872591    -74256510 
+   16370    24.384452   -9.7176751  0.029652886   -9.6880222    -86436015 
+   16380    24.466483   -9.7185586  0.029752641    -9.688806 -1.0022767e+08 
+   16390    24.502083   -9.7194072  0.029795932   -9.6896113 -1.1697771e+08 
+   16400    24.478951   -9.7202049  0.029767802   -9.6904371 -1.3880348e+08 
+   16410     24.38307   -9.7209308  0.029651206   -9.6912796 -1.6101388e+08 
+   16420    24.203462   -9.7215641  0.029432791   -9.6921313 -1.9520117e+08 
+   16430    23.938817    -9.722092  0.029110968    -9.692981 -2.362463e+08 
+   16440    23.603301   -9.7225188  0.028702961   -9.6938159 -2.8300745e+08 
+   16450    23.227952   -9.7228697  0.028246516   -9.6946232 -3.3307473e+08 
+   16460    22.856426   -9.7231884  0.027794719   -9.6953937 -3.8368961e+08 
+   16470    22.537564   -9.7235299  0.027406965   -9.6961229 -4.3064951e+08 
+   16480    22.318558    -9.723952  0.027140641   -9.6968113 -4.7012552e+08 
+   16490     22.24062   -9.7245098  0.027045864    -9.697464 -4.9832265e+08 
+   16500    22.336936   -9.7252533  0.027162989   -9.6980903 -5.1223883e+08 
+   16510    22.631736   -9.7262255  0.027521482    -9.698704 -5.0883763e+08 
+   16520    23.139347   -9.7274619  0.028138766   -9.6993232 -4.8560002e+08 
+   16530    23.862437   -9.7289891  0.029018086    -9.699971 -4.4091312e+08 
+   16540    24.788997   -9.7308214  0.030144835   -9.7006765 -3.7359522e+08 
+   16550    25.888066   -9.7329557  0.031481366   -9.7014743 -2.8278613e+08 
+   16560    27.105303   -9.7353645  0.032961596   -9.7024029 -1.6932333e+08 
+   16570    28.361093   -9.7379889  0.034488708   -9.7035001    -35985208 
+   16580    29.555565   -9.7407361  0.035941255   -9.7047949 1.1173866e+08 
+   16590    30.582046   -9.7434871  0.037189514   -9.7062976 2.6539191e+08 
+   16600    31.342658   -9.7461101  0.038114462   -9.7079956 4.1236867e+08 
+   16610    31.758801   -9.7484752  0.038620515   -9.7098546 5.3842053e+08 
+   16620    31.779428   -9.7504695  0.038645598   -9.7118239 6.3157806e+08 
+   16630     31.38733   -9.7520121  0.038168786   -9.7138433 6.8376615e+08 
+   16640      30.5955   -9.7530586  0.037205875   -9.7158527 6.9339982e+08 
+   16650    29.441328   -9.7535978  0.035802336   -9.7177955 6.6492981e+08 
+   16660    27.990825   -9.7536577  0.034038441   -9.7196193 6.0763331e+08 
+   16670    26.342953   -9.7533144  0.032034535   -9.7212799 5.2305808e+08 
+   16680    24.618207   -9.7526857  0.029937145   -9.7227485 4.4154503e+08 
+   16690    22.934021   -9.7519054  0.027889079   -9.7240164 3.6093856e+08 
+   16700    21.382629   -9.7510941  0.026002497   -9.7250916 2.8680337e+08 
+   16710    20.020758   -9.7503397  0.024346385   -9.7259933 2.2130572e+08 
+   16720     18.86952   -9.7496911  0.022946414   -9.7267446 1.6404644e+08 
+   16730    17.919804   -9.7491601  0.021791505   -9.7273686 1.1270665e+08 
+   16740    17.142206   -9.7487299  0.020845901    -9.727884     65206694 
+   16750    16.503845   -9.7483717  0.020069617   -9.7283021     20515759 
+   16760    15.989318   -9.7480687  0.019443923   -9.7286248    -20710920 
+   16770     15.61146   -9.7478337  0.018984426   -9.7288493    -56363000 
+   16780    15.401114   -9.7477037  0.018728634   -9.7289751    -84011889 
+   16790     15.38699   -9.7477182  0.018711459   -9.7290067 -1.0166009e+08 
+   16800    15.583001   -9.7479009  0.018949819   -9.7289511 -1.0764808e+08 
+   16810    15.986149   -9.7482554   0.01944007   -9.7288153 -1.0164534e+08 
+   16820    16.579086   -9.7487678  0.020161115   -9.7286066    -84035772 
+   16830    17.332848   -9.7494124  0.021077733   -9.7283346    -56882108 
+   16840    18.208482   -9.7501551  0.022142554   -9.7280126    -22687032 
+   16850    19.157982    -9.750956    0.0232972   -9.7276588     15225701 
+   16860    20.125629     -9.75177  0.024473913   -9.7272961     53124263 
+   16870    21.050966   -9.7525496  0.025599176   -9.7269504     87175506 
+   16880    21.874285   -9.7532487  0.026600379   -9.7266483 1.1418671e+08 
+   16890    22.544391   -9.7538297  0.027415266   -9.7264144 1.3076457e+08 
+   16900      23.0265   -9.7542708  0.028001539   -9.7262693 1.3577683e+08 
+   16910    23.307009   -9.7545707  0.028342653    -9.726228 1.2927983e+08 
+   16920    23.392895   -9.7547474  0.028447096   -9.7263003 1.1278156e+08 
+   16930    23.306684   -9.7548321  0.028342259   -9.7264899     88813071 
+   16940    23.080055   -9.7548607  0.028066664    -9.726794     60505504 
+   16950    22.748454   -9.7548669  0.027663419   -9.7272035     30810741 
+   16960    22.347121   -9.7548787  0.027175375   -9.7277033    2337237.2 
+   16970    21.907813   -9.7549153  0.026641151   -9.7282741    -23618521 
+   16980    21.455702   -9.7549871  0.026091358   -9.7288957    -46327183 
+   16990    21.006617   -9.7550943  0.025545245    -9.729549    -66137528 
+   17000    20.565463   -9.7552269  0.025008778   -9.7302182    -84437406 
+   17010    20.127359   -9.7553662  0.024476018   -9.7308902 -1.025015e+08 
+   17020    19.683266   -9.7554893  0.023935975   -9.7315533 -1.2124838e+08 
+   17030    19.229829   -9.7555794   0.02338457   -9.7321948 -1.4075647e+08 
+   17040    18.777883   -9.7556365  0.022834978   -9.7328016 -1.6048957e+08 
+   17050    18.352296   -9.7556807  0.022317439   -9.7333633 -1.7892131e+08 
+   17060    17.983312   -9.7557447  0.021868734   -9.7338759 -1.9473572e+08 
+   17070    17.697378    -9.755862  0.021521022    -9.734341 -2.0584998e+08 
+   17080    17.512748   -9.7560596  0.021296501   -9.7347631 -2.1042677e+08 
+   17090    17.439176   -9.7563556  0.021207034   -9.7351486 -2.0735004e+08 
+   17100    17.479198   -9.7567606  0.021255703   -9.7355049 -1.9593451e+08 
+   17110    17.629538   -9.7572791  0.021438524   -9.7358406 -1.7091261e+08 
+   17120    17.882202   -9.7579109  0.021745778   -9.7361651 -1.4389273e+08 
+   17130    18.225351   -9.7586527  0.022163067   -9.7364896 -1.0913693e+08 
+   17140    18.644102   -9.7594988  0.022672292   -9.7368265    -67696705 
+   17150     19.12141   -9.7604425  0.023252727   -9.7371897    -20523358 
+   17160    19.639214   -9.7614766  0.023882405   -9.7375942     31568686 
+   17170    20.179839   -9.7625954  0.024539836   -9.7380556     87735763 
+   17180    20.727518   -9.7637946  0.025205846   -9.7385887 1.4747866e+08 
+   17190    21.269673   -9.7650722  0.025865137   -9.7392071 2.1052157e+08 
+   17200    21.797424   -9.7664281  0.026506912   -9.7399212 2.7675375e+08 
+   17210    22.304806   -9.7678616  0.027123917   -9.7407377 3.4595885e+08 
+   17220    22.786402   -9.7693685  0.027709566    -9.741659 4.1717377e+08 
+   17230    23.233769    -9.770937   0.02825359   -9.7426834 4.8902349e+08 
+   17240    23.631709   -9.7725432  0.028737507   -9.7438057 5.5814475e+08 
+   17250    23.956786   -9.7741499  0.029132819   -9.7450171 6.1997431e+08 
+   17260    24.180625   -9.7757095   0.02940502   -9.7463045 6.6884891e+08 
+   17270     24.27882   -9.7771741  0.029524431   -9.7476497 7.0030703e+08 
+   17280    24.242344   -9.7785098  0.029480074   -9.7490298 7.1085101e+08 
+   17290    24.085129   -9.7797087  0.029288892   -9.7504198 7.0078436e+08 
+   17300    23.843892   -9.7807928  0.028995533   -9.7517973 6.7259039e+08 
+   17310    23.570504   -9.7818092  0.028663079   -9.7531461 6.3331825e+08 
+   17320    23.319831   -9.7828178  0.028358246   -9.7544595 5.8891551e+08 
+   17330    23.137073   -9.7838765  0.028136002   -9.7557405 5.4651827e+08 
+   17340    23.048878   -9.7850283  0.028028752   -9.7569996 5.1080575e+08 
+   17350    23.059674   -9.7862929   0.02804188    -9.758251 4.8457734e+08 
+   17360    23.152538    -9.787665  0.028154808   -9.7595102 4.6844545e+08 
+   17370    23.293055    -9.789116  0.028325685   -9.7607903 4.5244379e+08 
+   17380    23.435184   -9.7905987  0.028498521   -9.7621002 4.5083555e+08 
+   17390    23.528116   -9.7920542  0.028611532   -9.7634427 4.5063867e+08 
+   17400    23.522793   -9.7934186   0.02860506   -9.7648136 4.4707807e+08 
+   17410    23.377375   -9.7946296  0.028428222   -9.7662013 4.345616e+08 
+   17420       23.063   -9.7956336  0.028045925   -9.7675877 4.0926281e+08 
+   17430     22.57172   -9.7963974    0.0274485   -9.7689489 3.6905233e+08 
+   17440     21.92302   -9.7969189  0.026659644   -9.7702593 3.1490742e+08 
+   17450    21.160408   -9.7972292  0.025732264    -9.771497 2.4981162e+08 
+   17460     20.33672    -9.797379  0.024730613   -9.7726484 1.7831085e+08 
+   17470    19.498392   -9.7974195  0.023711158   -9.7737083 1.0499878e+08 
+   17480    18.677762   -9.7973904  0.022713225   -9.7746771     33396132 
+   17490    17.893399   -9.7973174  0.021759394    -9.775558    -34508577 
+   17500    17.154171   -9.7972155  0.020860452   -9.7763551    -96995477 
+   17510    16.463749   -9.7970934  0.020020859   -9.7770725 -1.5415482e+08 
+   17520    15.824097   -9.7969571  0.019243005   -9.7777141 -2.0602277e+08 
+   17530    15.237697   -9.7968134   0.01852991   -9.7782835 -2.5281659e+08 
+   17540    14.708563   -9.7966702  0.017886452   -9.7787837 -2.9422467e+08 
+   17550    14.242278   -9.7965376  0.017319423   -9.7792182 -3.3022068e+08 
+   17560    13.845405    -9.796427  0.016836803   -9.7795902 -3.6069144e+08 
+   17570    13.524672   -9.7963498  0.016446774    -9.779903 -3.8504463e+08 
+   17580    13.286136   -9.7963169    0.0161567   -9.7801602 -4.0316806e+08 
+   17590    13.134585   -9.7963375  0.015972405   -9.7803651 -4.1488279e+08 
+   17600    13.073228   -9.7964191  0.015897792   -9.7805213 -4.2010065e+08 
+   17610    13.103631    -9.796567  0.015934763   -9.7806322 -4.1918428e+08 
+   17620    13.225954   -9.7967849  0.016083515   -9.7807014 -4.1137807e+08 
+   17630    13.439309    -9.797076  0.016342967   -9.7807331 -3.9708783e+08 
+   17640    13.742305   -9.7974436  0.016711428   -9.7807322 -3.7616306e+08 
+   17650    14.133659   -9.7978925  0.017187337   -9.7807052 -3.4831371e+08 
+   17660    14.612665   -9.7984304  0.017769835   -9.7806605 -3.1302715e+08 
+   17670    15.179231   -9.7990684  0.018458812   -9.7806096 -2.6953181e+08 
+   17680    15.833198   -9.7998216  0.019254072   -9.7805675 -2.1679266e+08 
+   17690    16.572776   -9.8007081  0.020153442   -9.7805546 -1.5353674e+08 
+   17700    17.392171   -9.8017473  0.021149873   -9.7805974    -78344863 
+   17710    18.278749   -9.8029572  0.022228003   -9.7807292     10161998 
+   17720    19.210487   -9.8043515  0.023361049   -9.7809904 1.1300331e+08 
+   17730    20.154941   -9.8059346  0.024509559   -9.7814251 2.3037748e+08 
+   17740    21.071232   -9.8076978  0.025623821   -9.7820739 3.6110896e+08 
+   17750    21.915421   -9.8096134  0.026650403    -9.782963 4.9123905e+08 
+   17760    22.646586   -9.8116321  0.027539541   -9.7840926 6.3402355e+08 
+   17770    23.229664   -9.8136835  0.028248598   -9.7854349 7.7437315e+08 
+   17780    23.637195    -9.815688  0.028744179   -9.7869439 9.0395706e+08 
+   17790    23.856856   -9.8175793  0.029011299    -9.788568 1.0153076e+09 
+   17800    23.900067   -9.8193249  0.029063846   -9.7902611 1.1037045e+09 
+   17810    23.796476   -9.8209254  0.028937873   -9.7919876 1.1675388e+09 
+   17820    23.575002   -9.8223919  0.028668548   -9.7937234 1.2066597e+09 
+   17830    23.249793   -9.8237241  0.028273075    -9.795451 1.222387e+09 
+   17840    22.821256    -9.824906   0.02775195   -9.7971541 1.2143462e+09 
+   17850    22.287116   -9.8259168  0.027102406   -9.7988144 1.1840369e+09 
+   17860    21.652964   -9.8267442   0.02633124   -9.8004129 1.1327344e+09 
+   17870    20.935804   -9.8273917  0.025459133   -9.8019326 1.0634054e+09 
+   17880    20.160373   -9.8278769  0.024516165   -9.8033607 9.7998439e+08 
+   17890    19.352419   -9.8282241  0.023533646   -9.8046904 8.8669012e+08 
+   17900    18.533447   -9.8284571  0.022537729   -9.8059193 7.873639e+08 
+   17910    17.718842   -9.8285955  0.021547123   -9.8070484 6.851128e+08 
+   17920    16.918775   -9.8286542  0.020574196     -9.80808 5.8226593e+08 
+   17930    16.140475   -9.8286451   0.01962774   -9.8090173 4.8054303e+08 
+   17940    15.390646   -9.8285797  0.018715904   -9.8098638 3.8129104e+08 
+   17950    14.677227   -9.8284712  0.017848346   -9.8106229 2.8569028e+08 
+   17960    14.010134    -9.828336  0.017037122   -9.8112989 1.9487514e+08 
+   17970    13.400974   -9.8281928  0.016296349   -9.8118964 1.0996008e+08 
+   17980    12.862108   -9.8280623  0.015641058   -9.8124213     32008768 
+   17990     12.40556   -9.8279654  0.015085869   -9.8128796    -38008455 
+   18000    12.042175   -9.8279221  0.014643972   -9.8132781    -99232766 
+   18010    11.781172   -9.8279505  0.014326578   -9.8136239 -1.5090631e+08 
+   18020    11.629991   -9.8280667  0.014142732    -9.813924 -1.9234027e+08 
+   18030    11.594258   -9.8282849   0.01409928   -9.8141856 -2.2300342e+08 
+   18040    11.677697   -9.8286169  0.014200746   -9.8144162 -2.4204641e+08 
+   18050    11.881798   -9.8290732  0.014448944   -9.8146243 -2.4876199e+08 
+   18060    12.205152   -9.8296617  0.014842162   -9.8148196 -2.4252151e+08 
+   18070    12.642403    -9.830388  0.015373884   -9.8150141 -2.2265335e+08 
+   18080    13.182834    -9.831254  0.016031078   -9.8152229 -1.8878029e+08 
+   18090    13.808762   -9.8322572  0.016792243   -9.8154649 -1.4053477e+08 
+   18100    14.494073   -9.8333883   0.01762562   -9.8157627    -77254629 
+   18110    15.203375   -9.8346301  0.018488172   -9.8161419   -4956976.1 
+   18120    15.892253   -9.8359546  0.019325887   -9.8166287     75376349 
+   18130    16.508523   -9.8373202  0.020075307   -9.8172449 1.5800124e+08 
+   18140    16.993818    -9.838668  0.020665453   -9.8180025 2.3495132e+08 
+   18150    17.286713   -9.8399192   0.02102163   -9.8188976 2.971478e+08 
+   18160    17.335823   -9.8409854  0.021081351    -9.819904 3.3700262e+08 
+   18170    17.130986   -9.8418034  0.020832257   -9.8209711 3.513345e+08 
+   18180    16.727041   -9.8423792  0.020341036   -9.8220382 3.4239376e+08 
+   18190    16.219159   -9.8427855  0.019723424   -9.8230621 3.1661559e+08 
+   18200    15.694402   -9.8431121  0.019085289   -9.8240268 2.827478e+08 
+   18210    15.209207   -9.8434271  0.018495264   -9.8249318 2.481845e+08 
+   18220    14.792556   -9.8437712  0.017988593   -9.8257826 2.1807002e+08 
+   18230    14.455326   -9.8441656  0.017578502   -9.8265871 1.9515153e+08 
+   18240    14.197502   -9.8446188  0.017264973   -9.8273538 1.8043915e+08 
+   18250    14.012702   -9.8451315  0.017040245   -9.8280913 1.7383906e+08 
+   18260    13.891011      -9.8457  0.016892262   -9.8288077 1.746153e+08 
+   18270    13.820871   -9.8463174  0.016806969   -9.8295104 1.8168986e+08 
+   18280    13.790474   -9.8469757  0.016770004   -9.8302056 1.9384175e+08 
+   18290    13.788865   -9.8476667  0.016768048   -9.8308986 2.0984918e+08 
+   18300    13.806859   -9.8483835  0.016789928   -9.8315936 2.2860782e+08 
+   18310    13.837758    -9.849121  0.016827504   -9.8322935 2.4922772e+08 
+   18320    13.877822   -9.8498771  0.016876224   -9.8330009 2.7111272e+08 
+   18330    13.926378   -9.8506526  0.016935271   -9.8337174 2.9400581e+08 
+   18340    13.985539   -9.8514517  0.017007213   -9.8344445 3.1798681e+08 
+   18350    14.059526   -9.8522811  0.017097186   -9.8351839 3.4343973e+08 
+   18360    14.153726   -9.8531496  0.017211739   -9.8359379 3.7099024e+08 
+   18370    14.273649   -9.8540669  0.017357572   -9.8367093 4.0144216e+08 
+   18380    14.423981   -9.8550424  0.017540384    -9.837502 4.3569301e+08 
+   18390     14.60786   -9.8560844  0.017763991   -9.8383204 4.7463182e+08 
+   18400    14.826387   -9.8571994  0.018029733   -9.8391697 5.1900013e+08 
+   18410      15.0783   -9.8583917  0.018336073   -9.8400556 5.6921223e+08 
+   18420    15.359609   -9.8596621  0.018678162    -9.840984 6.2513975e+08 
+   18430    15.663018   -9.8610079  0.019047124   -9.8419607 6.8586463e+08 
+   18440    15.976962   -9.8624202  0.019428898   -9.8429913 7.4947429e+08 
+   18450    16.284235   -9.8638824   0.01980256   -9.8440799 8.1247291e+08 
+   18460    16.560325   -9.8653672    0.0201383   -9.8452289 8.6972625e+08 
+   18470    16.772327   -9.8668333  0.020396107   -9.8464372 9.1559479e+08 
+   18480    16.881235   -9.8682265  0.020528545    -9.847698 9.2645598e+08 
+   18490    16.852582   -9.8694885  0.020493701   -9.8489948 9.295801e+08 
+   18500    16.676164   -9.8705795  0.020279168   -9.8503003 9.0722627e+08 
+   18510    16.379612   -9.8715011  0.019918543   -9.8515826 8.609419e+08 
+   18520    16.018025   -9.8722976  0.019478833   -9.8528187 7.9625448e+08 
+   18530    15.648907   -9.8730306  0.019029964   -9.8540006 7.2051865e+08 
+   18540    15.315407   -9.8737557  0.018624409   -9.8551313 6.4068009e+08 
+   18550    15.043515   -9.8745125  0.018293773   -9.8562188 5.6192284e+08 
+   18560     14.84587   -9.8753266  0.018053426   -9.8572731 4.8750072e+08 
+   18570    14.726437   -9.8762133  0.017908188   -9.8583051 4.1918828e+08 
+   18580    14.684219   -9.8771825  0.017856848   -9.8593256 3.5783672e+08 
+   18590    14.715896   -9.8782404  0.017895369    -9.860345 3.0383412e+08 
+   18600    14.817577   -9.8793927   0.01801902   -9.8613737 2.574248e+08 
+   18610    14.985849   -9.8806453  0.018223648   -9.8624216 2.1809418e+08 
+   18620    15.218289   -9.8820049  0.018506308   -9.8634986 1.8795975e+08 
+   18630    15.513572   -9.8834802  0.018865389   -9.8646148 1.6682363e+08 
+   18640    15.871039   -9.8850805  0.019300089   -9.8657805 1.5472244e+08 
+   18650    16.290224   -9.8868161  0.019809843   -9.8670063 1.5446244e+08 
+   18660    16.770056   -9.8886969  0.020393345   -9.8683035 1.6630633e+08 
+   18670    17.307797   -9.8907312  0.021047269    -9.869684 1.9149272e+08 
+   18680    17.897779   -9.8929245  0.021764721   -9.8711598 2.3116838e+08 
+   18690    18.529706   -9.8952763   0.02253318   -9.8727431 2.8621796e+08 
+   18700    19.186479   -9.8977776  0.023331853   -9.8744457 3.5693238e+08 
+   18710    19.841631    -9.900406  0.024128556   -9.8762775 4.4248576e+08 
+   18720    20.456738   -9.9031214  0.024876561   -9.8782448 5.4017354e+08 
+   18730     20.97942   -9.9058604  0.025512172   -9.8803483 6.4441401e+08 
+   18740    21.342182   -9.9085319  0.025953311   -9.8825786 7.4571585e+08 
+   18750    21.461721   -9.9110122  0.026098678   -9.8849135 8.3030442e+08 
+   18760    21.242361   -9.9131453  0.025831924   -9.8873133  8.82007e+08 
+   18770    20.604402   -9.9147689  0.025056129   -9.8897128 8.8812466e+08 
+   18780    19.555703   -9.9157982  0.023780851   -9.8920174 8.4700893e+08 
+   18790    18.233956   -9.9163058  0.022173531   -9.8941322 7.6108771e+08 
+   18800    16.829332   -9.9164766  0.020465429   -9.8960112 6.6522496e+08 
+   18810    15.480013    -9.916484  0.018824579   -9.8976594 5.6504207e+08 
+   18820     14.24481   -9.9164261  0.017322503   -9.8991036 4.693782e+08 
+   18830     13.12544   -9.9163334  0.015961284   -9.9003721 3.8098575e+08 
+   18840    12.095587   -9.9161963  0.014708924   -9.9014873 2.9885983e+08 
+   18850    11.125592   -9.9159933  0.013529355   -9.9024639 2.2082206e+08 
+   18860    10.200732   -9.9157148  0.012404672   -9.9033101 1.4550385e+08 
+   18870    9.3286013    -9.915376  0.011344112   -9.9040319     73286969 
+   18880    8.5335539   -9.9150147  0.010377289   -9.9046374    6046410.2 
+   18890    7.8443638   -9.9146781 0.0095391942   -9.9051389    -53795351 
+   18900    7.2840885   -9.9144094 0.0088578675   -9.9055515 -1.0411892e+08 
+   18910    6.8658235   -9.9142406 0.0083492334   -9.9058914 -1.4351628e+08 
+   18920    6.5927751   -9.9141909 0.0080171909   -9.9061737 -1.7135709e+08 
+   18930    6.4599432   -9.9142679 0.0078556597   -9.9064122 -1.8770957e+08 
+   18940    6.4557391   -9.9144692 0.0078505474   -9.9066186 -1.9324479e+08 
+   18950    6.5628983   -9.9147841 0.0079808591   -9.9068033 -1.8919292e+08 
+   18960    6.7585729   -9.9151946 0.0082188105   -9.9069758 -1.77363e+08 
+   18970    7.0137448   -9.9156747  0.008529114   -9.9071456 -1.6020575e+08 
+   18980    7.2924352   -9.9161907 0.0088680175   -9.9073227 -1.4084625e+08 
+   18990    7.5519658   -9.9167005 0.0091836215   -9.9075168 -1.229391e+08 
+   19000    7.7467487   -9.9171563 0.0094204887   -9.9077358 -1.1017559e+08 
+   19010     7.838291   -9.9175142 0.0095318094   -9.9079824 -1.0539242e+08 
+   19020    7.8098663   -9.9177487 0.0094972432   -9.9082514 -1.0961159e+08 
+   19030    7.6761628    -9.917866 0.0093346522   -9.9085313 -1.2158262e+08 
+   19040    7.4778955   -9.9179032 0.0090935478   -9.9088096 -1.3813968e+08 
+   19050    7.2649886   -9.9179127 0.0088346409   -9.9090781 -1.5513529e+08 
+   19060    7.0814108   -9.9179449 0.0086113998   -9.9093335 -1.6846234e+08 
+   19070    6.9584757   -9.9180389 0.0084619037    -9.909577 -1.747609e+08 
+   19080    6.9145683   -9.9182205 0.0084085099    -9.909812 -1.7167172e+08 
+   19090    6.9572614   -9.9185048  0.008460427   -9.9100444 -1.5777308e+08 
+   19100      7.08548   -9.9188984 0.0086163482    -9.910282 -1.3241299e+08 
+   19110    7.2909615   -9.9194005 0.0088662255   -9.9105343    -95551989 
+   19120    7.5590308   -9.9200048  0.009192213   -9.9108126    -47690482 
+   19130    7.8690343   -9.9206986  0.009569195   -9.9111294     10133692 
+   19140    8.1949346    -9.921463 0.0099655084   -9.9114975     76296499 
+   19150    8.5066243   -9.9222728  0.010344541   -9.9119283 1.4852508e+08 
+   19160    8.7724198   -9.9230968  0.010667763    -9.912429 2.2388354e+08 
+   19170    8.9628114   -9.9238999   0.01089929   -9.9130006 2.9885989e+08 
+   19180    9.0547755   -9.9246469  0.011011124   -9.9136358 3.6958536e+08 
+   19190    9.0350006   -9.9253072  0.010987077   -9.9143201 4.321403e+08 
+   19200    8.9000101   -9.9258569   0.01082292    -9.915034 4.8282507e+08 
+   19210    8.6525851   -9.9262785  0.010522037   -9.9157565 5.1832911e+08 
+   19220    8.2970819   -9.9265572  0.010089725   -9.9164675 5.3592832e+08 
+   19230    7.8388356     -9.92668 0.0095324716   -9.9171476 5.3396459e+08 
+   19240    7.2909979   -9.9266433 0.0088662697    -9.917777 5.1257402e+08 
+   19250    6.6840866   -9.9264646 0.0081282309   -9.9183364 4.7414436e+08 
+   19260    6.0667132   -9.9261893 0.0073774696   -9.9188118 4.2300216e+08 
+   19270     5.493441   -9.9258801 0.0066803379   -9.9191998 3.6447725e+08 
+   19280    5.0101289   -9.9256002 0.0060926028   -9.9195076 3.0385266e+08 
+   19290    4.6472138   -9.9253995 0.0056512773   -9.9197482 2.4556293e+08 
+   19300     4.420913   -9.9253122 0.0053760826   -9.9199361 1.928284e+08 
+   19310    4.3373742   -9.9253589 0.0052744947   -9.9200844 1.4769987e+08 
+   19320    4.3963431   -9.9255509 0.0053462042   -9.9202046 1.1131389e+08 
+   19330    4.5932381   -9.9258927 0.0055856397   -9.9203071     84167835 
+   19340    4.9196124   -9.9263848 0.0059825295   -9.9204023     66319257 
+   19350    5.3623008   -9.9270237 0.0065208639   -9.9205028     57487145 
+   19360    5.9017003   -9.9278022 0.0071768046   -9.9206254     57066336 
+   19370    6.5098997   -9.9287088 0.0079164097   -9.9207924     64081565 
+   19380    7.1498276   -9.9297266 0.0086945985    -9.921032     77121735 
+   19390    7.7770343    -9.930832 0.0094573177   -9.9213747     94319346 
+   19400    8.3453217   -9.9319943  0.010148388   -9.9218459 1.133992e+08 
+   19410    8.8149759    -9.933176  0.010719514   -9.9224564 1.3182722e+08 
+   19420    9.1589128   -9.9343347  0.011137761    -9.923197 1.4715416e+08 
+   19430    9.3629361   -9.9354271  0.011385865   -9.9240412 1.5716845e+08 
+   19440    9.4226347   -9.9364132  0.011458462   -9.9249548 1.6015122e+08 
+   19450    9.3420935   -9.9372632  0.011360519   -9.9259027 1.5513692e+08 
+   19460    9.1347148   -9.9379617  0.011108335   -9.9268534 1.4209779e+08 
+   19470    8.8225866   -9.9385092  0.010728769   -9.9277804 1.1950592e+08 
+   19480    8.4326707   -9.9389187  0.010254609   -9.9286641     94347052 
+   19490    7.9915796   -9.9392097 0.0097182171   -9.9294915     65709038 
+   19500    7.5216922   -9.9394018 0.0091468072    -9.930255     35548885 
+   19510    7.0399162   -9.9395126   0.00856094   -9.9309516      5645620 
+   19520    6.5587144   -9.9395564 0.0079757712   -9.9315807    -22506836 
+   19530    6.0881822   -9.9395468 0.0074035771   -9.9321432    -47740847 
+   19540    5.6378861   -9.9394976 0.0068559914   -9.9326416    -69218293 
+   19550     5.217592   -9.9394244 0.0063448898   -9.9330795    -86387057 
+   19560    4.8367358   -9.9393437 0.0058817469   -9.9334619    -98956340 
+   19570      4.50316   -9.9392712 0.0054760996   -9.9337951 -1.0683079e+08 
+   19580    4.2218493   -9.9392201 0.0051340098   -9.9340861 -1.1008861e+08 
+   19590    3.9941585   -9.9391993 0.0048571248   -9.9343422 -1.089758e+08 
+   19600    3.8176525   -9.9392129 0.0046424834   -9.9345704 -1.0402142e+08 
+   19610    3.6865099   -9.9392603 0.0044830066   -9.9347773    -95613040 
+   19620    3.5923262   -9.9393368 0.0043684738   -9.9349683    -84616724 
+   19630    3.5253058   -9.9394349 0.0042869732    -9.935148    -71872904 
+   19640    3.4757455   -9.9395463 0.0042267049   -9.9353196    -58345684 
+   19650    3.4356185   -9.9396633 0.0041779082   -9.9354854    -44482459 
+   19660    3.3999116   -9.9397809 0.0041344866   -9.9356464    -30970030 
+   19670    3.3672622   -9.9398982 0.0040947831   -9.9358034    -18022025 
+   19680    3.3397142   -9.9400181 0.0040612831   -9.9359568   -5594103.8 
+   19690    3.3216971   -9.9401469 0.0040393733   -9.9361076    6592857.6 
+   19700    3.3186554   -9.9402928 0.0040356744   -9.9362571     18969737 
+   19710    3.3357727   -9.9404643   0.00405649   -9.9364078     32027235 
+   19720    3.3770463   -9.9406697 0.0041066812    -9.936563     46228844 
+   19730    3.4447397   -9.9409156 0.0041890002   -9.9367266     61946210 
+   19740    3.5391157   -9.9412074 0.0043037668   -9.9369036     79415354 
+   19750    3.6583409   -9.9415483 0.0044487513   -9.9370996     98708196 
+   19760    3.7985002   -9.9419397 0.0046191931   -9.9373205 1.1971303e+08 
+   19770    3.9537197   -9.9423804 0.0048079488   -9.9375724 1.4211628e+08 
+   19780    4.1164145   -9.9428665  0.005005795   -9.9378607 1.6539688e+08 
+   19790    4.2776638    -9.943391 0.0052018834   -9.9381891 1.888244e+08 
+   19800    4.4276845    -9.943944 0.0053843172   -9.9385597 2.1148397e+08 
+   19810    4.5563993   -9.9445124 0.0055408416   -9.9389715 2.3232592e+08 
+   19820    4.6541669    -9.945081 0.0056597327   -9.9394212 2.5025246e+08 
+   19830    4.7127671    -9.945634 0.0057309939    -9.939903 2.6423246e+08 
+   19840    4.7266017   -9.9461566 0.0057478175   -9.9404088 2.7344141e+08 
+   19850    4.6938364   -9.9466372  0.005707973   -9.9409292 2.7738395e+08 
+   19860    4.6170418    -9.947069 0.0056145864   -9.9414544 2.7561566e+08 
+   19870    4.5029835    -9.947451 0.0054758851   -9.9419751 2.6925316e+08 
+   19880    4.3616038   -9.9477875 0.0053039592   -9.9424836 2.585598e+08 
+   19890    4.2043181   -9.9480869 0.0051126909   -9.9429742 2.4422623e+08 
+   19900    4.0423943   -9.9483598 0.0049157822    -9.943444 2.2797108e+08 
+   19910    3.8855325   -9.9486173 0.0047250293   -9.9438923 2.1050252e+08 
+   19920    3.7409968   -9.9488694 0.0045492657   -9.9443202 1.927344e+08 
+   19930    3.6132651   -9.9491242 0.0043939367   -9.9447303 1.7538485e+08 
+   19940     3.504081    -9.949387 0.0042611626   -9.9451259 1.5895953e+08 
+   19950    3.4127842   -9.9496608 0.0041501405   -9.9455107 1.4375981e+08 
+   19960    3.3368065   -9.9499461 0.0040577472   -9.9458883 1.2990917e+08 
+   19970     3.272254   -9.9502411 0.0039792476   -9.9462619 1.1739016e+08 
+   19980    3.2145205   -9.9505428 0.0039090404   -9.9466338 1.0608491e+08 
+   19990    3.1588942    -9.950847 0.0038413957   -9.9470056     95818686 
+   20000    3.1011177   -9.9511491 0.0037711361    -9.947378     86399533 
+   20010    3.0378583   -9.9514449 0.0036942092   -9.9477507     77654756 
+   20020    2.9670421    -9.951731 0.0036080925   -9.9481229     69456982 
+   20030    2.8880056    -9.952005 0.0035119797    -9.948493     61745754 
+   20040    2.8014431   -9.9522662 0.0034067148   -9.9488595     54529236 
+   20050    2.7091552   -9.9525154 0.0032944874   -9.9492209     47882301 
+   20060    2.6136474   -9.9527545 0.0031783444   -9.9495761     41312300 
+   20070    2.5176567   -9.9529863 0.0030616143   -9.9499247     36273292 
+   20080    2.4236922   -9.9532141 0.0029473481   -9.9502667     32207917 
+   20090    2.3336631    -9.953441 0.0028378675   -9.9506032     29237208 
+   20100    2.2486354   -9.9536698  0.002734469   -9.9509353     27438463 
+   20110    2.1687276   -9.9539022 0.0026372966   -9.9512649     26832474 
+   20120    2.0931265   -9.9541395 0.0025453613   -9.9515941     27377823 
+   20130    2.0201922   -9.9543815 0.0024566691   -9.9519248     28971732 
+   20140    1.9476106   -9.9546276 0.0023684057   -9.9522592     31456277 
+   20150    1.8725469   -9.9548763  0.002277124   -9.9525991     34628633 
+   20160    1.7917439   -9.9551254 0.0021788629   -9.9529465     38251998 
+   20170    1.7014707   -9.9553724 0.0020690855   -9.9533033     42064992 
+   20180    1.5971111   -9.9556147 0.0019421783   -9.9536725     45787876 
+   20190    1.4716931   -9.9558493 0.0017896628   -9.9540597     49100942 
+   20200    1.3097422   -9.9560729 0.0015927212   -9.9544802     51529169 
+   20210 5.427681e-101   -9.9562709 6.6003699e-104   -9.9562709     31258261 
+Loop time of 79.805 on 4 procs for 10000 steps with 257 atoms
+
+Performance: 663.116 fs/day, 0.036 hours/fs, 125.305 timesteps/s
+99.1% CPU use with 4 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 46.805     | 49.891     | 52.553     |  29.8 | 62.52
+Neigh   | 0.0015858  | 0.0027072  | 0.0036716  |   1.6 |  0.00
+Comm    | 4.2523     | 6.9606     | 10.091     |  80.9 |  8.72
+Output  | 0.042214   | 0.071825   | 0.082694   |   6.4 |  0.09
+Modify  | 22.725     | 22.793     | 22.833     |   0.9 | 28.56
+Other   |            | 0.08617    |            |       |  0.11
+
+Nlocal:    64.25 ave 121 max 17 min
+Histogram: 2 0 0 0 0 0 0 1 0 1
+Nghost:    192.75 ave 240 max 136 min
+Histogram: 1 0 1 0 0 0 0 0 0 2
+Neighs:    8117.5 ave 12174 max 3911 min
+Histogram: 2 0 0 0 0 0 0 0 0 2
+
+Total # of neighbors = 32470
+Ave neighs/atom = 126.342
+Neighbor list builds = 32
+Dangerous builds = 0
+
+unfix all_nvt2
+fix all_nve3 all nve
+
+dump 4 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check3.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+dump 4 electron custom 1 /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check3.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+dump 4 electron custom 1 /data/tcampbell/LAMMPS/SPH_Bohm/hedp_SPH_H_ground_3k/ele_xyzh_data_check3.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+# save small dump of positions and widths for CoM checking
+run ${CoM_check_time_steps}
+run 100
+Neighbor list info ...
+  update every 1 steps, delay 10 steps, check yes
+  max neighbors/atom: 10000, page size: 100000
+  master list distance cutoff = 12
+  ghost atom cutoff = 12
+  binsize = 6, bins = 2 2 3
+  4 neighbor lists, perpetual/occasional/extra = 2 2 0
+  (1) pair bohm_SPH_dynamic_Mocz_rob, perpetual, skip from (2)
+      attributes: half, newton on
+      pair build: skip
+      stencil: none
+      bin: none
+  (2) pair coul/cut/SPH_nopseudo_sub, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d/newton
+      bin: standard
+  (3) compute rdf, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+  (4) compute rdf, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+Per MPI rank memory allocation (min/avg/max) = 6.251 | 6.251 | 6.251 Mbytes
+Step Temp PotEng KinEng TotEng Press 
+   20210 5.427681e-101   -9.9562842 6.6003699e-104   -9.9562842     31655895 
+   20220 0.0091433629   -9.9563078 1.1118851e-05   -9.9562967     32764097 
+   20230  0.036415896   -9.9563369 4.4283809e-05   -9.9562926     34037302 
+   20240  0.081349476   -9.9563864 9.8925607e-05   -9.9562874     36143326 
+   20250   0.14318679   -9.9564566 0.00017412331   -9.9562825     39095479 
+   20260   0.22091158   -9.9565464 0.00026864109   -9.9562778     42834740 
+   20270   0.31328724   -9.9566545 0.00038097516   -9.9562735     47283835 
+   20280   0.41890083    -9.956779 0.00050940733   -9.9562696     52355306 
+   20290   0.53620873   -9.9569182 0.00065206043   -9.9562662     57956127 
+   20300   0.66357964   -9.9570702 0.00080695072   -9.9562632     63991891 
+   20310   0.79933118   -9.9572328 0.00097203235   -9.9562608     70370514 
+Loop time of 1.01954 on 4 procs for 100 steps with 257 atoms
+
+Performance: 519.057 fs/day, 0.046 hours/fs, 98.083 timesteps/s
+98.4% CPU use with 4 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.56289    | 0.60219    | 0.64103    |   4.6 | 59.06
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.040965   | 0.078478   | 0.11606    |  12.9 |  7.70
+Output  | 0.059527   | 0.06832    | 0.07373    |   2.1 |  6.70
+Modify  | 0.26127    | 0.26374    | 0.26614    |   0.4 | 25.87
+Other   |            | 0.006811   |            |       |  0.67
+
+Nlocal:    64.25 ave 122 max 17 min
+Histogram: 2 0 0 0 0 0 0 1 0 1
+Nghost:    192.75 ave 240 max 135 min
+Histogram: 1 0 1 0 0 0 0 0 0 2
+Neighs:    8117 ave 12351 max 3911 min
+Histogram: 2 0 0 0 0 0 0 0 1 1
+
+Total # of neighbors = 32468
+Ave neighs/atom = 126.335
+Neighbor list builds = 0
+Dangerous builds = 0
+
+undump 4
+
+quit 0
