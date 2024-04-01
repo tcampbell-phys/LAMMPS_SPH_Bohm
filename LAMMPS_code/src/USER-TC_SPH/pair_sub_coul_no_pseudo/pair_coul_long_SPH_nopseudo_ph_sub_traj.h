@@ -1,0 +1,100 @@
+/* -*- c++ -*- ----------------------------------------------------------
+   LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
+   http://lammps.sandia.gov, Sandia National Laboratories
+   Steve Plimpton, sjplimp@sandia.gov
+
+   Copyright (2003) Sandia Corporation.  Under the terms of Contract
+   DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
+   certain rights in this software.  This software is distributed under
+   the GNU General Public License.
+
+   See the README file in the top-level LAMMPS directory.
+
+   Edited by Thomas Campbell (Oxford)
+------------------------------------------------------------------------- */
+
+#ifdef PAIR_CLASS
+
+PairStyle(coul/long/SPH_nopseudo_ph_sub_traj,PairCoulLongNopseudoSPHphsubTraj)
+
+#else
+
+#ifndef LMP_PAIR_COUL_LONG_NOPSEUDO_SPH_PH_SUB_TRAJ_H
+#define LMP_PAIR_COUL_LONG_NOPSEUDO_SPH_PH_SUB_TRAJ_H
+
+#include "pair.h"
+
+namespace LAMMPS_NS {
+
+class PairCoulLongNopseudoSPHphsubTraj : public Pair {
+ public:
+  PairCoulLongNopseudoSPHphsubTraj(class LAMMPS *);
+  ~PairCoulLongNopseudoSPHphsubTraj();
+  virtual void compute(int, int);
+  virtual void settings(int, char **);
+  void coeff(int, char **);
+  virtual void init_style();
+  virtual double init_one(int, int);
+  void write_restart(FILE *);
+  void read_restart(FILE *);
+  virtual void write_restart_settings(FILE *);
+  virtual void read_restart_settings(FILE *);
+  virtual int pack_forward_comm(int, int *, double *, int, int *);
+  virtual void unpack_forward_comm(int, int, double *);
+  int pack_reverse_comm(int, int, double *);
+  void unpack_reverse_comm(int, int *, double *);
+//   virtual double single(int, int, int, int, double, double, double, double &);
+  virtual void *extract(const char *, int &);
+
+ protected:
+  int nmax; // allocated size of per-atom arrays
+
+  double cut_coul,cut_coulsq,qdist;
+  double *cut_respa;
+  double g_ewald;
+  double ke_in;
+  double ele_TFWHM; // twice the full width half maximum of the average electron in SPH system
+  int N_epe;
+  double occupation_fact;
+  int ion_species; // label which species are point charges
+  int tag_ele_start;
+  double **scale;
+
+  // per-atom arrays
+  double *theta_coul;
+  double *theta_coul_ei;
+
+  int numforce; // value to check whether many body quantities have been computed prior to calling single()
+
+  double sqrt2 = 1.4142135623730951;
+  double sqrt_pi = 1.7724538509055159;
+
+  virtual void allocate();
+};
+
+}
+
+#endif
+#endif
+
+/* ERROR/WARNING messages:
+
+E: Illegal ... command
+
+Self-explanatory.  Check the input script syntax and compare to the
+documentation for the command.  You can use -echo screen as a
+command-line option when running LAMMPS to see the offending line.
+
+E: Incorrect args for pair coefficients
+
+Self-explanatory.  Check the input script or data file.
+
+E: Pair style lj/cut/coul/long requires atom attribute q
+
+The atom style defined does not have this attribute.
+
+E: Pair style requires a KSpace style
+
+No kspace style is defined.
+
+*/
