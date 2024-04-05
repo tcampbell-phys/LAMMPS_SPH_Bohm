@@ -1,0 +1,657 @@
+# Set output directory
+
+variable out_number string 15k
+
+### BACKUP SIMULATION FILES
+
+variable gamma_factor equal 1822.888483
+
+variable outputdir string hedp_SPH_H_ground_${out_number}
+shell mkdir /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/
+shell cp ~/fresh_lammps-3Mar20/lammps-3Mar20/SPH_Bohm/in.hedp_SPH_H_ground_${out_number} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/
+shell cp ~/fresh_lammps-3Mar20/lammps-3Mar20/src/pair_bohm_SPH_dynamic.cpp /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/
+shell cp ~/fresh_lammps-3Mar20/lammps-3Mar20/src/pair_bohm_SPH_dynamic.h /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/
+shell cp ~/fresh_lammps-3Mar20/lammps-3Mar20/src/pair_coul_long_SPH_ph.cpp /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/
+shell cp ~/fresh_lammps-3Mar20/lammps-3Mar20/src/pair_coul_long_SPH_ph.h /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/
+log /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/log.${outputdir}  
+
+### SYSTEM PARAMETERS: 
+
+### physical parameters:
+
+variable temp equal 0.000	         # temperature in Ev
+variable ion_density equal 0.044545217  		# Density in # per bohr^3
+variable num_ions equal 1	                                        # Number of ions
+variable ion_charge equal 1.0			                                # Average charge/ionization
+variable ion_amu equal 1.008	                                # Atomic mass of ion
+variable electron_amu equal 0.00054857991                           # Atomic mass of electrons
+
+variable sigma_start equal 0.6                                         # Start global packet width of electrons in bohr
+
+variable elements_per_electron equal 128
+
+variable element_scaled_mass equal ${electron_amu}/${elements_per_electron}
+variable element_scaled_charge equal -1/${elements_per_electron}
+
+variable num_electrons equal ${num_ions}*${ion_charge}
+variable num_electron_elements equal ${num_electrons}*${elements_per_electron}
+variable half_num_electrons equal ${num_electrons}/2.0
+variable quar_num_electrons equal ${half_num_electrons}/2.0
+variable temptouse equal 11604.5221*${temp}
+# variable box_len equal (${num_ions}/${ion_density})^(1/3)
+variable box_len equal 2.0
+variable half_box_len equal ${box_len}/2.0
+
+variable confine_strength equal 0.0        # set strength of qudratic confinement potential for SPH elements belonging to the same electron
+
+### simulation parameters:
+
+variable cutoff equal 6.0                                     # cutoff for pairwise calculations
+
+variable assign_ion equal 1    # if set to 1, all ions moved to targ coord on first timestep
+variable targ_coord equal ${half_box_len}
+
+units electron                                                      # use electron units (Hartree)
+newton on
+boundary s s s
+atom_style SPH_CoM 
+
+# Pair style string selection
+
+variable pair_name string bohm_SPH_dynamic_Mocz
+
+variable ion_seed equal 10
+variable e_up_a_seed equal 20
+variable e_up_b_seed equal 30
+variable e_down_a_seed equal 40
+variable e_down_b_seed equal 50
+
+# thermostat parameters
+
+variable ion_vel_seed equal 60
+variable e_down_a_vel_seed equal 70
+variable e_down_b_vel_seed equal 80
+variable e_up_a_vel_seed equal 90
+variable e_up_b_vel_seed equal 100
+
+variable vel_t equal 1.0*${temptouse}
+
+# rdf calculation
+
+variable rdf_num_bins equal 150
+variable rdf_num_measurements equal 10
+variable rdf_output_time_step equal 40
+variable rdf_measurement_time_gap equal 1 
+
+### Setup simulation
+
+region bounding_region block 0.0 ${box_len} 0.0 ${box_len} 0.0 ${box_len}
+
+create_box 2 bounding_region
+
+create_atoms 1 random ${num_ions} ${ion_seed} NULL
+group ion type 1
+mass 1 ${ion_amu}
+set type 1 charge ${ion_charge}
+
+create_atoms 2 random ${num_electron_elements} ${e_up_a_seed} NULL
+group electron type 2
+mass 2 ${element_scaled_mass}
+set type 2 charge ${element_scaled_charge}
+
+variable tag_ele_start equal ${num_ions}+1
+
+# Ensure ghost atom velocities communicated for SPH Bohm Potential:
+
+comm_modify vel yes
+
+### Dynamic Width fix
+variable dens_wid_const equal 1.3
+variable N_iter equal 8
+variable mix_fact equal 1.0
+variable tfwhm equal 4.70964*${dens_wid_const}*${box_len}/(${num_electron_elements}^(1/3))
+variable type_avoid equal 1 #ensure ions are not included in SPH loops (must match ion type)
+
+# Call dynamic_widths_com to ensure calculation of electron Centres of Mass
+
+fix ele_dyn_wid electron dynamic_widths ${dens_wid_const} ${N_iter} ${mix_fact} ${sigma_start} ${cutoff} ${type_avoid} ${pair_name}
+
+pair_style hybrid/overlay ${pair_name} ${cutoff} ${gamma_factor} coul/cut/SPH_nopseudo_sub ${cutoff} 1.0 1 ${elements_per_electron} ${tag_ele_start} ${assign_ion} ${targ_coord}
+
+# Set up each pair with the correct styles:
+
+pair_coeff * * coul/cut/SPH_nopseudo_sub
+
+pair_coeff 2 2 ${pair_name}
+
+# increase number of allowed neighbours
+neigh_modify one 10000
+
+velocity all create ${temptouse} ${ion_vel_seed} &
+rot yes dist gaussian
+
+#velocity ion create ${temptouse} ${ion_vel_seed} &
+#rot yes dist gaussian
+
+#velocity electron create ${vel_t} ${e_down_a_vel_seed} &
+#rot yes dist gaussian
+
+# Randomize the starting positions of all of our particles
+
+displace_atoms all random 0.1 0.1 0.1 42
+
+compute electron_temp electron temp
+
+# Compute pair correlation functions:
+compute ion_electron_rdf all rdf ${rdf_num_bins} &
+1 2
+
+compute electron_electron_rdf all rdf ${rdf_num_bins} &
+2 2
+
+fix write_ion_electron_rdf all ave/time &
+${rdf_measurement_time_gap} ${rdf_num_measurements} ${rdf_output_time_step} &
+c_ion_electron_rdf[*] file &
+/data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_electron.rdf mode vector
+
+fix write_electron_electron_rdf all ave/time &
+${rdf_measurement_time_gap} ${rdf_num_measurements} ${rdf_output_time_step} &
+c_electron_electron_rdf[*] file &
+/data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/electron_electron.rdf mode vector
+
+# custom logfile output
+
+thermo_style custom step temp pe ke etotal press
+
+# modify logfile output
+
+thermo_modify lost warn
+thermo 200
+thermo_style custom step temp pe ke etotal press
+
+variable damping_strength equal 0.0001
+
+fix all_nve all nve
+
+variable equi_time_steps equal 10000.0
+
+variable CoM_check_time_steps equal 100.0
+
+variable dump_freq equal 1
+
+variable time_step_length equal 1e-06
+
+timestep ${time_step_length}
+
+### stage 0
+run ${equi_time_steps}
+
+dump 0 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check0.dump
+
+dump 1 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check0.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 0
+
+undump 1
+
+fix damp_all all viscous ${damping_strength}
+
+### stage 1
+run ${equi_time_steps}
+
+dump 2 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check1.dump
+
+dump 3 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check1.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 2
+
+undump 3
+
+### stage 2
+run ${equi_time_steps}
+
+dump 4 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check2.dump
+
+dump 5 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check2.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 4
+
+undump 5
+
+### stage 3
+run ${equi_time_steps}
+
+dump 6 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check3.dump
+
+dump 7 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check3.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 6
+
+undump 7
+
+### stage 4
+run ${equi_time_steps}
+
+dump 8 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check4.dump
+
+dump 9 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check4.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 8
+
+undump 9
+
+### stage 5
+run ${equi_time_steps}
+
+dump 10 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check5.dump
+
+dump 11 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check5.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 10
+
+undump 11
+
+### stage 6
+run ${equi_time_steps}
+
+dump 12 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check6.dump
+
+dump 13 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check6.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 12
+
+undump 13
+
+### stage 7
+run ${equi_time_steps}
+
+dump 14 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check7.dump
+
+dump 15 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check7.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 14
+
+undump 15
+
+### stage 8
+run ${equi_time_steps}
+
+dump 16 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check8.dump
+
+dump 17 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check8.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 16
+
+undump 17
+
+### stage 9
+run ${equi_time_steps}
+
+dump 18 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check9.dump
+
+dump 19 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check9.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 18
+
+undump 19
+
+### stage 10
+run ${equi_time_steps}
+
+dump 20 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check10.dump
+
+dump 21 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check10.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 20
+
+undump 21
+
+### stage 11
+run ${equi_time_steps}
+
+dump 22 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check11.dump
+
+dump 23 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check11.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 22
+
+undump 23
+
+### stage 12
+run ${equi_time_steps}
+
+dump 24 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check12.dump
+
+dump 25 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check12.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 24
+
+undump 25
+
+### stage 13
+run ${equi_time_steps}
+
+dump 26 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check13.dump
+
+dump 27 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check13.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 26
+
+undump 27
+
+### stage 14
+run ${equi_time_steps}
+
+dump 28 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check14.dump
+
+dump 29 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check14.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 28
+
+undump 29
+
+### stage 15
+run ${equi_time_steps}
+
+dump 30 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check15.dump
+
+dump 31 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check15.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 30
+
+undump 31
+
+### stage 16
+run ${equi_time_steps}
+
+dump 32 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check16.dump
+
+dump 33 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check16.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 32
+
+undump 33
+
+### stage 17
+run ${equi_time_steps}
+
+dump 34 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check17.dump
+
+dump 35 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check17.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 34
+
+undump 35
+
+### stage 18
+run ${equi_time_steps}
+
+dump 36 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check18.dump
+
+dump 37 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check18.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 36
+
+undump 37
+
+### stage 19
+run ${equi_time_steps}
+
+dump 38 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check19.dump
+
+dump 39 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check19.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 38
+
+undump 39
+
+### stage 20
+run ${equi_time_steps}
+
+dump 40 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check20.dump
+
+dump 41 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check20.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 40
+
+undump 41
+
+### stage 21
+run ${equi_time_steps}
+
+dump 42 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check21.dump
+
+dump 43 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check21.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 42
+
+undump 43
+
+### stage 22
+run ${equi_time_steps}
+
+dump 44 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check22.dump
+
+dump 45 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check22.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 44
+
+undump 45
+
+### stage 23
+run ${equi_time_steps}
+
+dump 46 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check23.dump
+
+dump 47 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check23.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 46
+
+undump 47
+
+### stage 24
+run ${equi_time_steps}
+
+dump 48 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check24.dump
+
+dump 49 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check24.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 48
+
+undump 49
+
+### stage 25
+run ${equi_time_steps}
+
+dump 50 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check25.dump
+
+dump 51 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check25.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 50
+
+undump 51
+
+### stage 26
+run ${equi_time_steps}
+
+dump 52 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check26.dump
+
+dump 53 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check26.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 52
+
+undump 53
+
+### stage 27
+run ${equi_time_steps}
+
+dump 54 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check27.dump
+
+dump 55 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check27.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 54
+
+undump 55
+
+### stage 28
+run ${equi_time_steps}
+
+dump 56 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check28.dump
+
+dump 57 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check28.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 56
+
+undump 57
+
+### stage 29
+run ${equi_time_steps}
+
+dump 58 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check29.dump
+
+dump 59 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check29.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 58
+
+undump 59
+
+### stage 30
+run ${equi_time_steps}
+
+dump 60 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check30.dump
+
+dump 61 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check30.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 60
+
+undump 61
+
+### stage 31
+run ${equi_time_steps}
+
+dump 62 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check31.dump
+
+dump 63 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check31.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 62
+
+undump 63
+
+### stage 32
+run ${equi_time_steps}
+
+dump 64 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check32.dump
+
+dump 65 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check32.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 64
+
+undump 65
+
+### stage 33
+run ${equi_time_steps}
+
+dump 66 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check33.dump
+
+dump 67 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check33.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 66
+
+undump 67
+
+### stage 34
+run ${equi_time_steps}
+
+dump 68 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check34.dump
+
+dump 69 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check34.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 68
+
+undump 69
+
+### stage 35
+unfix damp_all
+run ${equi_time_steps}
+
+dump 70 ion xyz ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_xyz_data_check35.dump
+
+dump 71 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data_check35.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 70
+
+undump 71
+
+quit 0

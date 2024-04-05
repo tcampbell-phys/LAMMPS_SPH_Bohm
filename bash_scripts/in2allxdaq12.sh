@@ -1,13 +1,13 @@
 #!/bin/bash
 # rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/multi_analyse_structure_fast_v2.py campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
 # rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/test_sub_multi_analyse_structure_fast.py campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
-# rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/sub_multi_analyse_structure_fast.py campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
-# rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/CoM_check.py campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
+rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/sub_multi_analyse_structure_fast.py campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
+rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/CoM_check.py campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
 
 # rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/test_multi_analyse_structure_fast.py campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
 # rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/analyse_structure_fast_v2.py campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
 # rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/svensson_lib_v2/ campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/svensson_lib_v2/
-# rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/DSF_lib/ campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/DSF_lib/
+rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/DSF_lib/ campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/DSF_lib/
 # rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/lammps_python_lib/ campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/lammps_python_lib/
 # rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/analyse_structure.py campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
 # rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/analyse_structure_fast.py campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
@@ -26,8 +26,8 @@
 # scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../input_decks/hedp64/confine_tests/in.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/SPH_confine/
 # scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../input_decks/hedp64/CoM_thermo_tests/in.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/CoM_thermo/
 # scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../input_decks/hedp64/MF_Bohm_tests/in.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/MF_Bohm_tests/
-# scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../input_decks/hedp64/H_ground_tests/current/in.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/H_ground_tests/
-scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../input_decks/hedp64/trajectories_tests/in.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/trajectories_tests/
+scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../input_decks/hedp64/H_ground_tests/current/in.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/H_ground_tests/
+# scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../input_decks/hedp64/trajectories_tests/in.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/trajectories_tests/
 
 #scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../hedp_bohm_testing/in.pair_* campbell@allxdaq12.nat.physics.ox.ac.uk:~/allxfs1-lammps-3Mar20/pair_bohm_tests/
 #scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMPS_code/atom_vec_forceterms.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/allxfs1-lammps-3Mar20/src/  
@@ -61,7 +61,7 @@ scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../input
 # scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMPS_code/src/USER-TC_SPH/KSPACE_traj/* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/src/  
 # scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMPS_code/src/USER-TC_SPH/pair_sub_XC_traj/* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/src/  
 # scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMPS_code/src/USER-TC_SPH/pair_bohm_QHD/pair_bohm_SPH_dynamic_Mocz_robust_F2_traj.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/src/  
-scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMPS_code/src/USER-TC_SPH/pair_sub_coul_no_pseudo/pair_coul_long_SPH_nopseudo_ph_sub_traj.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/src/  
+# scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMPS_code/src/USER-TC_SPH/pair_sub_coul_no_pseudo/pair_coul_long_SPH_nopseudo_ph_sub_traj.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/src/  
 
 
 # scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMPS_code/src/USER-TC_SPH/pair_coul_cut_SPH.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/src/  
@@ -79,7 +79,7 @@ scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMP
 # scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMPS_code/src/USER-TC_SPH/pair_bohm_MF/* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/src/  
 # scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMPS_code/src/USER-TC_SPH/pair_coul_no_pseudo/* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/src/  
 # scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMPS_code/src/USER-TC_SPH/pair_sub_coul_no_pseudo/* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/src/  
-# scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMPS_code/src/USER-TC_SPH/pair_sub_coul_no_pseudo_cut/* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/src/  
+scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMPS_code/src/USER-TC_SPH/pair_sub_coul_no_pseudo_cut/* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/src/  
 # scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMPS_code/src/USER-TC_SPH/pair_sub_coul_pseudo/* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/src/  
 # scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMPS_code/src/USER-TC_SPH/pair_sub_coul_no_pseudo_MF/* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/src/  
 # scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMPS_code/src/USER-TC_SPH/pair_coul_pseudo/* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/src/  

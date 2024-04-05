@@ -114,6 +114,18 @@ void PairCoulCutSPHNoPseudoSubFix::compute(int eflag, int vflag)
 
     imass = mass[itype];
 
+    if (ntimestep == 0) {
+      if (itype == ion_species) {
+        if (assign_ion){
+          fprintf(screen,"\nTimestep = 0");
+          x[i][0] = targ_coord;
+          x[i][1] = targ_coord;
+          x[i][2] = targ_coord;
+          fprintf(screen,"\n###ASSIGNED ION TO TARGET COORDINATE###");
+        }
+      }
+    }
+
     if (itype != ion_species) {
       // electron target
 
@@ -304,6 +316,8 @@ void PairCoulCutSPHNoPseudoSubFix::settings(int narg, char **arg)
   tag_ele_start = force->numeric(FLERR,arg[4]);
   assign_ion = force->numeric(FLERR,arg[5]);
   targ_coord = force->numeric(FLERR,arg[6]);
+
+  fprintf(screen,"\n assign_ion = %d",assign_ion);
   
 
   // reset cutoffs that have been explicitly set
