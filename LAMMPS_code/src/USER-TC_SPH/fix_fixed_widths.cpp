@@ -180,13 +180,13 @@ void FixFixedWidths::FixedPointIterator()
   // clear all density values
 
   for(int i = 0; i < nall; i++){
-      rho_SPH[i] = 0.;
-      dx_rho_SPH[i] = 0.;
-      dy_rho_SPH[i] = 0.;
-      dz_rho_SPH[i] = 0.;
-      omega_SPH[i] = 1.;
-      width_SPH[i] = global_width;
-    }
+    rho_SPH[i] = 0.;
+    dx_rho_SPH[i] = 0.;
+    dy_rho_SPH[i] = 0.;
+    dz_rho_SPH[i] = 0.;
+    omega_SPH[i] = 1.;
+    width_SPH[i] = global_width;
+  }
 
   // loop to compute density values
 

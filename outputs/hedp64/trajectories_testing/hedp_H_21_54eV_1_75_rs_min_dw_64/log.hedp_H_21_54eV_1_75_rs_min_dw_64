@@ -1,0 +1,339 @@
+
+### SYSTEM PARAMETERS:
+
+### physical parameters:
+
+variable temp equal 21.54	         # temperature in Ev
+variable ion_density equal 0.044545217  		# Density in # per bohr^3
+variable num_ions equal 512	                                        # Number of ions
+variable ion_charge equal 1.0			                                # Average charge/ionization
+variable ion_amu equal 1.008	                                # Atomic mass of ion
+variable electron_amu equal 0.00054857991                           # Atomic mass of electrons
+
+variable sigma_start equal 1.15                                         # Start global packet width of electrons in bohr
+
+variable elements_per_electron equal 32
+
+variable element_scaled_mass equal ${electron_amu}/${elements_per_electron}
+variable element_scaled_mass equal 0.00054857991/${elements_per_electron}
+variable element_scaled_mass equal 0.00054857991/32
+variable element_scaled_charge equal -1/${elements_per_electron}
+variable element_scaled_charge equal -1/32
+
+variable num_electrons equal ${num_ions}*${ion_charge}
+variable num_electrons equal 512*${ion_charge}
+variable num_electrons equal 512*1
+variable num_electron_elements equal ${num_electrons}*${elements_per_electron}
+variable num_electron_elements equal 512*${elements_per_electron}
+variable num_electron_elements equal 512*32
+variable half_num_electrons equal ${num_electrons}/2.0
+variable half_num_electrons equal 512/2.0
+variable quar_num_electrons equal ${half_num_electrons}/2.0
+variable quar_num_electrons equal 256/2.0
+variable temptouse equal 11604.5221*${temp}
+variable temptouse equal 11604.5221*21.54
+variable box_len equal (${num_ions}/${ion_density})^(1/3)
+variable box_len equal (512/${ion_density})^(1/3)
+variable box_len equal (512/0.044545217)^(1/3)
+variable half_box_len equal ${box_len}/2.0
+variable half_box_len equal 22.5678209408086/2.0
+
+### simulation parameters:
+
+variable time_step_length equal 0.25e-3
+variable buff_time_steps equal 0
+variable ele_data_time_steps equal 0
+variable e_dump_ts_freq equal 1
+variable cutoff equal 7.9375                                  # cutoff for pairwise calculations
+variable cutoff_SPH equal 5.82
+variable cutoff_Minoo equal 3.743
+
+units electron                                                      # use electron units (Hartree)
+newton on
+boundary p p p
+atom_style SPH
+
+# Pair style string selection
+
+variable pair_name string bohm_SPH_dynamic_Mocz_rob_ftwo
+
+variable ion_seed equal 10
+variable e_up_a_seed equal 20
+variable e_up_b_seed equal 30
+variable e_down_a_seed equal 40
+variable e_down_b_seed equal 50
+
+# thermostat parameters
+
+variable ion_vel_seed equal 60
+variable e_down_a_vel_seed equal 70
+variable e_down_b_vel_seed equal 80
+variable e_up_a_vel_seed equal 90
+variable e_up_b_vel_seed equal 100
+
+variable i_temp_damping equal ${time_step_length}*100
+variable i_temp_damping equal 0.00025*100
+variable e_temp_damping equal ${time_step_length}*100
+variable e_temp_damping equal 0.00025*100
+
+variable vel_t equal 1.0*${temptouse}
+variable vel_t equal 1.0*249961.406034
+
+# rdf calculation
+
+variable rdf_num_bins equal 150
+variable rdf_num_measurements equal 100
+variable rdf_output_time_step equal 4000
+variable rdf_measurement_time_gap equal 10
+
+### Setup simulation
+
+region bounding_region block 0.0 ${box_len} 0.0 ${box_len} 0.0 ${box_len}
+region bounding_region block 0.0 22.5678209408086 0.0 ${box_len} 0.0 ${box_len}
+region bounding_region block 0.0 22.5678209408086 0.0 22.5678209408086 0.0 ${box_len}
+region bounding_region block 0.0 22.5678209408086 0.0 22.5678209408086 0.0 22.5678209408086
+timestep ${time_step_length}
+timestep 0.00025
+
+create_box 2 bounding_region
+Created orthogonal box = (0 0 0) to (22.5678 22.5678 22.5678)
+  1 by 1 by 1 MPI processor grid
+
+create_atoms 1 random ${num_ions} ${ion_seed} NULL
+create_atoms 1 random 512 ${ion_seed} NULL
+create_atoms 1 random 512 10 NULL
+Created 512 atoms
+  create_atoms CPU = 0.000340033 secs
+group ion type 1
+512 atoms in group ion
+mass 1 ${ion_amu}
+mass 1 1.008
+set type 1 charge ${ion_charge}
+set type 1 charge 1
+  512 settings made for charge
+
+create_atoms 2 random ${num_electron_elements} ${e_up_a_seed} NULL
+create_atoms 2 random 16384 ${e_up_a_seed} NULL
+create_atoms 2 random 16384 20 NULL
+Created 16384 atoms
+  create_atoms CPU = 0.00301127 secs
+group electron type 2
+16384 atoms in group electron
+mass 2 ${element_scaled_mass}
+mass 2 1.71431221875e-05
+set type 2 charge ${element_scaled_charge}
+set type 2 charge -0.03125
+  16384 settings made for charge
+
+variable tag_ele_start equal ${num_ions}+1
+variable tag_ele_start equal 512+1
+
+# Ensure ghost atom velocities communicated for SPH Bohm Potential:
+
+comm_modify vel yes
+
+### Dynamic Width fix
+variable dens_wid_const equal 1.3
+variable N_iter equal 64
+variable mix_fact equal 1.0
+variable tfwhm equal 4.70964*${dens_wid_const}*${box_len}/(${num_electron_elements}^(1/3))
+variable tfwhm equal 4.70964*1.3*${box_len}/(${num_electron_elements}^(1/3))
+variable tfwhm equal 4.70964*1.3*22.5678209408086/(${num_electron_elements}^(1/3))
+variable tfwhm equal 4.70964*1.3*22.5678209408086/(16384^(1/3))
+variable type_avoid equal 1 #ensure ions are not included in SPH loops (must match ion type)
+
+# Call dynamic_widths_com to ensure calculation of electron Centres of Mass
+
+fix ele_dyn_wid electron dynamic_widths ${dens_wid_const} ${N_iter} ${mix_fact} ${sigma_start} ${cutoff_SPH} ${type_avoid} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths 1.3 ${N_iter} ${mix_fact} ${sigma_start} ${cutoff_SPH} ${type_avoid} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths 1.3 64 ${mix_fact} ${sigma_start} ${cutoff_SPH} ${type_avoid} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths 1.3 64 1 ${sigma_start} ${cutoff_SPH} ${type_avoid} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths 1.3 64 1 1.15 ${cutoff_SPH} ${type_avoid} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths 1.3 64 1 1.15 5.82 ${type_avoid} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths 1.3 64 1 1.15 5.82 1 ${pair_name}
+fix ele_dyn_wid electron dynamic_widths 1.3 64 1 1.15 5.82 1 bohm_SPH_dynamic_Mocz_rob_ftwo
+
+pair_style hybrid/overlay ${pair_name} ${cutoff_SPH} ${gamma_factor} coul/long/SPH_nopseudo_ph_sub ${cutoff} 1.0 1 ${tfwhm} ${elements_per_electron} ${tag_ele_start} sub_minoo ${cutoff_Minoo} ${temptouse} ${electron_amu} ${elements_per_electron} ${tag_ele_start}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz_rob_ftwo ${cutoff_SPH} ${gamma_factor} coul/long/SPH_nopseudo_ph_sub ${cutoff} 1.0 1 ${tfwhm} ${elements_per_electron} ${tag_ele_start} sub_minoo ${cutoff_Minoo} ${temptouse} ${electron_amu} ${elements_per_electron} ${tag_ele_start}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz_rob_ftwo 5.82 ${gamma_factor} coul/long/SPH_nopseudo_ph_sub ${cutoff} 1.0 1 ${tfwhm} ${elements_per_electron} ${tag_ele_start} sub_minoo ${cutoff_Minoo} ${temptouse} ${electron_amu} ${elements_per_electron} ${tag_ele_start}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz_rob_ftwo 5.82 1822.888483 coul/long/SPH_nopseudo_ph_sub ${cutoff} 1.0 1 ${tfwhm} ${elements_per_electron} ${tag_ele_start} sub_minoo ${cutoff_Minoo} ${temptouse} ${electron_amu} ${elements_per_electron} ${tag_ele_start}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz_rob_ftwo 5.82 1822.888483 coul/long/SPH_nopseudo_ph_sub 7.9375 1.0 1 ${tfwhm} ${elements_per_electron} ${tag_ele_start} sub_minoo ${cutoff_Minoo} ${temptouse} ${electron_amu} ${elements_per_electron} ${tag_ele_start}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz_rob_ftwo 5.82 1822.888483 coul/long/SPH_nopseudo_ph_sub 7.9375 1.0 1 5.44018970934648 ${elements_per_electron} ${tag_ele_start} sub_minoo ${cutoff_Minoo} ${temptouse} ${electron_amu} ${elements_per_electron} ${tag_ele_start}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz_rob_ftwo 5.82 1822.888483 coul/long/SPH_nopseudo_ph_sub 7.9375 1.0 1 5.44018970934648 32 ${tag_ele_start} sub_minoo ${cutoff_Minoo} ${temptouse} ${electron_amu} ${elements_per_electron} ${tag_ele_start}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz_rob_ftwo 5.82 1822.888483 coul/long/SPH_nopseudo_ph_sub 7.9375 1.0 1 5.44018970934648 32 513 sub_minoo ${cutoff_Minoo} ${temptouse} ${electron_amu} ${elements_per_electron} ${tag_ele_start}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz_rob_ftwo 5.82 1822.888483 coul/long/SPH_nopseudo_ph_sub 7.9375 1.0 1 5.44018970934648 32 513 sub_minoo 3.743 ${temptouse} ${electron_amu} ${elements_per_electron} ${tag_ele_start}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz_rob_ftwo 5.82 1822.888483 coul/long/SPH_nopseudo_ph_sub 7.9375 1.0 1 5.44018970934648 32 513 sub_minoo 3.743 249961.406034 ${electron_amu} ${elements_per_electron} ${tag_ele_start}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz_rob_ftwo 5.82 1822.888483 coul/long/SPH_nopseudo_ph_sub 7.9375 1.0 1 5.44018970934648 32 513 sub_minoo 3.743 249961.406034 0.00054857991 ${elements_per_electron} ${tag_ele_start}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz_rob_ftwo 5.82 1822.888483 coul/long/SPH_nopseudo_ph_sub 7.9375 1.0 1 5.44018970934648 32 513 sub_minoo 3.743 249961.406034 0.00054857991 32 ${tag_ele_start}
+pair_style hybrid/overlay bohm_SPH_dynamic_Mocz_rob_ftwo 5.82 1822.888483 coul/long/SPH_nopseudo_ph_sub 7.9375 1.0 1 5.44018970934648 32 513 sub_minoo 3.743 249961.406034 0.00054857991 32 513
+
+# Set up each pair with the correct styles:
+
+pair_coeff * * coul/long/SPH_nopseudo_ph_sub
+
+pair_coeff 2 2 ${pair_name}
+pair_coeff 2 2 bohm_SPH_dynamic_Mocz_rob_ftwo
+
+pair_coeff 2 2 sub_minoo
+
+# increase number of allowed neighbours
+neigh_modify one 10000
+
+# kspace
+variable ewalds_parameter equal 3/${cutoff}
+variable ewalds_parameter equal 3/7.9375
+kspace_style ewald 1.0e-4
+kspace_modify gewald ${ewalds_parameter}
+kspace_modify gewald 0.377952755905512
+
+### Thermostatting
+fix all_nve all nve
+
+velocity ion create ${vel_t} ${ion_vel_seed} rot yes dist gaussian
+velocity ion create 249961.406034 ${ion_vel_seed} rot yes dist gaussian
+velocity ion create 249961.406034 60 rot yes dist gaussian
+
+velocity electron create ${vel_t} ${e_down_a_vel_seed} rot yes dist gaussian
+velocity electron create 249961.406034 ${e_down_a_vel_seed} rot yes dist gaussian
+velocity electron create 249961.406034 70 rot yes dist gaussian
+
+# Randomize the starting positions of all of our particles
+
+# displace_atoms all random 0.1 0.1 0.1 42
+
+# Compute group temperatures for output in logfile
+
+compute ion_temp ion temp
+
+compute electron_temp electron temp
+
+# Compute pair correlation functions:
+
+compute ion_ion_rdf all rdf ${rdf_num_bins} 1 1
+compute ion_ion_rdf all rdf 150 1 1
+
+compute ion_electron_rdf all rdf ${rdf_num_bins} 1 2
+compute ion_electron_rdf all rdf 150 1 2
+
+compute electron_electron_rdf all rdf ${rdf_num_bins} 2 2
+compute electron_electron_rdf all rdf 150 2 2
+
+fix write_ion_ion_rdf all ave/time ${rdf_measurement_time_gap} ${rdf_num_measurements} ${rdf_output_time_step} c_ion_ion_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_ion.rdf mode vector
+fix write_ion_ion_rdf all ave/time 10 ${rdf_num_measurements} ${rdf_output_time_step} c_ion_ion_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_ion.rdf mode vector
+fix write_ion_ion_rdf all ave/time 10 100 ${rdf_output_time_step} c_ion_ion_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_ion.rdf mode vector
+fix write_ion_ion_rdf all ave/time 10 100 4000 c_ion_ion_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_ion.rdf mode vector
+fix write_ion_ion_rdf all ave/time 10 100 4000 c_ion_ion_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/hedp_H_21_54eV_1_75_rs_min_dw_64/ion_ion.rdf mode vector
+
+fix write_ion_electron_rdf all ave/time ${rdf_measurement_time_gap} ${rdf_num_measurements} ${rdf_output_time_step} c_ion_electron_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_electron.rdf mode vector
+fix write_ion_electron_rdf all ave/time 10 ${rdf_num_measurements} ${rdf_output_time_step} c_ion_electron_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_electron.rdf mode vector
+fix write_ion_electron_rdf all ave/time 10 100 ${rdf_output_time_step} c_ion_electron_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_electron.rdf mode vector
+fix write_ion_electron_rdf all ave/time 10 100 4000 c_ion_electron_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ion_electron.rdf mode vector
+fix write_ion_electron_rdf all ave/time 10 100 4000 c_ion_electron_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/hedp_H_21_54eV_1_75_rs_min_dw_64/ion_electron.rdf mode vector
+
+fix write_electron_electron_rdf all ave/time ${rdf_measurement_time_gap} ${rdf_num_measurements} ${rdf_output_time_step} c_electron_electron_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/electron_electron.rdf mode vector
+fix write_electron_electron_rdf all ave/time 10 ${rdf_num_measurements} ${rdf_output_time_step} c_electron_electron_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/electron_electron.rdf mode vector
+fix write_electron_electron_rdf all ave/time 10 100 ${rdf_output_time_step} c_electron_electron_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/electron_electron.rdf mode vector
+fix write_electron_electron_rdf all ave/time 10 100 4000 c_electron_electron_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/electron_electron.rdf mode vector
+fix write_electron_electron_rdf all ave/time 10 100 4000 c_electron_electron_rdf[*] file /data/tcampbell/LAMMPS/SPH_Bohm/hedp_H_21_54eV_1_75_rs_min_dw_64/electron_electron.rdf mode vector
+
+# custom logfile output
+
+thermo_style custom step temp c_ion_temp c_electron_temp pe ke etotal press
+
+# Check forces
+
+variable rhi equal 19.36
+variable rlo equal 1.001e-2
+variable write_N equal 1936
+
+# modify logfile output
+
+thermo_modify lost warn
+thermo 5
+thermo_style custom step temp c_ion_temp c_electron_temp pe ke etotal press
+WARNING: New thermo_style command, previous thermo_modify settings will be lost (src/output.cpp:708)
+
+dump 3 electron custom ${e_dump_ts_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data.dump id x y z width_SPH rho_SPH
+dump 3 electron custom 1 /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/ele_xyzh_data.dump id x y z width_SPH rho_SPH
+dump 3 electron custom 1 /data/tcampbell/LAMMPS/SPH_Bohm/hedp_H_21_54eV_1_75_rs_min_dw_64/ele_xyzh_data.dump id x y z width_SPH rho_SPH
+
+run ${ele_data_time_steps}
+run 0
+Ewald initialization ...
+  using 14-bit tables for long-range coulomb (src/kspace.cpp:381)
+  G vector (1/distance) = 0.377953
+  estimated absolute RMS force accuracy = 5.67468e-06
+  estimated relative force accuracy = 2.02647e-05
+  KSpace vectors: actual max1d max3d = 1054 8 2456
+                  kxmax kymax kzmax  = 8 8 8
+Neighbor list info ...
+  update every 1 steps, delay 10 steps, check yes
+  max neighbors/atom: 10000, page size: 100000
+  master list distance cutoff = 9.9375
+  ghost atom cutoff = 9.9375
+  binsize = 4.96875, bins = 5 5 5
+  6 neighbor lists, perpetual/occasional/extra = 3 3 0
+  (1) pair bohm_SPH_dynamic_Mocz_rob_ftwo, perpetual, skip from (2)
+      attributes: half, newton on
+      pair build: skip
+      stencil: none
+      bin: none
+  (2) pair coul/long/SPH_nopseudo_ph_sub, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d/newton
+      bin: standard
+  (3) pair sub_minoo, perpetual, copy from (1)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+  (4) compute rdf, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+  (5) compute rdf, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+  (6) compute rdf, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+Per MPI rank memory allocation (min/avg/max) = 744.7 | 744.7 | 744.7 Mbytes
+Step Temp c_ion_temp c_electron_temp PotEng KinEng TotEng Press 
+       0    249946.61    249961.41    249961.41   -19.104914     20059.47    20040.365 3.4251447e+13 
+Loop time of 3.615e-06 on 1 procs for 0 steps with 16896 atoms
+
+470.3% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0          | 0          | 0          |   0.0 |  0.00
+Kspace  | 0          | 0          | 0          |   0.0 |  0.00
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0          | 0          | 0          |   0.0 |  0.00
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 3.615e-06  |            |       |100.00
+
+Nlocal:    16896 ave 16896 max 16896 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:    95621 ave 95621 max 95621 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:    4.80015e+07 ave 4.80015e+07 max 4.80015e+07 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 48001489
+Ave neighs/atom = 2841
+Neighbor list builds = 0
+Dangerous builds = 0
+
+undump 3
+undump 4
+ERROR: Could not find undump ID (src/output.cpp:635)
+Last command: undump 4

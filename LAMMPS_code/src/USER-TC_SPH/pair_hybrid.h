@@ -22,6 +22,7 @@ PairStyle(hybrid,PairHybrid)
 
 #include "pair.h"
 #include "fix_fixed_widths.h"
+#include "fix_spherical_init.h"
 #include "fix_dynamic_widths.h"
 #include "fix_dynamic_widths_CoM.h"
 #include "fix_dynamic_widths_CoM_MF.h"
@@ -39,6 +40,7 @@ class PairHybrid : public Pair {
   friend class Info;
   friend class PairDeprecated;
   friend class FixFixedWidths;
+  friend class FixSphericalInit;
   friend class FixDynamicWidths;
   friend class FixDynamicWidthsCoM;
   friend class FixDynamicWidthsCoMMF;
