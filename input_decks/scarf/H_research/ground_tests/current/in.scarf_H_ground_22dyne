@@ -1,0 +1,2919 @@
+# Set output directory
+
+variable out_number string 22dyne
+
+### BACKUP SIMULATION FILES
+
+variable gamma_factor equal 1822.888483
+
+variable outputdir string scarf_H_ground_${out_number}
+shell mkdir /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/
+shell cp ~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/in.${outputdir} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/
+shell cp ~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/pair_bohm_SPH_dynamic.cpp /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/
+shell cp ~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/pair_bohm_SPH_dynamic.h /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/
+shell cp ~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/pair_coul_long_SPH_ph.cpp /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/
+shell cp ~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/pair_coul_long_SPH_ph.h /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/
+log /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/log.${outputdir}  
+
+### SYSTEM PARAMETERS: 
+
+### physical parameters:
+
+variable temp equal 0.000	         # temperature in eV
+variable num_ions equal 1	                                        # Number of ions
+variable ion_charge equal 1.0			                                # Average charge/ionization
+variable ion_amu equal 1.008	                                # Atomic mass of ion
+variable electron_amu equal 0.00054857991                           # Atomic mass of electrons
+
+variable sigma_start equal 0.9                                         # Start global packet width of electrons in bohr
+
+variable elements_per_electron equal 515 # must match number of elements generated on lattice
+
+variable element_scaled_mass equal ${electron_amu}/${elements_per_electron}
+variable element_scaled_charge equal -1/${elements_per_electron}
+
+variable num_electrons equal ${num_ions}*${ion_charge}
+variable num_electron_elements equal ${num_electrons}*${elements_per_electron}
+variable temptouse equal 11604.5221*${temp}
+
+### simulation parameters:
+
+variable radius equal 3.0
+variable cutoff equal 6.0  # cutoff for pairwise calculations
+
+variable assign_ion equal 1    # if set to 1, all ions moved to targ coord on first timestep
+variable targ_coord equal 0.0
+
+variable lattice_const equal 0.6 # tune lattice constant so that number of atoms produced equals elements_per_electron (for accurate mass and charge values)
+
+units electron                                                      # use electron units (Hartree)
+newton on
+boundary s s s
+atom_style SPH_CoM   
+
+# Pair style string selection
+
+variable pair_name string bohm_SPH_dynamic_Mocz_rob_pot
+
+variable rnseed index 10
+variable number equal ceil(random(1,10000000000,${rnseed})/100000.0)
+
+variable ion_seed equal ${number}
+variable e_up_a_seed equal ${number}
+variable e_up_b_seed equal ${number}
+variable e_down_a_seed equal ${number}
+variable e_down_b_seed equal ${number}
+
+# thermostat parameters
+
+variable ion_vel_seed equal ${number}
+variable e_down_a_vel_seed equal ${number}
+variable e_down_b_vel_seed equal ${number}
+variable e_up_a_vel_seed equal ${number}
+variable e_up_b_vel_seed equal ${number}
+                                     
+variable vel_t equal 1.0*${temptouse}
+
+# rdf calculation
+
+variable rdf_num_bins equal 150
+variable rdf_num_measurements equal 10
+variable rdf_output_time_step equal 4000
+variable rdf_measurement_time_gap equal 1 
+
+### Setup simulation
+
+region bounding_region sphere 0.0 0.0 0.0 ${radius} units box
+
+lattice sc ${lattice_const} origin 0.0 0.0 0.0
+
+create_box 2 bounding_region
+
+create_atoms 1 random ${num_ions} ${ion_seed} NULL
+group ion type 1
+mass 1 ${ion_amu}
+set type 1 charge ${ion_charge}
+
+create_atoms 2 region bounding_region
+group electron type 2
+mass 2 ${element_scaled_mass}
+set type 2 charge ${element_scaled_charge}
+
+variable tag_ele_start equal ${num_ions}+1
+
+# Ensure ghost atom velocities communicated for SPH Bohm Potential:
+
+comm_modify vel yes
+
+### Dynamic Width fix
+variable dens_wid_const equal 1.3
+variable N_iter equal 8
+variable mix_fact equal 1.0
+variable type_avoid equal 1 #ensure ions are not included in SPH loops (must match ion type)
+
+# Call dynamic_widths_com to ensure calculation of electron Centres of Mass
+
+fix ele_dyn_wid electron dynamic_widths ${dens_wid_const} ${N_iter} ${mix_fact} ${sigma_start} ${cutoff} ${type_avoid} ${pair_name}
+
+# set large 'elements_per_electron' argument to coul/cut/SPH_nopseudo_sub to ensure no electron - electron self interaction
+
+pair_style hybrid/overlay ${pair_name} ${cutoff} ${gamma_factor} ${elements_per_electron} coul/cut/SPH_nopseudo_sub ${cutoff} 1.0 1 10000 ${tag_ele_start} ${assign_ion} ${targ_coord}
+
+# Set up each pair with the correct styles:
+
+pair_coeff * * coul/cut/SPH_nopseudo_sub
+
+pair_coeff 2 2 ${pair_name}
+
+# increase number of allowed neighbours
+neigh_modify one 10000
+
+velocity all create ${temptouse} ${ion_vel_seed} &
+rot yes dist gaussian
+
+# Randomize the starting positions of all of our particles
+
+displace_atoms all random 0.005 0.005 0.005 42
+
+compute electron_temp electron temp
+
+# Compute pair correlation functions:
+compute ion_electron_rdf all rdf ${rdf_num_bins} &
+1 2
+
+compute electron_electron_rdf all rdf ${rdf_num_bins} &
+2 2
+
+fix write_ion_electron_rdf all ave/time &
+${rdf_measurement_time_gap} ${rdf_num_measurements} ${rdf_output_time_step} &
+c_ion_electron_rdf[*] file &
+/work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_electron.rdf mode vector
+
+fix write_electron_electron_rdf all ave/time &
+${rdf_measurement_time_gap} ${rdf_num_measurements} ${rdf_output_time_step} &
+c_electron_electron_rdf[*] file &
+/work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/electron_electron.rdf mode vector
+
+# custom logfile output
+
+thermo_style custom step temp pe ke etotal press
+
+# modify logfile output
+
+thermo_modify lost warn
+thermo 100
+thermo_style custom step temp pe ke etotal press
+
+variable damping_strength equal 0.0002
+
+fix all_nve all nve
+
+variable equi_time_steps equal 20000.0
+
+variable buff_time_steps equal 20000.0
+
+variable CoM_check_time_steps equal 25
+
+variable dump_freq equal 1
+
+variable time_step_length equal 1e-06
+
+timestep ${time_step_length}
+
+### stage 0
+run ${buff_time_steps}
+
+fix damp_all0 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all0
+
+dump 0 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check0.dump
+
+dump 1 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check0.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 0
+
+undump 1
+
+### stage 1
+run ${buff_time_steps}
+
+fix damp_all1 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all1
+
+dump 2 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check1.dump
+
+dump 3 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check1.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 2
+
+undump 3
+
+### stage 2
+run ${buff_time_steps}
+
+fix damp_all2 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all2
+
+dump 4 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check2.dump
+
+dump 5 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check2.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 4
+
+undump 5
+
+### stage 3
+run ${buff_time_steps}
+
+fix damp_all3 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all3
+
+dump 6 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check3.dump
+
+dump 7 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check3.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 6
+
+undump 7
+
+### stage 4
+run ${buff_time_steps}
+
+fix damp_all4 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all4
+
+dump 8 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check4.dump
+
+dump 9 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check4.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 8
+
+undump 9
+
+### stage 5
+run ${buff_time_steps}
+
+fix damp_all5 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all5
+
+dump 10 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check5.dump
+
+dump 11 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check5.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 10
+
+undump 11
+
+### stage 6
+run ${buff_time_steps}
+
+fix damp_all6 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all6
+
+dump 12 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check6.dump
+
+dump 13 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check6.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 12
+
+undump 13
+
+### stage 7
+run ${buff_time_steps}
+
+fix damp_all7 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all7
+
+dump 14 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check7.dump
+
+dump 15 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check7.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 14
+
+undump 15
+
+### stage 8
+run ${buff_time_steps}
+
+fix damp_all8 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all8
+
+dump 16 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check8.dump
+
+dump 17 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check8.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 16
+
+undump 17
+
+### stage 9
+run ${buff_time_steps}
+
+fix damp_all9 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all9
+
+dump 18 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check9.dump
+
+dump 19 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check9.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 18
+
+undump 19
+
+### stage 10
+run ${buff_time_steps}
+
+fix damp_all10 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all10
+
+dump 20 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check10.dump
+
+dump 21 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check10.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 20
+
+undump 21
+
+### stage 11
+run ${buff_time_steps}
+
+fix damp_all11 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all11
+
+dump 22 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check11.dump
+
+dump 23 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check11.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 22
+
+undump 23
+
+### stage 12
+run ${buff_time_steps}
+
+fix damp_all12 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all12
+
+dump 24 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check12.dump
+
+dump 25 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check12.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 24
+
+undump 25
+
+### stage 13
+run ${buff_time_steps}
+
+fix damp_all13 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all13
+
+dump 26 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check13.dump
+
+dump 27 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check13.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 26
+
+undump 27
+
+### stage 14
+run ${buff_time_steps}
+
+fix damp_all14 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all14
+
+dump 28 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check14.dump
+
+dump 29 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check14.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 28
+
+undump 29
+
+### stage 15
+run ${buff_time_steps}
+
+fix damp_all15 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all15
+
+dump 30 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check15.dump
+
+dump 31 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check15.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 30
+
+undump 31
+
+### stage 16
+run ${buff_time_steps}
+
+fix damp_all16 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all16
+
+dump 32 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check16.dump
+
+dump 33 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check16.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 32
+
+undump 33
+
+### stage 17
+run ${buff_time_steps}
+
+fix damp_all17 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all17
+
+dump 34 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check17.dump
+
+dump 35 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check17.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 34
+
+undump 35
+
+### stage 18
+run ${buff_time_steps}
+
+fix damp_all18 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all18
+
+dump 36 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check18.dump
+
+dump 37 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check18.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 36
+
+undump 37
+
+### stage 19
+run ${buff_time_steps}
+
+fix damp_all19 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all19
+
+dump 38 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check19.dump
+
+dump 39 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check19.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 38
+
+undump 39
+
+### stage 20
+run ${buff_time_steps}
+
+fix damp_all20 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all20
+
+dump 40 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check20.dump
+
+dump 41 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check20.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 40
+
+undump 41
+
+### stage 21
+run ${buff_time_steps}
+
+fix damp_all21 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all21
+
+dump 42 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check21.dump
+
+dump 43 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check21.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 42
+
+undump 43
+
+### stage 22
+run ${buff_time_steps}
+
+fix damp_all22 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all22
+
+dump 44 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check22.dump
+
+dump 45 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check22.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 44
+
+undump 45
+
+### stage 23
+run ${buff_time_steps}
+
+fix damp_all23 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all23
+
+dump 46 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check23.dump
+
+dump 47 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check23.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 46
+
+undump 47
+
+### stage 24
+run ${buff_time_steps}
+
+fix damp_all24 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all24
+
+dump 48 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check24.dump
+
+dump 49 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check24.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 48
+
+undump 49
+
+### stage 25
+run ${buff_time_steps}
+
+fix damp_all25 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all25
+
+dump 50 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check25.dump
+
+dump 51 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check25.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 50
+
+undump 51
+
+### stage 26
+run ${buff_time_steps}
+
+fix damp_all26 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all26
+
+dump 52 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check26.dump
+
+dump 53 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check26.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 52
+
+undump 53
+
+### stage 27
+run ${buff_time_steps}
+
+fix damp_all27 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all27
+
+dump 54 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check27.dump
+
+dump 55 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check27.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 54
+
+undump 55
+
+### stage 28
+run ${buff_time_steps}
+
+fix damp_all28 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all28
+
+dump 56 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check28.dump
+
+dump 57 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check28.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 56
+
+undump 57
+
+### stage 29
+run ${buff_time_steps}
+
+fix damp_all29 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all29
+
+dump 58 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check29.dump
+
+dump 59 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check29.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 58
+
+undump 59
+
+### stage 30
+run ${buff_time_steps}
+
+fix damp_all30 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all30
+
+dump 60 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check30.dump
+
+dump 61 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check30.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 60
+
+undump 61
+
+### stage 31
+run ${buff_time_steps}
+
+fix damp_all31 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all31
+
+dump 62 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check31.dump
+
+dump 63 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check31.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 62
+
+undump 63
+
+### stage 32
+run ${buff_time_steps}
+
+fix damp_all32 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all32
+
+dump 64 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check32.dump
+
+dump 65 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check32.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 64
+
+undump 65
+
+### stage 33
+run ${buff_time_steps}
+
+fix damp_all33 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all33
+
+dump 66 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check33.dump
+
+dump 67 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check33.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 66
+
+undump 67
+
+### stage 34
+run ${buff_time_steps}
+
+fix damp_all34 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all34
+
+dump 68 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check34.dump
+
+dump 69 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check34.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 68
+
+undump 69
+
+### stage 35
+run ${buff_time_steps}
+
+fix damp_all35 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all35
+
+dump 70 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check35.dump
+
+dump 71 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check35.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 70
+
+undump 71
+
+### stage 36
+run ${buff_time_steps}
+
+fix damp_all36 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all36
+
+dump 72 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check36.dump
+
+dump 73 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check36.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 72
+
+undump 73
+
+### stage 37
+run ${buff_time_steps}
+
+fix damp_all37 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all37
+
+dump 74 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check37.dump
+
+dump 75 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check37.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 74
+
+undump 75
+
+### stage 38
+run ${buff_time_steps}
+
+fix damp_all38 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all38
+
+dump 76 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check38.dump
+
+dump 77 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check38.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 76
+
+undump 77
+
+### stage 39
+run ${buff_time_steps}
+
+fix damp_all39 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all39
+
+dump 78 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check39.dump
+
+dump 79 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check39.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 78
+
+undump 79
+
+### stage 40
+run ${buff_time_steps}
+
+fix damp_all40 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all40
+
+dump 80 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check40.dump
+
+dump 81 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check40.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 80
+
+undump 81
+
+### stage 41
+run ${buff_time_steps}
+
+fix damp_all41 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all41
+
+dump 82 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check41.dump
+
+dump 83 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check41.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 82
+
+undump 83
+
+### stage 42
+run ${buff_time_steps}
+
+fix damp_all42 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all42
+
+dump 84 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check42.dump
+
+dump 85 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check42.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 84
+
+undump 85
+
+### stage 43
+run ${buff_time_steps}
+
+fix damp_all43 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all43
+
+dump 86 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check43.dump
+
+dump 87 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check43.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 86
+
+undump 87
+
+### stage 44
+run ${buff_time_steps}
+
+fix damp_all44 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all44
+
+dump 88 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check44.dump
+
+dump 89 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check44.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 88
+
+undump 89
+
+### stage 45
+run ${buff_time_steps}
+
+fix damp_all45 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all45
+
+dump 90 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check45.dump
+
+dump 91 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check45.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 90
+
+undump 91
+
+### stage 46
+run ${buff_time_steps}
+
+fix damp_all46 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all46
+
+dump 92 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check46.dump
+
+dump 93 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check46.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 92
+
+undump 93
+
+### stage 47
+run ${buff_time_steps}
+
+fix damp_all47 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all47
+
+dump 94 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check47.dump
+
+dump 95 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check47.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 94
+
+undump 95
+
+### stage 48
+run ${buff_time_steps}
+
+fix damp_all48 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all48
+
+dump 96 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check48.dump
+
+dump 97 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check48.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 96
+
+undump 97
+
+### stage 49
+run ${buff_time_steps}
+
+fix damp_all49 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all49
+
+dump 98 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check49.dump
+
+dump 99 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check49.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 98
+
+undump 99
+
+### stage 50
+run ${buff_time_steps}
+
+fix damp_all50 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all50
+
+dump 100 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check50.dump
+
+dump 101 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check50.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 100
+
+undump 101
+
+### stage 51
+run ${buff_time_steps}
+
+fix damp_all51 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all51
+
+dump 102 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check51.dump
+
+dump 103 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check51.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 102
+
+undump 103
+
+### stage 52
+run ${buff_time_steps}
+
+fix damp_all52 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all52
+
+dump 104 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check52.dump
+
+dump 105 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check52.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 104
+
+undump 105
+
+### stage 53
+run ${buff_time_steps}
+
+fix damp_all53 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all53
+
+dump 106 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check53.dump
+
+dump 107 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check53.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 106
+
+undump 107
+
+### stage 54
+run ${buff_time_steps}
+
+fix damp_all54 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all54
+
+dump 108 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check54.dump
+
+dump 109 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check54.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 108
+
+undump 109
+
+### stage 55
+run ${buff_time_steps}
+
+fix damp_all55 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all55
+
+dump 110 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check55.dump
+
+dump 111 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check55.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 110
+
+undump 111
+
+### stage 56
+run ${buff_time_steps}
+
+fix damp_all56 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all56
+
+dump 112 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check56.dump
+
+dump 113 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check56.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 112
+
+undump 113
+
+### stage 57
+run ${buff_time_steps}
+
+fix damp_all57 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all57
+
+dump 114 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check57.dump
+
+dump 115 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check57.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 114
+
+undump 115
+
+### stage 58
+run ${buff_time_steps}
+
+fix damp_all58 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all58
+
+dump 116 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check58.dump
+
+dump 117 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check58.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 116
+
+undump 117
+
+### stage 59
+run ${buff_time_steps}
+
+fix damp_all59 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all59
+
+dump 118 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check59.dump
+
+dump 119 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check59.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 118
+
+undump 119
+
+### stage 60
+run ${buff_time_steps}
+
+fix damp_all60 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all60
+
+dump 120 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check60.dump
+
+dump 121 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check60.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 120
+
+undump 121
+
+### stage 61
+run ${buff_time_steps}
+
+fix damp_all61 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all61
+
+dump 122 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check61.dump
+
+dump 123 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check61.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 122
+
+undump 123
+
+### stage 62
+run ${buff_time_steps}
+
+fix damp_all62 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all62
+
+dump 124 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check62.dump
+
+dump 125 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check62.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 124
+
+undump 125
+
+### stage 63
+run ${buff_time_steps}
+
+fix damp_all63 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all63
+
+dump 126 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check63.dump
+
+dump 127 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check63.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 126
+
+undump 127
+
+### stage 64
+run ${buff_time_steps}
+
+fix damp_all64 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all64
+
+dump 128 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check64.dump
+
+dump 129 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check64.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 128
+
+undump 129
+
+### stage 65
+run ${buff_time_steps}
+
+fix damp_all65 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all65
+
+dump 130 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check65.dump
+
+dump 131 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check65.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 130
+
+undump 131
+
+### stage 66
+run ${buff_time_steps}
+
+fix damp_all66 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all66
+
+dump 132 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check66.dump
+
+dump 133 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check66.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 132
+
+undump 133
+
+### stage 67
+run ${buff_time_steps}
+
+fix damp_all67 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all67
+
+dump 134 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check67.dump
+
+dump 135 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check67.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 134
+
+undump 135
+
+### stage 68
+run ${buff_time_steps}
+
+fix damp_all68 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all68
+
+dump 136 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check68.dump
+
+dump 137 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check68.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 136
+
+undump 137
+
+### stage 69
+run ${buff_time_steps}
+
+fix damp_all69 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all69
+
+dump 138 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check69.dump
+
+dump 139 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check69.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 138
+
+undump 139
+
+### stage 70
+run ${buff_time_steps}
+
+fix damp_all70 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all70
+
+dump 140 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check70.dump
+
+dump 141 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check70.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 140
+
+undump 141
+
+### stage 71
+run ${buff_time_steps}
+
+fix damp_all71 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all71
+
+dump 142 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check71.dump
+
+dump 143 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check71.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 142
+
+undump 143
+
+### stage 72
+run ${buff_time_steps}
+
+fix damp_all72 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all72
+
+dump 144 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check72.dump
+
+dump 145 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check72.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 144
+
+undump 145
+
+### stage 73
+run ${buff_time_steps}
+
+fix damp_all73 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all73
+
+dump 146 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check73.dump
+
+dump 147 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check73.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 146
+
+undump 147
+
+### stage 74
+run ${buff_time_steps}
+
+fix damp_all74 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all74
+
+dump 148 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check74.dump
+
+dump 149 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check74.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 148
+
+undump 149
+
+### stage 75
+run ${buff_time_steps}
+
+fix damp_all75 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all75
+
+dump 150 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check75.dump
+
+dump 151 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check75.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 150
+
+undump 151
+
+### stage 76
+run ${buff_time_steps}
+
+fix damp_all76 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all76
+
+dump 152 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check76.dump
+
+dump 153 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check76.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 152
+
+undump 153
+
+### stage 77
+run ${buff_time_steps}
+
+fix damp_all77 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all77
+
+dump 154 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check77.dump
+
+dump 155 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check77.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 154
+
+undump 155
+
+### stage 78
+run ${buff_time_steps}
+
+fix damp_all78 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all78
+
+dump 156 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check78.dump
+
+dump 157 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check78.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 156
+
+undump 157
+
+### stage 79
+run ${buff_time_steps}
+
+fix damp_all79 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all79
+
+dump 158 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check79.dump
+
+dump 159 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check79.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 158
+
+undump 159
+
+### stage 80
+run ${buff_time_steps}
+
+fix damp_all80 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all80
+
+dump 160 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check80.dump
+
+dump 161 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check80.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 160
+
+undump 161
+
+### stage 81
+run ${buff_time_steps}
+
+fix damp_all81 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all81
+
+dump 162 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check81.dump
+
+dump 163 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check81.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 162
+
+undump 163
+
+### stage 82
+run ${buff_time_steps}
+
+fix damp_all82 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all82
+
+dump 164 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check82.dump
+
+dump 165 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check82.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 164
+
+undump 165
+
+### stage 83
+run ${buff_time_steps}
+
+fix damp_all83 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all83
+
+dump 166 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check83.dump
+
+dump 167 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check83.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 166
+
+undump 167
+
+### stage 84
+run ${buff_time_steps}
+
+fix damp_all84 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all84
+
+dump 168 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check84.dump
+
+dump 169 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check84.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 168
+
+undump 169
+
+### stage 85
+run ${buff_time_steps}
+
+fix damp_all85 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all85
+
+dump 170 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check85.dump
+
+dump 171 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check85.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 170
+
+undump 171
+
+### stage 86
+run ${buff_time_steps}
+
+fix damp_all86 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all86
+
+dump 172 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check86.dump
+
+dump 173 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check86.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 172
+
+undump 173
+
+### stage 87
+run ${buff_time_steps}
+
+fix damp_all87 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all87
+
+dump 174 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check87.dump
+
+dump 175 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check87.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 174
+
+undump 175
+
+### stage 88
+run ${buff_time_steps}
+
+fix damp_all88 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all88
+
+dump 176 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check88.dump
+
+dump 177 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check88.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 176
+
+undump 177
+
+### stage 89
+run ${buff_time_steps}
+
+fix damp_all89 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all89
+
+dump 178 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check89.dump
+
+dump 179 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check89.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 178
+
+undump 179
+
+### stage 90
+run ${buff_time_steps}
+
+fix damp_all90 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all90
+
+dump 180 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check90.dump
+
+dump 181 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check90.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 180
+
+undump 181
+
+### stage 91
+run ${buff_time_steps}
+
+fix damp_all91 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all91
+
+dump 182 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check91.dump
+
+dump 183 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check91.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 182
+
+undump 183
+
+### stage 92
+run ${buff_time_steps}
+
+fix damp_all92 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all92
+
+dump 184 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check92.dump
+
+dump 185 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check92.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 184
+
+undump 185
+
+### stage 93
+run ${buff_time_steps}
+
+fix damp_all93 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all93
+
+dump 186 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check93.dump
+
+dump 187 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check93.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 186
+
+undump 187
+
+### stage 94
+run ${buff_time_steps}
+
+fix damp_all94 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all94
+
+dump 188 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check94.dump
+
+dump 189 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check94.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 188
+
+undump 189
+
+### stage 95
+run ${buff_time_steps}
+
+fix damp_all95 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all95
+
+dump 190 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check95.dump
+
+dump 191 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check95.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 190
+
+undump 191
+
+### stage 96
+run ${buff_time_steps}
+
+fix damp_all96 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all96
+
+dump 192 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check96.dump
+
+dump 193 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check96.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 192
+
+undump 193
+
+### stage 97
+run ${buff_time_steps}
+
+fix damp_all97 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all97
+
+dump 194 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check97.dump
+
+dump 195 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check97.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 194
+
+undump 195
+
+### stage 98
+run ${buff_time_steps}
+
+fix damp_all98 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all98
+
+dump 196 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check98.dump
+
+dump 197 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check98.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 196
+
+undump 197
+
+### stage 99
+run ${buff_time_steps}
+
+fix damp_all99 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all99
+
+dump 198 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check99.dump
+
+dump 199 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check99.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 198
+
+undump 199
+
+### stage 100
+run ${buff_time_steps}
+
+fix damp_all100 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all100
+
+dump 200 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check100.dump
+
+dump 201 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check100.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 200
+
+undump 201
+
+### stage 101
+run ${buff_time_steps}
+
+fix damp_all101 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all101
+
+dump 202 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check101.dump
+
+dump 203 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check101.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 202
+
+undump 203
+
+### stage 102
+run ${buff_time_steps}
+
+fix damp_all102 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all102
+
+dump 204 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check102.dump
+
+dump 205 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check102.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 204
+
+undump 205
+
+### stage 103
+run ${buff_time_steps}
+
+fix damp_all103 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all103
+
+dump 206 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check103.dump
+
+dump 207 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check103.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 206
+
+undump 207
+
+### stage 104
+run ${buff_time_steps}
+
+fix damp_all104 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all104
+
+dump 208 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check104.dump
+
+dump 209 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check104.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 208
+
+undump 209
+
+### stage 105
+run ${buff_time_steps}
+
+fix damp_all105 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all105
+
+dump 210 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check105.dump
+
+dump 211 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check105.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 210
+
+undump 211
+
+### stage 106
+run ${buff_time_steps}
+
+fix damp_all106 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all106
+
+dump 212 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check106.dump
+
+dump 213 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check106.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 212
+
+undump 213
+
+### stage 107
+run ${buff_time_steps}
+
+fix damp_all107 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all107
+
+dump 214 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check107.dump
+
+dump 215 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check107.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 214
+
+undump 215
+
+### stage 108
+run ${buff_time_steps}
+
+fix damp_all108 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all108
+
+dump 216 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check108.dump
+
+dump 217 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check108.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 216
+
+undump 217
+
+### stage 109
+run ${buff_time_steps}
+
+fix damp_all109 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all109
+
+dump 218 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check109.dump
+
+dump 219 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check109.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 218
+
+undump 219
+
+### stage 110
+run ${buff_time_steps}
+
+fix damp_all110 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all110
+
+dump 220 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check110.dump
+
+dump 221 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check110.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 220
+
+undump 221
+
+### stage 111
+run ${buff_time_steps}
+
+fix damp_all111 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all111
+
+dump 222 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check111.dump
+
+dump 223 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check111.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 222
+
+undump 223
+
+### stage 112
+run ${buff_time_steps}
+
+fix damp_all112 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all112
+
+dump 224 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check112.dump
+
+dump 225 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check112.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 224
+
+undump 225
+
+### stage 113
+run ${buff_time_steps}
+
+fix damp_all113 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all113
+
+dump 226 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check113.dump
+
+dump 227 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check113.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 226
+
+undump 227
+
+### stage 114
+run ${buff_time_steps}
+
+fix damp_all114 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all114
+
+dump 228 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check114.dump
+
+dump 229 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check114.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 228
+
+undump 229
+
+### stage 115
+run ${buff_time_steps}
+
+fix damp_all115 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all115
+
+dump 230 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check115.dump
+
+dump 231 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check115.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 230
+
+undump 231
+
+### stage 116
+run ${buff_time_steps}
+
+fix damp_all116 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all116
+
+dump 232 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check116.dump
+
+dump 233 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check116.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 232
+
+undump 233
+
+### stage 117
+run ${buff_time_steps}
+
+fix damp_all117 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all117
+
+dump 234 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check117.dump
+
+dump 235 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check117.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 234
+
+undump 235
+
+### stage 118
+run ${buff_time_steps}
+
+fix damp_all118 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all118
+
+dump 236 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check118.dump
+
+dump 237 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check118.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 236
+
+undump 237
+
+### stage 119
+run ${buff_time_steps}
+
+fix damp_all119 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all119
+
+dump 238 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check119.dump
+
+dump 239 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check119.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 238
+
+undump 239
+
+### stage 120
+run ${buff_time_steps}
+
+fix damp_all120 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all120
+
+dump 240 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check120.dump
+
+dump 241 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check120.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 240
+
+undump 241
+
+### stage 121
+run ${buff_time_steps}
+
+fix damp_all121 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all121
+
+dump 242 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check121.dump
+
+dump 243 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check121.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 242
+
+undump 243
+
+### stage 122
+run ${buff_time_steps}
+
+fix damp_all122 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all122
+
+dump 244 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check122.dump
+
+dump 245 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check122.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 244
+
+undump 245
+
+### stage 123
+run ${buff_time_steps}
+
+fix damp_all123 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all123
+
+dump 246 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check123.dump
+
+dump 247 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check123.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 246
+
+undump 247
+
+### stage 124
+run ${buff_time_steps}
+
+fix damp_all124 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all124
+
+dump 248 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check124.dump
+
+dump 249 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check124.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 248
+
+undump 249
+
+### stage 125
+run ${buff_time_steps}
+
+fix damp_all125 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all125
+
+dump 250 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check125.dump
+
+dump 251 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check125.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 250
+
+undump 251
+
+### stage 126
+run ${buff_time_steps}
+
+fix damp_all126 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all126
+
+dump 252 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check126.dump
+
+dump 253 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check126.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 252
+
+undump 253
+
+### stage 127
+run ${buff_time_steps}
+
+fix damp_all127 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all127
+
+dump 254 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check127.dump
+
+dump 255 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check127.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 254
+
+undump 255
+
+### stage 128
+run ${buff_time_steps}
+
+fix damp_all128 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all128
+
+dump 256 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check128.dump
+
+dump 257 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check128.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 256
+
+undump 257
+
+### stage 129
+run ${buff_time_steps}
+
+fix damp_all129 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all129
+
+dump 258 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check129.dump
+
+dump 259 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check129.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 258
+
+undump 259
+
+### stage 130
+run ${buff_time_steps}
+
+fix damp_all130 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all130
+
+dump 260 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check130.dump
+
+dump 261 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check130.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 260
+
+undump 261
+
+### stage 131
+run ${buff_time_steps}
+
+fix damp_all131 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all131
+
+dump 262 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check131.dump
+
+dump 263 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check131.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 262
+
+undump 263
+
+### stage 132
+run ${buff_time_steps}
+
+fix damp_all132 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all132
+
+dump 264 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check132.dump
+
+dump 265 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check132.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 264
+
+undump 265
+
+### stage 133
+run ${buff_time_steps}
+
+fix damp_all133 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all133
+
+dump 266 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check133.dump
+
+dump 267 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check133.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 266
+
+undump 267
+
+### stage 134
+run ${buff_time_steps}
+
+fix damp_all134 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all134
+
+dump 268 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check134.dump
+
+dump 269 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check134.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 268
+
+undump 269
+
+### stage 135
+run ${buff_time_steps}
+
+fix damp_all135 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all135
+
+dump 270 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check135.dump
+
+dump 271 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check135.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 270
+
+undump 271
+
+### stage 136
+run ${buff_time_steps}
+
+fix damp_all136 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all136
+
+dump 272 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check136.dump
+
+dump 273 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check136.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 272
+
+undump 273
+
+### stage 137
+run ${buff_time_steps}
+
+fix damp_all137 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all137
+
+dump 274 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check137.dump
+
+dump 275 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check137.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 274
+
+undump 275
+
+### stage 138
+run ${buff_time_steps}
+
+fix damp_all138 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all138
+
+dump 276 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check138.dump
+
+dump 277 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check138.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 276
+
+undump 277
+
+### stage 139
+run ${buff_time_steps}
+
+fix damp_all139 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all139
+
+dump 278 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check139.dump
+
+dump 279 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check139.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 278
+
+undump 279
+
+### stage 140
+run ${buff_time_steps}
+
+fix damp_all140 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all140
+
+dump 280 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check140.dump
+
+dump 281 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check140.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 280
+
+undump 281
+
+### stage 141
+run ${buff_time_steps}
+
+fix damp_all141 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all141
+
+dump 282 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check141.dump
+
+dump 283 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check141.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 282
+
+undump 283
+
+### stage 142
+run ${buff_time_steps}
+
+fix damp_all142 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all142
+
+dump 284 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check142.dump
+
+dump 285 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check142.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 284
+
+undump 285
+
+### stage 143
+run ${buff_time_steps}
+
+fix damp_all143 all viscous ${damping_strength}
+
+run ${equi_time_steps}
+
+unfix damp_all143
+
+dump 286 ion xyz ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_xyz_data_check143.dump
+
+dump 287 electron custom ${dump_freq} /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ele_xyzh_data_check143.dump id x y z width_SPH x_COM y_COM z_COM vx vy vz
+
+run ${CoM_check_time_steps}
+
+undump 286
+
+undump 287
+
+quit 0
