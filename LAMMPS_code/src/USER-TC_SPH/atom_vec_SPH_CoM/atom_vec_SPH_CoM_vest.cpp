@@ -13,7 +13,7 @@
    See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
 
-#include "atom_vec_SPH_CoM_vext.h"
+#include "atom_vec_SPH_CoM_vest.h"
 #include "atom.h"
 #include "comm.h"
 #include "domain.h"
@@ -27,7 +27,7 @@ using namespace LAMMPS_NS;
 
 /* ---------------------------------------------------------------------- */
 
-AtomVecSPHCoMVext::AtomVecSPHCoMVext(LAMMPS *lmp) : AtomVec(lmp)
+AtomVecSPHCoMVest::AtomVecSPHCoMVest(LAMMPS *lmp) : AtomVec(lmp)
 {
   molecular = 0;
   mass_type = 1;
@@ -45,6 +45,7 @@ AtomVecSPHCoMVext::AtomVecSPHCoMVext(LAMMPS *lmp) : AtomVec(lmp)
   atom->q_flag = 1;
   atom->TC_SPH_flag = 1;
   atom->TC_X_CoM_SPH_flag = 1;
+  atom->vest_flag = 1;
 }
 
 /* ----------------------------------------------------------------------
@@ -53,7 +54,7 @@ AtomVecSPHCoMVext::AtomVecSPHCoMVext(LAMMPS *lmp) : AtomVec(lmp)
    n > 0 allocates arrays to size n
 ------------------------------------------------------------------------- */
 
-void AtomVecSPHCoMVext::grow(int n)
+void AtomVecSPHCoMVest::grow(int n)
 {
   if (n == 0) grow_nmax();
   else nmax = n;
@@ -67,7 +68,7 @@ void AtomVecSPHCoMVext::grow(int n)
   image = memory->grow(atom->image,nmax,"atom:image");
   x = memory->grow(atom->x,nmax,3,"atom:x");
   v = memory->grow(atom->v,nmax,3,"atom:v");
-  vext = memory->grow(atom->vext, nmax, 3, "atom:vext");
+  vest = memory->grow(atom->vest, nmax, 3, "atom:vest");
   f = memory->grow(atom->f,nmax*comm->nthreads,3,"atom:f");
 
   //SPH density, width_SPH and omega_SPH terms:
@@ -95,12 +96,12 @@ void AtomVecSPHCoMVext::grow(int n)
    reset local array ptrs
 ------------------------------------------------------------------------- */
 
-void AtomVecSPHCoMVext::grow_reset()
+void AtomVecSPHCoMVest::grow_reset()
 {
   tag = atom->tag; type = atom->type;
   mask = atom->mask; image = atom->image;
   x = atom->x; v = atom->v; f = atom->f;
-  vext = atom->vext;
+  vest = atom->vest;
   q = atom->q;
   //SPH density, width_SPH and omega_SPH terms:
   rho_SPH = atom->rho_SPH; width_SPH = atom->width_SPH; omega_SPH = atom->omega_SPH; u_SPH = atom->u_SPH;
@@ -113,7 +114,7 @@ void AtomVecSPHCoMVext::grow_reset()
    copy atom I info to atom J
 ------------------------------------------------------------------------- */
 
-void AtomVecSPHCoMVext::copy(int i, int j, int delflag)
+void AtomVecSPHCoMVest::copy(int i, int j, int delflag)
 {
   tag[j] = tag[i];
   type[j] = type[i];
@@ -125,10 +126,6 @@ void AtomVecSPHCoMVext::copy(int i, int j, int delflag)
   v[j][0] = v[i][0];
   v[j][1] = v[i][1];
   v[j][2] = v[i][2];
-
-  vext[j][0] = vext[i][0];
-  vext[j][1] = vext[i][1];
-  vext[j][2] = vext[i][2];
 
   q[j] = q[i];
 
@@ -146,6 +143,10 @@ void AtomVecSPHCoMVext::copy(int i, int j, int delflag)
   y_COM[j] = y_COM[i];
   z_COM[j] = z_COM[i];
 
+  vest[j][0] = vest[i][0];
+  vest[j][1] = vest[i][1];
+  vest[j][2] = vest[i][2];
+
   if (atom->nextra_grow)
     for (int iextra = 0; iextra < atom->nextra_grow; iextra++)
       modify->fix[atom->extra_grow[iextra]]->copy_arrays(i,j,delflag);
@@ -153,39 +154,39 @@ void AtomVecSPHCoMVext::copy(int i, int j, int delflag)
 
 /* ---------------------------------------------------------------------- */
 
-int AtomVecSPHCoMVext::pack_comm_hybrid(int n, int *list, double *buf) {
-  //printf("in AtomVecSPHCoMVext::pack_comm_hybrid\n");
+int AtomVecSPHCoMVest::pack_comm_hybrid(int n, int *list, double *buf) {
+  //printf("in AtomVecSPHCoMVest::pack_comm_hybrid\n");
   int i, j, m;
 
   m = 0;
   for (i = 0; i < n; i++) {
     j = list[i];
-    buf[m++] = vext[j][0];
-    buf[m++] = vext[j][1];
-    buf[m++] = vext[j][2];
+    buf[m++] = vest[j][0];
+    buf[m++] = vest[j][1];
+    buf[m++] = vest[j][2];
   }
   return m;
 }
 
 /* ---------------------------------------------------------------------- */
 
-int AtomVecSPHCoMVext::unpack_comm_hybrid(int n, int first, double *buf) {
-  //printf("in AtomVecSPHCoMVext::unpack_comm_hybrid\n");
+int AtomVecSPHCoMVest::unpack_comm_hybrid(int n, int first, double *buf) {
+  //printf("in AtomVecSPHCoMVest::unpack_comm_hybrid\n");
   int i, m, last;
 
   m = 0;
   last = first + n;
   for (i = first; i < last; i++) {
-    vext[i][0] = buf[m++];
-    vext[i][1] = buf[m++];
-    vext[i][2] = buf[m++];
+    vest[i][0] = buf[m++];
+    vest[i][1] = buf[m++];
+    vest[i][2] = buf[m++];
   }
   return m;
 }
 
 /* ---------------------------------------------------------------------- */
 
-int AtomVecSPHCoMVext::pack_comm(int n, int *list, double *buf,
+int AtomVecSPHCoMVest::pack_comm(int n, int *list, double *buf,
                              int pbc_flag, int *pbc)
 {
   int i,j,m;
@@ -212,9 +213,9 @@ int AtomVecSPHCoMVext::pack_comm(int n, int *list, double *buf,
       buf[m++] = y_COM[j];
       buf[m++] = z_COM[j];
 
-      buf[m++] = vext[j][0];
-      buf[m++] = vext[j][1];
-      buf[m++] = vext[j][2];
+      buf[m++] = vest[j][0];
+      buf[m++] = vest[j][1];
+      buf[m++] = vest[j][2];
 
     }
   } else {
@@ -246,9 +247,9 @@ int AtomVecSPHCoMVext::pack_comm(int n, int *list, double *buf,
       buf[m++] = y_COM[j] + dy;
       buf[m++] = z_COM[j] + dz;
 
-      buf[m++] = vext[j][0];
-      buf[m++] = vext[j][1];
-      buf[m++] = vext[j][2];
+      buf[m++] = vest[j][0];
+      buf[m++] = vest[j][1];
+      buf[m++] = vest[j][2];
 
     }
   }
@@ -257,7 +258,7 @@ int AtomVecSPHCoMVext::pack_comm(int n, int *list, double *buf,
 
 /* ---------------------------------------------------------------------- */
 
-int AtomVecSPHCoMVext::pack_comm_vel(int n, int *list, double *buf,
+int AtomVecSPHCoMVest::pack_comm_vel(int n, int *list, double *buf,
                                  int pbc_flag, int *pbc)
 {
   int i,j,m;
@@ -287,9 +288,9 @@ int AtomVecSPHCoMVext::pack_comm_vel(int n, int *list, double *buf,
       buf[m++] = v[j][1];
       buf[m++] = v[j][2];
 
-      buf[m++] = vext[j][0];
-      buf[m++] = vext[j][1];
-      buf[m++] = vext[j][2];
+      buf[m++] = vest[j][0];
+      buf[m++] = vest[j][1];
+      buf[m++] = vest[j][2];
     }
   } else {
     if (domain->triclinic == 0) {
@@ -324,9 +325,9 @@ int AtomVecSPHCoMVext::pack_comm_vel(int n, int *list, double *buf,
         buf[m++] = v[j][1];
         buf[m++] = v[j][2];
         
-        buf[m++] = vext[j][0];
-        buf[m++] = vext[j][1];
-        buf[m++] = vext[j][2];
+        buf[m++] = vest[j][0];
+        buf[m++] = vest[j][1];
+        buf[m++] = vest[j][2];
 
       }
     } else {
@@ -356,17 +357,17 @@ int AtomVecSPHCoMVext::pack_comm_vel(int n, int *list, double *buf,
           buf[m++] = v[j][1] + dvy;
           buf[m++] = v[j][2] + dvz;
 
-          buf[m++] = vext[j][0] + dvx;
-          buf[m++] = vext[j][1] + dvy;
-          buf[m++] = vext[j][2] + dvz;
+          buf[m++] = vest[j][0] + dvx;
+          buf[m++] = vest[j][1] + dvy;
+          buf[m++] = vest[j][2] + dvz;
         } else {
           buf[m++] = v[j][0];
           buf[m++] = v[j][1];
           buf[m++] = v[j][2];
 
-          buf[m++] = vext[j][0];
-          buf[m++] = vext[j][1];
-          buf[m++] = vext[j][2];
+          buf[m++] = vest[j][0];
+          buf[m++] = vest[j][1];
+          buf[m++] = vest[j][2];
         }
       }
     }
@@ -376,7 +377,7 @@ int AtomVecSPHCoMVext::pack_comm_vel(int n, int *list, double *buf,
 
 /* ---------------------------------------------------------------------- */
 
-void AtomVecSPHCoMVext::unpack_comm(int n, int first, double *buf)
+void AtomVecSPHCoMVest::unpack_comm(int n, int first, double *buf)
 {
   int i,m,last;
 
@@ -398,16 +399,16 @@ void AtomVecSPHCoMVext::unpack_comm(int n, int first, double *buf)
     y_COM[i] = buf[m++];
     z_COM[i] = buf[m++];
 
-    vext[i][0] = buf[m++];
-    vext[i][1] = buf[m++];
-    vext[i][2] = buf[m++];
+    vest[i][0] = buf[m++];
+    vest[i][1] = buf[m++];
+    vest[i][2] = buf[m++];
 
   }
 }
 
 /* ---------------------------------------------------------------------- */
 
-void AtomVecSPHCoMVext::unpack_comm_vel(int n, int first, double *buf)
+void AtomVecSPHCoMVest::unpack_comm_vel(int n, int first, double *buf)
 {
   int i,m,last;
 
@@ -431,16 +432,16 @@ void AtomVecSPHCoMVext::unpack_comm_vel(int n, int first, double *buf)
     v[i][0] = buf[m++];
     v[i][1] = buf[m++];
     v[i][2] = buf[m++];
-    vext[i][0] = buf[m++];
-    vext[i][1] = buf[m++];
-    vext[i][2] = buf[m++];
+    vest[i][0] = buf[m++];
+    vest[i][1] = buf[m++];
+    vest[i][2] = buf[m++];
 
   }
 }
 
 /* ---------------------------------------------------------------------- */
 
-int AtomVecSPHCoMVext::pack_reverse(int n, int first, double *buf)
+int AtomVecSPHCoMVest::pack_reverse(int n, int first, double *buf)
 {
   int i,m,last;
 
@@ -456,7 +457,7 @@ int AtomVecSPHCoMVext::pack_reverse(int n, int first, double *buf)
 
 /* ---------------------------------------------------------------------- */
 
-void AtomVecSPHCoMVext::unpack_reverse(int n, int *list, double *buf)
+void AtomVecSPHCoMVest::unpack_reverse(int n, int *list, double *buf)
 {
   int i,j,m;
 
@@ -471,7 +472,7 @@ void AtomVecSPHCoMVext::unpack_reverse(int n, int *list, double *buf)
 
 /* ---------------------------------------------------------------------- */
 
-int AtomVecSPHCoMVext::pack_border(int n, int *list, double *buf,
+int AtomVecSPHCoMVest::pack_border(int n, int *list, double *buf,
                                int pbc_flag, int *pbc)
 {
   int i,j,m;
@@ -501,9 +502,9 @@ int AtomVecSPHCoMVext::pack_border(int n, int *list, double *buf,
       buf[m++] = ubuf(type[j]).d;
       buf[m++] = ubuf(mask[j]).d;
       buf[m++] = q[j];
-      buf[m++] = vext[j][0];
-      buf[m++] = vext[j][1];
-      buf[m++] = vext[j][2];
+      buf[m++] = vest[j][0];
+      buf[m++] = vest[j][1];
+      buf[m++] = vest[j][2];
     }
   } else {
     if (domain->triclinic == 0) {
@@ -538,9 +539,9 @@ int AtomVecSPHCoMVext::pack_border(int n, int *list, double *buf,
       buf[m++] = ubuf(type[j]).d;
       buf[m++] = ubuf(mask[j]).d;
       buf[m++] = q[j];
-      buf[m++] = vext[j][0];
-      buf[m++] = vext[j][1];
-      buf[m++] = vext[j][2];
+      buf[m++] = vest[j][0];
+      buf[m++] = vest[j][1];
+      buf[m++] = vest[j][2];
     }
   }
 
@@ -553,7 +554,7 @@ int AtomVecSPHCoMVext::pack_border(int n, int *list, double *buf,
 
 /* ---------------------------------------------------------------------- */
 
-int AtomVecSPHCoMVext::pack_border_vel(int n, int *list, double *buf,
+int AtomVecSPHCoMVest::pack_border_vel(int n, int *list, double *buf,
                                    int pbc_flag, int *pbc)
 {
   int i,j,m;
@@ -586,9 +587,9 @@ int AtomVecSPHCoMVext::pack_border_vel(int n, int *list, double *buf,
       buf[m++] = v[j][0];
       buf[m++] = v[j][1];
       buf[m++] = v[j][2];
-      buf[m++] = vext[j][0];
-      buf[m++] = vext[j][1];
-      buf[m++] = vext[j][2];
+      buf[m++] = vest[j][0];
+      buf[m++] = vest[j][1];
+      buf[m++] = vest[j][2];
     }
   } else {
     if (domain->triclinic == 0) {
@@ -626,9 +627,9 @@ int AtomVecSPHCoMVext::pack_border_vel(int n, int *list, double *buf,
         buf[m++] = v[j][0];
         buf[m++] = v[j][1];
         buf[m++] = v[j][2];
-        buf[m++] = vext[j][0];
-        buf[m++] = vext[j][1];
-        buf[m++] = vext[j][2];
+        buf[m++] = vest[j][0];
+        buf[m++] = vest[j][1];
+        buf[m++] = vest[j][2];
       }
     } else {
       dvx = pbc[0]*h_rate[0] + pbc[5]*h_rate[5] + pbc[4]*h_rate[4];
@@ -661,17 +662,17 @@ int AtomVecSPHCoMVext::pack_border_vel(int n, int *list, double *buf,
           buf[m++] = v[j][1] + dvy;
           buf[m++] = v[j][2] + dvz;
 
-          buf[m++] = vext[j][0] + dvx;
-          buf[m++] = vext[j][1] + dvy;
-          buf[m++] = vext[j][2] + dvz;
+          buf[m++] = vest[j][0] + dvx;
+          buf[m++] = vest[j][1] + dvy;
+          buf[m++] = vest[j][2] + dvz;
         } else {
           buf[m++] = v[j][0];
           buf[m++] = v[j][1];
           buf[m++] = v[j][2];
           
-          buf[m++] = vext[j][0];
-          buf[m++] = vext[j][1];
-          buf[m++] = vext[j][2];
+          buf[m++] = vest[j][0];
+          buf[m++] = vest[j][1];
+          buf[m++] = vest[j][2];
         }
       }
     }
@@ -686,7 +687,7 @@ int AtomVecSPHCoMVext::pack_border_vel(int n, int *list, double *buf,
 
 /* ---------------------------------------------------------------------- */
 
-int AtomVecSPHCoMVext::pack_border_hybrid(int n, int *list, double *buf)
+int AtomVecSPHCoMVest::pack_border_hybrid(int n, int *list, double *buf)
 {
   int i,j,m;
 
@@ -708,16 +709,16 @@ int AtomVecSPHCoMVext::pack_border_hybrid(int n, int *list, double *buf)
     buf[m++] = y_COM[j];
     buf[m++] = z_COM[j];
 
-    buf[m++] = vext[j][0];
-    buf[m++] = vext[j][1];
-    buf[m++] = vext[j][2];
+    buf[m++] = vest[j][0];
+    buf[m++] = vest[j][1];
+    buf[m++] = vest[j][2];
   }
   return m;
 }
 
 /* ---------------------------------------------------------------------- */
 
-void AtomVecSPHCoMVext::unpack_border(int n, int first, double *buf)
+void AtomVecSPHCoMVest::unpack_border(int n, int first, double *buf)
 {
   int i,m,last;
 
@@ -743,9 +744,9 @@ void AtomVecSPHCoMVext::unpack_border(int n, int first, double *buf)
     type[i] = (int) ubuf(buf[m++]).i;
     mask[i] = (int) ubuf(buf[m++]).i;
     q[i] = buf[m++];
-    vext[i][0] = buf[m++];
-    vext[i][1] = buf[m++];
-    vext[i][2] = buf[m++];
+    vest[i][0] = buf[m++];
+    vest[i][1] = buf[m++];
+    vest[i][2] = buf[m++];
   }
 
   if (atom->nextra_border)
@@ -756,7 +757,7 @@ void AtomVecSPHCoMVext::unpack_border(int n, int first, double *buf)
 
 /* ---------------------------------------------------------------------- */
 
-void AtomVecSPHCoMVext::unpack_border_vel(int n, int first, double *buf)
+void AtomVecSPHCoMVest::unpack_border_vel(int n, int first, double *buf)
 {
   int i,m,last;
 
@@ -785,9 +786,9 @@ void AtomVecSPHCoMVext::unpack_border_vel(int n, int first, double *buf)
     v[i][0] = buf[m++];
     v[i][1] = buf[m++];
     v[i][2] = buf[m++];
-    vext[i][0] = buf[m++];
-    vext[i][1] = buf[m++];
-    vext[i][2] = buf[m++];
+    vest[i][0] = buf[m++];
+    vest[i][1] = buf[m++];
+    vest[i][2] = buf[m++];
   }
 
   if (atom->nextra_border)
@@ -798,7 +799,7 @@ void AtomVecSPHCoMVext::unpack_border_vel(int n, int first, double *buf)
 
 /* ---------------------------------------------------------------------- */
 
-int AtomVecSPHCoMVext::unpack_border_hybrid(int n, int first, double *buf)
+int AtomVecSPHCoMVest::unpack_border_hybrid(int n, int first, double *buf)
 {
   int i,m,last;
 
@@ -818,9 +819,9 @@ int AtomVecSPHCoMVext::unpack_border_hybrid(int n, int first, double *buf)
     y_COM[i] = buf[m++];
     z_COM[i] = buf[m++];
 
-    vext[i][0] = buf[m++];
-    vext[i][1] = buf[m++];
-    vext[i][2] = buf[m++];
+    vest[i][0] = buf[m++];
+    vest[i][1] = buf[m++];
+    vest[i][2] = buf[m++];
   return m;
 }
 
@@ -829,7 +830,7 @@ int AtomVecSPHCoMVext::unpack_border_hybrid(int n, int first, double *buf)
    xyz must be 1st 3 values, so comm::exchange() can test on them
 ------------------------------------------------------------------------- */
 
-int AtomVecSPHCoMVext::pack_exchange(int i, double *buf)
+int AtomVecSPHCoMVest::pack_exchange(int i, double *buf)
 {
   int m = 1;
   buf[m++] = x[i][0];
@@ -855,9 +856,9 @@ int AtomVecSPHCoMVext::pack_exchange(int i, double *buf)
   buf[m++] = x_COM[i];
   buf[m++] = y_COM[i];
   buf[m++] = z_COM[i];
-  buf[m++] = vext[i][0];
-  buf[m++] = vext[i][1];
-  buf[m++] = vext[i][2];
+  buf[m++] = vest[i][0];
+  buf[m++] = vest[i][1];
+  buf[m++] = vest[i][2];
 
   if (atom->nextra_grow)
     for (int iextra = 0; iextra < atom->nextra_grow; iextra++)
@@ -869,7 +870,7 @@ int AtomVecSPHCoMVext::pack_exchange(int i, double *buf)
 
 /* ---------------------------------------------------------------------- */
 
-int AtomVecSPHCoMVext::unpack_exchange(double *buf)
+int AtomVecSPHCoMVest::unpack_exchange(double *buf)
 {
   int nlocal = atom->nlocal;
   if (nlocal == nmax) grow(0);
@@ -900,9 +901,9 @@ int AtomVecSPHCoMVext::unpack_exchange(double *buf)
   y_COM[nlocal] = buf[m++];
   z_COM[nlocal] = buf[m++];
 
-  vext[nlocal][0] = buf[m++];
-  vext[nlocal][1] = buf[m++];
-  vext[nlocal][2] = buf[m++];
+  vest[nlocal][0] = buf[m++];
+  vest[nlocal][1] = buf[m++];
+  vest[nlocal][2] = buf[m++];
 
 
   if (atom->nextra_grow)
@@ -919,7 +920,7 @@ int AtomVecSPHCoMVext::unpack_exchange(double *buf)
    include extra data stored by fixes
 ------------------------------------------------------------------------- */
 
-int AtomVecSPHCoMVext::size_restart()
+int AtomVecSPHCoMVest::size_restart()
 {
   int i;
 
@@ -941,7 +942,7 @@ int AtomVecSPHCoMVext::size_restart()
    molecular types may be negative, but write as positive
 ------------------------------------------------------------------------- */
 
-int AtomVecSPHCoMVext::pack_restart(int i, double *buf)
+int AtomVecSPHCoMVest::pack_restart(int i, double *buf)
 {
   int m = 1;
   buf[m++] = x[i][0];
@@ -968,9 +969,9 @@ int AtomVecSPHCoMVext::pack_restart(int i, double *buf)
 
   buf[m++] = q[i];
 
-  buf[m++] = vext[i][0];
-  buf[m++] = vext[i][1];
-  buf[m++] = vext[i][2];
+  buf[m++] = vest[i][0];
+  buf[m++] = vest[i][1];
+  buf[m++] = vest[i][2];
 
   if (atom->nextra_restart)
     for (int iextra = 0; iextra < atom->nextra_restart; iextra++)
@@ -984,7 +985,7 @@ int AtomVecSPHCoMVext::pack_restart(int i, double *buf)
    unpack data for one atom from restart file including extra quantities
 ------------------------------------------------------------------------- */
 
-int AtomVecSPHCoMVext::unpack_restart(double *buf)
+int AtomVecSPHCoMVest::unpack_restart(double *buf)
 {
   int nlocal = atom->nlocal;
   if (nlocal == nmax) {
@@ -1018,9 +1019,9 @@ int AtomVecSPHCoMVext::unpack_restart(double *buf)
 
   q[nlocal] = buf[m++];
 
-  vext[nlocal][0] = buf[m++];
-  vext[nlocal][1] = buf[m++];
-  vext[nlocal][2] = buf[m++];
+  vest[nlocal][0] = buf[m++];
+  vest[nlocal][1] = buf[m++];
+  vest[nlocal][2] = buf[m++];
   
 
   double **extra = atom->extra;
@@ -1038,7 +1039,7 @@ int AtomVecSPHCoMVext::unpack_restart(double *buf)
    set other values to defaults
 ------------------------------------------------------------------------- */
 
-void AtomVecSPHCoMVext::create_atom(int itype, double *coord)
+void AtomVecSPHCoMVest::create_atom(int itype, double *coord)
 {
   int nlocal = atom->nlocal;
   if (nlocal == nmax) grow(0);
@@ -1070,9 +1071,9 @@ void AtomVecSPHCoMVext::create_atom(int itype, double *coord)
 
   q[nlocal] = 0.0;
 
-  vext[nlocal][0] = 0.0;
-  vext[nlocal][1] = 0.0;
-  vext[nlocal][2] = 0.0;
+  vest[nlocal][0] = 0.0;
+  vest[nlocal][1] = 0.0;
+  vest[nlocal][2] = 0.0;
 
   atom->nlocal++;
 }
@@ -1082,7 +1083,7 @@ void AtomVecSPHCoMVext::create_atom(int itype, double *coord)
    initialize other atom quantities
 ------------------------------------------------------------------------- */
 
-void AtomVecSPHCoMVext::data_atom(double *coord, imageint imagetmp, char **values)
+void AtomVecSPHCoMVest::data_atom(double *coord, imageint imagetmp, char **values)
 {
   int nlocal = atom->nlocal;
   if (nlocal == nmax) grow(0);
@@ -1117,9 +1118,9 @@ void AtomVecSPHCoMVext::data_atom(double *coord, imageint imagetmp, char **value
   v[nlocal][1] = 0.0;
   v[nlocal][2] = 0.0;
 
-  vext[nlocal][0] = 0.0;
-  vext[nlocal][1] = 0.0;
-  vext[nlocal][2] = 0.0;
+  vest[nlocal][0] = 0.0;
+  vest[nlocal][1] = 0.0;
+  vest[nlocal][2] = 0.0;
 
   atom->nlocal++;
 }
@@ -1129,7 +1130,7 @@ void AtomVecSPHCoMVext::data_atom(double *coord, imageint imagetmp, char **value
    initialize other atom quantities for this sub-style
 ------------------------------------------------------------------------- */
 
-int AtomVecSPHCoMVext::data_atom_hybrid(int nlocal, char **values)
+int AtomVecSPHCoMVest::data_atom_hybrid(int nlocal, char **values)
 {
   q[nlocal] = utils::numeric(FLERR,values[0],true,lmp);
   rho_SPH[nlocal] = 0.0;
@@ -1151,7 +1152,7 @@ int AtomVecSPHCoMVext::data_atom_hybrid(int nlocal, char **values)
    pack atom info for data file including 3 image flags
 ------------------------------------------------------------------------- */
 
-void AtomVecSPHCoMVext::pack_data(double **buf)
+void AtomVecSPHCoMVest::pack_data(double **buf)
 {
   int nlocal = atom->nlocal;
   for (int i = 0; i < nlocal; i++) {
@@ -1182,7 +1183,7 @@ void AtomVecSPHCoMVext::pack_data(double **buf)
    pack hybrid atom info for data file
 ------------------------------------------------------------------------- */
 
-int AtomVecSPHCoMVext::pack_data_hybrid(int i, double *buf)
+int AtomVecSPHCoMVest::pack_data_hybrid(int i, double *buf)
 {
   buf[0] = q[i];
   buf[1] = rho_SPH[i];
@@ -1203,7 +1204,7 @@ int AtomVecSPHCoMVext::pack_data_hybrid(int i, double *buf)
    write atom info to data file including 3 image flags
 ------------------------------------------------------------------------- */
 
-void AtomVecSPHCoMVext::write_data(FILE *fp, int n, double **buf)
+void AtomVecSPHCoMVest::write_data(FILE *fp, int n, double **buf)
 {
   for (int i = 0; i < n; i++)
     fprintf(fp,TAGINT_FORMAT " %d %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %d %d %d\n",
@@ -1217,7 +1218,7 @@ void AtomVecSPHCoMVext::write_data(FILE *fp, int n, double **buf)
    write hybrid atom info to data file
 ------------------------------------------------------------------------- */
 
-int AtomVecSPHCoMVext::write_data_hybrid(FILE *fp, double *buf)
+int AtomVecSPHCoMVest::write_data_hybrid(FILE *fp, double *buf)
 {
   fprintf(fp," %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e",buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7],buf[8],buf[9],buf[10]);
   return 11;
@@ -1227,7 +1228,7 @@ int AtomVecSPHCoMVext::write_data_hybrid(FILE *fp, double *buf)
    return # of bytes of allocated memory
 ------------------------------------------------------------------------- */
 
-bigint AtomVecSPHCoMVext::memory_usage()
+bigint AtomVecSPHCoMVest::memory_usage()
 {
   bigint bytes = 0;
 
@@ -1253,7 +1254,7 @@ bigint AtomVecSPHCoMVext::memory_usage()
   if (atom->memcheck("y_COM")) bytes += memory->usage(y_COM,nmax);
   if (atom->memcheck("z_COM")) bytes += memory->usage(z_COM,nmax);
 
-  if (atom->memcheck("vext")) bytes += memory->usage(vext, nmax);
+  if (atom->memcheck("vest")) bytes += memory->usage(vest, nmax);
 
   return bytes;
 }

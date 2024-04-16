@@ -15,21 +15,21 @@
 
 #ifdef ATOM_CLASS
 
-AtomStyle(SPH_CoM_vext,AtomVecSPHCoMVext)
+AtomStyle(SPH_CoM_vest,AtomVecSPHCoMVest)
 
 #else
 
-#ifndef LMP_ATOM_VEC_SPH_COM_VEXT_H
-#define LMP_ATOM_VEC_SPH_COM_VEXT_H
+#ifndef LMP_ATOM_VEC_SPH_COM_VEST_H
+#define LMP_ATOM_VEC_SPH_COM_VEST_H
 
 #include "atom_vec.h"
 
 namespace LAMMPS_NS {
 
-class AtomVecSPHCoMVext: public AtomVec {
+class AtomVecSPHCoMVest: public AtomVec {
  public:
-  AtomVecSPHCoMVext(class LAMMPS *);
-  virtual ~AtomVecSPHCoMVext() {}
+  AtomVecSPHCoMVest(class LAMMPS *);
+  virtual ~AtomVecSPHCoMVest() {}
   void grow(int);
   void grow_reset();
   void copy(int, int, int);
@@ -66,7 +66,7 @@ class AtomVecSPHCoMVext: public AtomVec {
   int *type,*mask;
   imageint *image;
   double **x,**v,**f;
-  double **vext; // estimated velocity during force computation
+  double **vest; // extrapolated velocity during force computation
   double *q;
   //SPH variables
   double *rho_SPH;
