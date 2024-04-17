@@ -72,7 +72,7 @@ rsync ../input_decks/scarf/H_research/10_77eV_2_rs/* scarf734@ui1.scarf.rl.ac.uk
 # scp ../LAMMPS_code/src/USER-TC_SPH/compute_temp.* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 # scp ../LAMMPS_code/src/USER-TC_SPH/compute_temp_CoM.* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 # scp ../LAMMPS_code/src/USER-TC_SPH/fix_nh.* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
-scp ../LAMMPS_code/src/USER-TC_SPH/fix_nve_SPH.* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
+# scp ../LAMMPS_code/src/USER-TC_SPH/fix_nve_SPH.* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 
 # scp ../LAMMPS_code/src/USER-TC_SPH/fix_nvt_CoM.* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 

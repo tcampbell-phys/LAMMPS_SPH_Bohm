@@ -9,4 +9,4 @@ rsync -av --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' scarf734@ui1.scar
 # rsync -av --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' scarf734@ui1.scarf.rl.ac.uk:/work4/clf/scarf734/LAMMPS/SPH_Bohm/Al_research/ ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/SCARF/Al_research/
 # rsync -av --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' scarf734@ui1.scarf.rl.ac.uk:/work4/clf/scarf734/LAMMPS/SPH_Bohm/Be_research/ ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/SCARF/Be_research/
 
-# rsync -av --exclude='*.cpp' --exclude='*.h' scarf734@ui1.scarf.rl.ac.uk:/work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/ ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/SCARF/H_research/H_ground/
+rsync -av --exclude='*.cpp' --exclude='*.h' scarf734@ui1.scarf.rl.ac.uk:/work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/ ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/SCARF/H_research/H_ground/
