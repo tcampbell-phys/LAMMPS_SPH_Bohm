@@ -76,7 +76,7 @@ FixDynamicWidthsCoM::FixDynamicWidthsCoM(LAMMPS *lmp, int narg, char **arg):
   nmax = 0;
 
   assignment_flag = 1;
-  fprintf(screen,"\nIn FixDynamicWidthsCoM with MPI_Allreduce and no commflag = 4 or 5");
+  // fprintf(screen,"\nIn FixDynamicWidthsCoM with MPI_Allreduce and no commflag = 4 or 5");
 }
 
 FixDynamicWidthsCoM::~FixDynamicWidthsCoM()
@@ -390,7 +390,7 @@ void FixDynamicWidthsCoM::FixedPointIterator()
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
 
-    // // // fprintf(screen,"\nrho_SPH[%d] = %16.16f",i,rho_SPH[i]);
+    // // // // fprintf(screen,"\nrho_SPH[%d] = %16.16f",i,rho_SPH[i]);
 
     xtmp = x[i][0];
     ytmp = x[i][1];
@@ -491,7 +491,7 @@ void FixDynamicWidthsCoM::CoM_Calculator()
 
   if (unallocated){
     deallocate();
-    // fprintf(screen,"\nFixDynamicWidthsCoM allocating mu tau memory...\n");
+    // // fprintf(screen,"\nFixDynamicWidthsCoM allocating mu tau memory...\n");
     allocate();
     allocated = 1;
     unallocated = 0;
@@ -529,7 +529,7 @@ void FixDynamicWidthsCoM::CoM_Calculator()
     y_COM[i] = (atan2(-tau_all[ele_ind+N_electrons]/N_elements_per_electron,-mu_all[ele_ind+N_electrons]/N_elements_per_electron) + M_PI)/two_pi_over_len;
     z_COM[i] = (atan2(-tau_all[ele_ind+2*N_electrons]/N_elements_per_electron,-mu_all[ele_ind+2*N_electrons]/N_elements_per_electron) + M_PI)/two_pi_over_len;
     // if (tagid[i] == 801){
-    //   fprintf(screen,"\n\ntimestep %d \n\nx_COM = %16.16f \ny_COM = %16.16f \nz_COM = %16.16f",ntimestep,x_COM[i],y_COM[i],z_COM[i]);
+    //   // fprintf(screen,"\n\ntimestep %d \n\nx_COM = %16.16f \ny_COM = %16.16f \nz_COM = %16.16f",ntimestep,x_COM[i],y_COM[i],z_COM[i]);
     // }
   }
 }
@@ -793,7 +793,7 @@ void FixDynamicWidthsCoM::unpack_reverse_comm(int n, int *list, double *buf)
 
 void FixDynamicWidthsCoM::allocate()
 {
-  fprintf(screen,"\nFixDynamicWidthsCoM::allocate()\n");
+  // fprintf(screen,"\nFixDynamicWidthsCoM::allocate()\n");
   // Centre of Mass array x 0:N_ele, y N_ele:2*N_ele, z 2*N_ele:3_Nele
   mu = new double[3*N_electrons]; 
   mu_all = new double[3*N_electrons];
@@ -807,7 +807,7 @@ void FixDynamicWidthsCoM::allocate()
 
 void FixDynamicWidthsCoM::deallocate()
 {
-  fprintf(screen,"\nFixDynamicWidthsCoM::deallocate()\n");
+  // fprintf(screen,"\nFixDynamicWidthsCoM::deallocate()\n");
   delete [] mu;
   delete [] mu_all;
   delete [] tau;
