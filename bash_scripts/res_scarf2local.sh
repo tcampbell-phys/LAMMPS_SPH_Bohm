@@ -1,6 +1,8 @@
 #!/bin/bash
 
 # rsync -av --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' scarf734@ui1.scarf.rl.ac.uk:/work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/ ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/SCARF/H_research/
+rsync -av --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' scarf734@ui1.scarf.rl.ac.uk:/work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/scarf_H_21_54eV_1_75_rs_min* ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/SCARF/H_research/21_54eV_1_75_rs/
+
 rsync -av --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' scarf734@ui1.scarf.rl.ac.uk:/work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/21_54eV_1_75_rs/ ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/SCARF/H_research/21_54eV_1_75_rs/
 
 rsync -av --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' scarf734@ui1.scarf.rl.ac.uk:/work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/10_77eV_2_rs/ ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/SCARF/H_research/10_77eV_2_rs/
