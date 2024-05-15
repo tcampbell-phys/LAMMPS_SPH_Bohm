@@ -133,7 +133,7 @@ FixInitSample::FixInitSample(LAMMPS *lmp, int narg, char **arg):
           jdx = j;
       }
       if (val_distance > distance){
-          particle_energy = energy[jdx];
+          particle_energy = energy[jdx]/Nepe;
           vx = random->uniform() - 0.5;
           vy = random->uniform() - 0.5;
           vz = random->uniform() - 0.5;
