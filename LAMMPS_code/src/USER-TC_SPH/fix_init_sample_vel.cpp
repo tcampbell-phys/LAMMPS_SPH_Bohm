@@ -64,6 +64,8 @@ FixInitSample::FixInitSample(LAMMPS *lmp, int narg, char **arg):
 
   int nlocal = atom->nlocal;
   int *mask = atom->mask;
+  
+  double mvv2e = force->mvv2e;
 
   double rand_num;
   double distance;
@@ -137,7 +139,7 @@ FixInitSample::FixInitSample(LAMMPS *lmp, int narg, char **arg):
           vz = random->uniform() - 0.5;
 
           v_squared = pow(vx,2) + pow(vy,2) + pow(vz,2);
-          kin_E = 0.5 * e_mass * v_squared;
+          kin_E = mvv2e * 0.5 * e_mass * v_squared;
 
           E_ratio = kin_E/particle_energy;
 
