@@ -15,6 +15,7 @@ class FixInitSample : public Fix {
 
  protected:
   double Nepe;
+  double scaling_val; //expected to be 1 or 5/3
   double boltz;
 
   char *id_temp;

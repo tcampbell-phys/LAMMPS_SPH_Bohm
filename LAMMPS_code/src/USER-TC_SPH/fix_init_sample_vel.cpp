@@ -33,7 +33,7 @@ using namespace FixConst;
 FixInitSample::FixInitSample(LAMMPS *lmp, int narg, char **arg):
 	Fix(lmp, narg, arg), id_temp(NULL)
 {
-  if (narg < 2) error->all(FLERR,"Illegal fix InitSample command");
+  if (narg < 3) error->all(FLERR,"Illegal fix InitSample command");
 
   int n = strlen(id) + 6;
   id_temp = new char[n];
@@ -51,9 +51,12 @@ FixInitSample::FixInitSample(LAMMPS *lmp, int narg, char **arg):
   /* call system parameters for fermi distribution calculation*/
 
   Nepe	= force->numeric(FLERR,arg[3]);
-  //std::cout << "Nepe =  " << Nepe << std::endl;
+  std::cout << "Calling fix_init_sample_vel with Nepe =   " << Nepe << std::endl;
 
-  int seed = force->inumeric(FLERR,arg[4]);
+  scaling_val	= force->numeric(FLERR,arg[4]);
+  std::cout << "Calling fix_init_sample_vel with scaling_val =   " << scaling_val << std::endl;
+
+  int seed = force->inumeric(FLERR,arg[5]);
   //std::cout << "seed =  " << seed << std::endl;
 
   //std::cout << "N_int_points =  " << N_int_points << std::endl;
@@ -61,6 +64,7 @@ FixInitSample::FixInitSample(LAMMPS *lmp, int narg, char **arg):
   //std::cout << "interval =  " << interval << std::endl;
 
   double** v = atom->v;
+  int *tagid = atom->tag;
 
   int nlocal = atom->nlocal;
   int *mask = atom->mask;
@@ -118,6 +122,8 @@ FixInitSample::FixInitSample(LAMMPS *lmp, int narg, char **arg):
   RanPark *random = NULL;
   random = new RanPark(lmp,seed);
   int natoms = static_cast<int> (atom->natoms);
+
+  // fprintf(screen,"\nnatoms = %d",natoms);
   
   for(int i = 0; i <+ natoms; ++i){
     rand_num = random->uniform();
@@ -125,21 +131,28 @@ FixInitSample::FixInitSample(LAMMPS *lmp, int narg, char **arg):
     distance = fabs(cumul_dist_norm[0]-rand_num);
     temp_distance = fabs(cumul_dist_norm[0]-rand_num);
     jdx = 0;
+    // if (i < 10){
+    //     fprintf(screen,"\n\n\nrand_num = %f",rand_num); 
+    //   }
     for(int j = 1; j < N_int_points; j++){
       val_distance = fabs(cumul_dist_norm[j] - rand_num);
+      // if (i < 10){
+      //   fprintf(screen,"\n\ncumul_dist_norm[j] = %f",cumul_dist_norm[j]);
+      //   fprintf(screen,"\nval_distance = %f",val_distance); 
+      // }
       if (val_distance < distance){
           temp_distance = fabs(cumul_dist_norm[j] - rand_num);
           distance = temp_distance;
           jdx = j;
       }
       if (val_distance > distance){
-          particle_energy = energy[jdx]/Nepe;
+          particle_energy = energy[jdx]/(pow(Nepe,scaling_val));
           vx = random->uniform() - 0.5;
           vy = random->uniform() - 0.5;
           vz = random->uniform() - 0.5;
 
           v_squared = pow(vx,2) + pow(vy,2) + pow(vz,2);
-          kin_E = mvv2e * 0.5 * e_mass * v_squared;
+          kin_E = mvv2e * 0.5 * v_squared* e_mass/Nepe;
 
           E_ratio = kin_E/particle_energy;
 
@@ -153,6 +166,16 @@ FixInitSample::FixInitSample(LAMMPS *lmp, int narg, char **arg):
               v[m][0] = vx;
               v[m][1] = vy;
               v[m][2] = vz;
+              
+              // if (i < 964){
+              //   fprintf(screen,"\n\ninput rand_num = %f",rand_num);
+              //   fprintf(screen,"\nID = %d",tagid[m]);
+              //   fprintf(screen,"\ntarg particle_energy = %f",particle_energy);
+              //   fprintf(screen,"\nvx = %f",vx);
+              //   fprintf(screen,"\nvx = %f",vy);
+              //   fprintf(screen,"\nvx = %f",vz);
+              //   fprintf(screen,"\noutput particle_energy = %f",mvv2e * 0.5 * (vx*vx + vy*vy + vz*vz) * e_mass/Nepe);
+              // }
             }
           }
           break;
