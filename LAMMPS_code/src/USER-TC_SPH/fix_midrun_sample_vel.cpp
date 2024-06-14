@@ -33,7 +33,7 @@ using namespace FixConst;
 FixMidrunSample::FixMidrunSample(LAMMPS *lmp, int narg, char **arg):
 	Fix(lmp, narg, arg), id_temp(NULL)
 {
-  if (narg < 3) error->all(FLERR,"Illegal fix InitSample command");
+  if (narg < 3) error->all(FLERR,"Illegal fix MidrunSample command");
 
   int n = strlen(id) + 6;
   id_temp = new char[n];
@@ -51,17 +51,12 @@ FixMidrunSample::FixMidrunSample(LAMMPS *lmp, int narg, char **arg):
   /* call system parameters for fermi distribution calculation*/
 
   Nepe	= force->numeric(FLERR,arg[3]);
-  std::cout << "Calling fix_init_sample_vel with Nepe =   " << Nepe << std::endl;
+  std::cout << "Calling fix_midrun_sample_vel 1 with Nepe =   " << Nepe << std::endl;
 
   scaling_val	= force->numeric(FLERR,arg[4]);
-  std::cout << "Calling fix_init_sample_vel with scaling_val =   " << scaling_val << std::endl;
+  std::cout << "Calling fix_midrun_sample_vel 1 with scaling_val =   " << scaling_val << std::endl;
 
   int seed = force->inumeric(FLERR,arg[5]);
-  //std::cout << "seed =  " << seed << std::endl;
-
-  //std::cout << "N_int_points =  " << N_int_points << std::endl;
-
-  //std::cout << "interval =  " << interval << std::endl;
 
   double** v = atom->v;
   int *tagid = atom->tag;
@@ -80,6 +75,9 @@ FixMidrunSample::FixMidrunSample(LAMMPS *lmp, int narg, char **arg):
   double vx_load;
   double vy_load;
   double vz_load;
+  double vx;
+  double vy;
+  double vz;
   double v_squared;
   double kin_E;
   double E_ratio;
@@ -108,13 +106,13 @@ FixMidrunSample::FixMidrunSample(LAMMPS *lmp, int narg, char **arg):
   // error check
 
   if (atom->natoms > MAXSMALLINT)
-      error->all(FLERR,"Too big a problem to use fix_init_sample_vel create loop all");
+      error->all(FLERR,"Too big a problem to use fix_midrun_sample_vel create loop all");
   if (atom->tag_enable == 0)
       error->all(FLERR,
-                "Cannot use fix_init_sample_vel loop all unless atoms have IDs");
+                "Cannot use fix_midrun_sample_vel loop all unless atoms have IDs");
   if (atom->tag_consecutive() == 0)
       error->all(FLERR,
-                "Atom IDs must be consecutive for fix_init_sample_vel create loop all");
+                "Atom IDs must be consecutive for fix_midrun_sample_vel create loop all");
 
   // loop over all atoms in system
   // generate RNGs for all atoms, only assign to ones I own
@@ -123,7 +121,7 @@ FixMidrunSample::FixMidrunSample(LAMMPS *lmp, int narg, char **arg):
   random = new RanPark(lmp,seed);
   int natoms = static_cast<int> (atom->natoms);
 
-  // fprintf(screen,"\nnatoms = %d",natoms);
+  // // fprintf(screen,"\nnatoms = %d",natoms);
   
   for(int i = 0; i <+ natoms; ++i){
     rand_num = random->uniform();
@@ -131,31 +129,53 @@ FixMidrunSample::FixMidrunSample(LAMMPS *lmp, int narg, char **arg):
     distance = fabs(cumul_dist_norm[0]-rand_num);
     temp_distance = fabs(cumul_dist_norm[0]-rand_num);
     jdx = 0;
-    m = atom->map(i);
-    if (m >= 0 && m < nlocal) {
-      if (mask[m] & groupbit) {
-        for(int j = 1; j < N_int_points; j++){
-          val_distance = fabs(cumul_dist_norm[j] - rand_num);
-          if (val_distance < distance){
-              temp_distance = fabs(cumul_dist_norm[j] - rand_num);
-              distance = temp_distance;
-              jdx = j;
-          }
-          if (val_distance > distance){
+    // fprintf(screen,"\ni = %d",i);
+    
+    for(int j = 1; j < N_int_points; j++){
+      val_distance = fabs(cumul_dist_norm[j] - rand_num);
+      // // fprintf(screen,"\nj = %d",j);
+      if (val_distance < distance){
+          temp_distance = fabs(cumul_dist_norm[j] - rand_num);
+          distance = temp_distance;
+          jdx = j;
+      }
+      if (val_distance > distance){
+          // fprintf(screen,"\nfound val");
+          vx = random->uniform() - 0.5;
+          vy = random->uniform() - 0.5;
+          vz = random->uniform() - 0.5;
+          m = atom->map(i);
+          // fprintf(screen,"\nCheck A");
+
+          if (m >= 0 && m < nlocal) {
+            if (mask[m] & groupbit) {
+
               vx_load = v[m][0];
               vy_load = v[m][1];
               vz_load = v[m][2];
 
+              // fprintf(screen,"\nCheck B");
+
               particle_energy = energy[jdx]/(pow(Nepe,scaling_val));
 
+              // fprintf(screen,"\nCheck C");
+
               v_squared = pow(vx_load,2) + pow(vy_load,2) + pow(vz_load,2);
+
+              // fprintf(screen,"\nCheck D");
               kin_E = mvv2e * 0.5 * v_squared* e_mass/Nepe;
+
+              // fprintf(screen,"\nCheck E");
 
               E_ratio = kin_E/particle_energy;
 
+              // fprintf(screen,"\nCheck F");
+  
+              // fprintf(screen,"\nCheck G");
               v[m][0] *= 1/(pow(E_ratio,0.5));
               v[m][1] *= 1/(pow(E_ratio,0.5));
               v[m][2] *= 1/(pow(E_ratio,0.5));
+              // fprintf(screen,"\nCheck H");
             }
           }
           break;

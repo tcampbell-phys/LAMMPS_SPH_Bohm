@@ -57,11 +57,6 @@ FixInitSample::FixInitSample(LAMMPS *lmp, int narg, char **arg):
   std::cout << "Calling fix_init_sample_vel with scaling_val =   " << scaling_val << std::endl;
 
   int seed = force->inumeric(FLERR,arg[5]);
-  //std::cout << "seed =  " << seed << std::endl;
-
-  //std::cout << "N_int_points =  " << N_int_points << std::endl;
-
-  //std::cout << "interval =  " << interval << std::endl;
 
   double** v = atom->v;
   int *tagid = atom->tag;
@@ -131,15 +126,8 @@ FixInitSample::FixInitSample(LAMMPS *lmp, int narg, char **arg):
     distance = fabs(cumul_dist_norm[0]-rand_num);
     temp_distance = fabs(cumul_dist_norm[0]-rand_num);
     jdx = 0;
-    // if (i < 10){
-    //     fprintf(screen,"\n\n\nrand_num = %f",rand_num); 
-    //   }
     for(int j = 1; j < N_int_points; j++){
       val_distance = fabs(cumul_dist_norm[j] - rand_num);
-      // if (i < 10){
-      //   fprintf(screen,"\n\ncumul_dist_norm[j] = %f",cumul_dist_norm[j]);
-      //   fprintf(screen,"\nval_distance = %f",val_distance); 
-      // }
       if (val_distance < distance){
           temp_distance = fabs(cumul_dist_norm[j] - rand_num);
           distance = temp_distance;
@@ -166,16 +154,6 @@ FixInitSample::FixInitSample(LAMMPS *lmp, int narg, char **arg):
               v[m][0] = vx;
               v[m][1] = vy;
               v[m][2] = vz;
-              
-              // if (i < 964){
-              //   fprintf(screen,"\n\ninput rand_num = %f",rand_num);
-              //   fprintf(screen,"\nID = %d",tagid[m]);
-              //   fprintf(screen,"\ntarg particle_energy = %f",particle_energy);
-              //   fprintf(screen,"\nvx = %f",vx);
-              //   fprintf(screen,"\nvx = %f",vy);
-              //   fprintf(screen,"\nvx = %f",vz);
-              //   fprintf(screen,"\noutput particle_energy = %f",mvv2e * 0.5 * (vx*vx + vy*vy + vz*vz) * e_mass/Nepe);
-              // }
             }
           }
           break;

@@ -7,7 +7,7 @@
 
 # rsync -av --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' scarf734@ui1.scarf.rl.ac.uk:/work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/10_77eV_2_rs/ ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/SCARF/H_research/10_77eV_2_rs/
 
-rsync -av --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' scarf734@ui1.scarf.rl.ac.uk:/work4/clf/scarf734/LAMMPS/SPH_Bohm/ele_therm_research/* ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/SCARF/ele_therm_research/
+rsync -av --exclude='*.rdf' --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' scarf734@ui1.scarf.rl.ac.uk:/work4/clf/scarf734/LAMMPS/SPH_Bohm/ele_therm_research/* ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/SCARF/ele_therm_research/
 
 
 # rsync -av --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' scarf734@ui1.scarf.rl.ac.uk:/work4/clf/scarf734/LAMMPS/SPH_Bohm/Al_research/ ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/SCARF/Al_research/
