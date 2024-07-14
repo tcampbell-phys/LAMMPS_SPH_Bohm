@@ -37,7 +37,8 @@
 
 
 # rsync ../input_decks/scarf/Electron_therm_research/Al_Z_4_batch1/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/
-rsync ../input_decks/scarf/Electron_therm_research/Al_Z_4_batch2/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/
+# rsync ../input_decks/scarf/Electron_therm_research/Al_Z_4_batch2/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/
+rsync ../input_decks/scarf/Electron_therm_research/Al_Z_4_jellium_batch1/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/
 
 
 # scp ../LAMMPS_code/src/USER-TC_SPH/*.cpp scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/

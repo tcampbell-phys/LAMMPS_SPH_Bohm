@@ -6,7 +6,7 @@ start_string="in.placeholder"
 start_deck_var="variable out_number string "
 echo "start deck letter:"
 read start_deck_let
-base_input="in.scarf_e_therm_Z_4_gamma_scan_Nepe_16_"
+base_input="in.scarf_e_therm_Z_4_gamma_scan_Nepe_8_jellium_"
 
 echo "Number range start: "
 read start
@@ -53,7 +53,7 @@ do
     cp ${base_input}${i}a ${base_input}${i}${suffix}
     sed -i -e "s/${start_deck_var}${i}${start_deck_let}/${start_deck_var}${i}${suffix}/g" ~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/${base_input}${i}${suffix}
 
-    sbatch run_lammps_SPH_Bohm
+    # sbatch run_lammps_SPH_Bohm
     final_out=${base_input}${i}${start_deck_let}
     #cp ~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/Al_research/3_5eV_5_2gcc/run_lammps_SPH_Bohm ~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/Al_research/3_5eV_5_2gcc/run_lammps_SPH_Bohm${i}
     fi
@@ -68,7 +68,7 @@ do
     cp ${base_input}${i}a ${base_input}${i}${suffix}
     sed -i -e "s/${start_deck_var}${i}${start_deck_let}/${start_deck_var}${i}${suffix}/g" ~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/${base_input}${i}${suffix}
 
-    sbatch run_lammps_SPH_Bohm
+    # sbatch run_lammps_SPH_Bohm
     #cp ~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/Al_research/3_5eV_5_2gcc/run_lammps_SPH_Bohm ~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/Al_research/3_5eV_5_2gcc/run_lammps_SPH_Bohms${i}
     final_out=${base_input}${i}${suffix}
     fi
