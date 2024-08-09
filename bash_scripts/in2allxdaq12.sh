@@ -1,10 +1,10 @@
 #!/bin/bash
 # rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/multi_analyse_structure_fast_v2.py campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
 # rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/test_sub_multi_analyse_structure_fast.py campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
-rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/sub_multi_analyse_structure_fast.py campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
-rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/ion_electron_structure.py campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
-rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/CoM_check.py campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
-rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/therm_analysis.py campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
+# rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/structure_analysis_scripts/sub_multi_analyse_structure_fast.py campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
+# rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/structure_analysis_scripts/ion_electron_structure.py campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
+rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/structure_analysis_scripts/CoM_check.py campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
+rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/thermalisation/therm_analysis.py campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
 
 
 # rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' ../../LAMMPS_Python/test_multi_analyse_structure_fast.py campbell@allxdaq12.nat.physics.ox.ac.uk:~/structure_computation/
@@ -107,8 +107,8 @@ rsync -azv -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W
 # scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMPS_code/src/USER-TC_SPH/compute_temp_CoM.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/src/  
 # scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMPS_code/src/USER-TC_SPH/compute_temp.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/src/  
 # scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMPS_code/src/USER-TC_SPH/thermo.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/src/  
-scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMPS_code/src/USER-TC_SPH/fix_init_sample_vel.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/src/  
-scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMPS_code/src/USER-TC_SPH/fix_nve_BO.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/src/  
+# scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMPS_code/src/USER-TC_SPH/fix_init_sample_vel.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/src/  
+# scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMPS_code/src/USER-TC_SPH/fix_nve_BO.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/src/  
 
 # scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../LAMMPS_code/src/USER-TC_SPH/compute.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/src/  
 
