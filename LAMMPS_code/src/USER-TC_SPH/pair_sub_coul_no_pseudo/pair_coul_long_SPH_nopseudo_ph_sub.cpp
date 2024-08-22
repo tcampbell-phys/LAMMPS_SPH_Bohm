@@ -204,6 +204,7 @@ void PairCoulLongNopseudoSPHphsub::compute(int eflag, int vflag)
       if (itype != ion_species) {
         if ( tagid[j] < hi_lim_lev ){
           if ( tagid[j] >= lo_lim_lev ){
+            // fprintf(screen,"\n skipping self-interactions");
             continue;
           }
         }
