@@ -39,7 +39,8 @@
 # rsync ../input_decks/scarf/Electron_therm_research/Al_Z_4_batch1/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/
 # rsync ../input_decks/scarf/Electron_therm_research/Al_Z_4_batch2_extra/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/
 # rsync ../input_decks/scarf/Electron_therm_research/Al_Z_4_constant_KE/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/
-rsync ../input_decks/scarf/Electron_therm_research/Al_Z_4_constant_temp/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/
+# rsync ../input_decks/scarf/Electron_therm_research/Al_Z_4_constant_temp/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/
+rsync ../input_decks/scarf/Electron_therm_research/Al_Z_4_coupling_scan/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/
 # rsync ../input_decks/scarf/Electron_therm_research/Al_jellium_point_ele/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/
 # rsync ../input_decks/scarf/Electron_therm_research/Al_Z_4_jellium_batch1/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/
 # rsync ../input_decks/scarf/Electron_therm_research/Al_gamma_0_0683_dens_scan/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/

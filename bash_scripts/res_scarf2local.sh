@@ -13,6 +13,7 @@
 # rsync -av --exclude='*.rdf' --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' scarf734@ui1.scarf.rl.ac.uk:/work4/clf/scarf734/LAMMPS/SPH_Bohm/ele_therm_research/*gamma_scan* ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/SCARF/ele_therm_research/explicit_ion_data/
 rsync -av --exclude='*.rdf' --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' scarf734@ui1.scarf.rl.ac.uk:/work4/clf/scarf734/LAMMPS/SPH_Bohm/ele_therm_research/constant_KE/* ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/SCARF/ele_therm_research/constant_KE/
 rsync -av --exclude='*.rdf' --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' scarf734@ui1.scarf.rl.ac.uk:/work4/clf/scarf734/LAMMPS/SPH_Bohm/ele_therm_research/constant_temp/* ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/SCARF/ele_therm_research/constant_temp/
+rsync -av --exclude='*.rdf' --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' scarf734@ui1.scarf.rl.ac.uk:/work4/clf/scarf734/LAMMPS/SPH_Bohm/ele_therm_research/coupling_scan/* ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/SCARF/ele_therm_research/coupling_scan/
 
 
 # rsync -av --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' scarf734@ui1.scarf.rl.ac.uk:/work4/clf/scarf734/LAMMPS/SPH_Bohm/Al_research/ ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/SCARF/Al_research/
