@@ -4,7 +4,7 @@
 
 start_string="placeholder"
 
-input_files=("scarf_e_therm_Z_4_coupling_scan_Nepe_8_target_a" "scarf_e_therm_Z_4_coupling_scan_Nepe_8_target_b" "scarf_e_therm_Z_4_coupling_scan_Nepe_8_target_c")
+input_files=("scarf_e_therm_Z_4_coupling_scan_Nepe_8_12a" "scarf_e_therm_Z_4_coupling_scan_Nepe_8_12b" "scarf_e_therm_Z_4_coupling_scan_Nepe_8_12c")
 
 for str in ${input_files[@]}; do
   echo "Start run_lammps_SPH_Bohm string: ${start_string}"

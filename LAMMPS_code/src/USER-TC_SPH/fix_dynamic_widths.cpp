@@ -114,6 +114,7 @@ void FixDynamicWidths::init()
 
 void FixDynamicWidths::setup_pre_force(int)
 {
+  // fprintf(screen,"\nCalling FixedPointIterator() from setup_pre_force()");
   FixedPointIterator();
 }
 
@@ -126,7 +127,7 @@ void FixDynamicWidths::min_pre_force(int)
 void FixDynamicWidths::setup_post_neighbor()
 {
   // inherit neighbour lists from pair style
-  
+  // fprintf(screen,"\nCalling FixedPointIterator() from setup_post_neighbor()");
   FixedPointIterator();
 }
 
@@ -142,6 +143,7 @@ void FixDynamicWidths::pre_force(int)
 
 void FixDynamicWidths::FixedPointIterator()
 {
+  // fprintf(screen,"\nIn FixedPointIterator() ...");
   int a,i,j,ii,jj,inum,jnum,itype,jtype;
   int *ilist,*jlist,*numneigh,**firstneigh;
 	double **x = atom->x;

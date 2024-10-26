@@ -5,7 +5,7 @@
 
 # rsync -av --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' scarf734@ui1.scarf.rl.ac.uk:/work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/21_54eV_1_75_rs/ ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/SCARF/H_research/21_54eV_1_75_rs/
 # rsync -av --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' scarf734@ui1.scarf.rl.ac.uk:/work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/scarf_H_21_54eV_1_75_rs_min_9d_gamma* ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/SCARF/H_research/21_54eV_1_75_rs/
-# rsync -av --exclude='*.rdf' --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' scarf734@ui1.scarf.rl.ac.uk:/work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/scarf_H_21_54eV_1_75_rs_min_simple_* ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/SCARF/H_research/21_54eV_1_75_rs/
+rsync -av --exclude='*.rdf' --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' scarf734@ui1.scarf.rl.ac.uk:/work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/scarf_H_21_54eV_1_75_rs_min_simple_* ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/SCARF/H_research/21_54eV_1_75_rs/
 
 
 # rsync -av --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' scarf734@ui1.scarf.rl.ac.uk:/work4/clf/scarf734/LAMMPS/SPH_Bohm/H_research/10_77eV_2_rs/ ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/SCARF/H_research/10_77eV_2_rs/
