@@ -30,6 +30,8 @@ PairStyle(hybrid,PairHybrid)
 #include "fix_bohm_pot_calc_Mocz_robust_ftwo.h"
 #include "fix_dynamic_widths_CoM_BP_Mocz_rob_ftwo.h"
 #include "fix_dynamic_widths_CoM_BP_Mocz_rob.h"
+#include "fix_dynamic_widths_CoM_BP_rob.h"
+#include "fix_dynamic_widths_CoM_BP_rob_ftwo.h"
 
 namespace LAMMPS_NS {
 
@@ -51,6 +53,8 @@ class PairHybrid : public Pair {
   friend class FixBohmPotCalcMoczRobFtwo;
   friend class FixDynamicWidthsCoMBPMoczRobFtwo;
   friend class FixDynamicWidthsCoMBPMoczRob;
+  friend class FixDynamicWidthsCoMBPRob;
+  friend class FixDynamicWidthsCoMBPRobFtwo;
  public:
   PairHybrid(class LAMMPS *);
   virtual ~PairHybrid();
