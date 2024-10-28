@@ -435,6 +435,8 @@ void PairBohmSPHDynamicRobustFix::compute(int eflag, int vflag)
   if (newton_pair) comm->reverse_comm_pair(this);
   comm->forward_comm_pair(this);
 
+  int tag_targ = 100;
+
   for (ii = 0; ii < inum; ii++) {
 
     // compute per-particle gradients for pressure tensor
@@ -464,6 +466,19 @@ void PairBohmSPHDynamicRobustFix::compute(int eflag, int vflag)
     gauss_pre_i = pi_fact*(1./(h_i*h_i*h_i));
 
     u_prefact_i = (dt/(rho_i2*omega_i));
+
+    // add flags to check values of Pressure tensor components:
+
+    // if (tag[i] == tag_targ) {
+    //   fprintf(screen,"\npair_bohm_SPH_dynamic_robust_fix tag_targ = %d",tag_targ);
+    //   fprintf(screen,"\nPxx = %16.16f",Pxx[i]);
+    //   fprintf(screen,"\nPxy = %16.16f",Pxy[i]);
+    //   fprintf(screen,"\nPxz = %16.16f",Pxz[i]);
+    //   fprintf(screen,"\nPyy = %16.16f",Pyy[i]);
+    //   fprintf(screen,"\nPyz = %16.16f",Pyz[i]);
+    //   fprintf(screen,"\nPzz = %16.16f",Pzz[i]);
+    // }
+
 
     for (jj = 0; jj < jnum; jj++) {
       j = jlist[jj];
@@ -508,6 +523,7 @@ void PairBohmSPHDynamicRobustFix::compute(int eflag, int vflag)
         fy = -ijmass*((Pxy[i]*dx_Wij + Pyy[i]*dy_Wij + Pyz[i]*dz_Wij)/(rho_i2*omega_i) + (Pxy[j]*dx_Wji + Pyy[j]*dy_Wji + Pyz[j]*dz_Wji)/(rho_j2*omega_j));
         fz = -ijmass*((Pxz[i]*dx_Wij + Pyz[i]*dy_Wij + Pzz[i]*dz_Wij)/(rho_i2*omega_i) + (Pxz[j]*dx_Wji + Pyz[j]*dy_Wji + Pzz[j]*dz_Wji)/(rho_j2*omega_j));
         
+
         // add flags to check if force terms become attractive 
 
         // if (delx/fx < 0) {

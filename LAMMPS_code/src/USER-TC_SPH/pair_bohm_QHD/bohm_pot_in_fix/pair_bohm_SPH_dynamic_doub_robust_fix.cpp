@@ -562,6 +562,8 @@ void PairBohmSPHDynamicDoubRobustFix::compute(int eflag, int vflag)
   if (newton_pair) comm->reverse_comm_pair(this);
   comm->forward_comm_pair(this);
 
+  int tag_targ = 100;
+
   for (ii = 0; ii < inum; ii++) {
 
     // compute per-particle gradients for pressure tensor
@@ -591,6 +593,19 @@ void PairBohmSPHDynamicDoubRobustFix::compute(int eflag, int vflag)
     gauss_pre_i = pi_fact*(1./(h_i*h_i*h_i));
 
     u_prefact_i = (dt/(rho_i2*omega_i));
+
+    // if (tag[i] == tag_targ) {
+    //   fprintf(screen,"\npair_bohm_SPH_dynamic_doub_robust_fix tag_targ = %d",tag_targ);
+    //   fprintf(screen,"\nPxx = %16.16f",Pxx[i]);
+    //   fprintf(screen,"\nPxy = %16.16f",Pxy[i]);
+    //   fprintf(screen,"\nPxz = %16.16f",Pxz[i]);
+    //   fprintf(screen,"\nPyy = %16.16f",Pyy[i]);
+    //   fprintf(screen,"\nPyz = %16.16f",Pyz[i]);
+    //   fprintf(screen,"\nPzz = %16.16f",Pzz[i]);
+    //   fprintf(screen,"\nPyx = %16.16f",Pyx[i]);
+    //   fprintf(screen,"\nPzx = %16.16f",Pzx[i]);
+    //   fprintf(screen,"\nPzy = %16.16f",Pzy[i]);
+    // }
 
     for (jj = 0; jj < jnum; jj++) {
       j = jlist[jj];

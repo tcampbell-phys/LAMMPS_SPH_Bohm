@@ -988,6 +988,8 @@ void FixDynamicWidthsCoMBPMoczRobFtwo::CalcBohmPot()
   comm->forward_comm_fix(this);
   // fprintf(screen,"\nCheckpoint E");
 
+  int tag_targ = 100;
+
   for (ii = 0; ii < inum; ii++) {
 
     // compute per-particle gradients for pressure tensor
@@ -1021,6 +1023,16 @@ void FixDynamicWidthsCoMBPMoczRobFtwo::CalcBohmPot()
     gauss_pre_i = pi_fact*(1./(h_i*h_i*h_i));
 
     u_prefact_i = (dt/(rho_i2*omega_i));
+
+    // if (tag[i] == tag_targ) {
+    //   fprintf(screen,"\nfix_dynamic_widths_CoM_BP_Mocz_rob_ftwo tag_targ = %d",tag_targ);
+    //   fprintf(screen,"\nPxx = %16.16f",Pxx_fix[i]);
+    //   fprintf(screen,"\nPxy = %16.16f",Pxy_fix[i]);
+    //   fprintf(screen,"\nPxz = %16.16f",Pxz_fix[i]);
+    //   fprintf(screen,"\nPyy = %16.16f",Pyy_fix[i]);
+    //   fprintf(screen,"\nPyz = %16.16f",Pyz_fix[i]);
+    //   fprintf(screen,"\nPzz = %16.16f",Pzz_fix[i]);
+    // }
 
     for (jj = 0; jj < jnum; jj++) {
       j = jlist[jj];
