@@ -121,9 +121,9 @@ void PairCoulLong::compute(int eflag, int vflag)
       if (rsq < cut_coulsq) {
         r2inv = 1.0/rsq;
         r = sqrt(rsq);
-        fprintf(screen,"\n\nr = %16.16f",r);
-        fprintf(screen,"\ngr = %16.16f",r*g_ewald);
-        fprintf(screen,"\ncharge_prod = %16.16f",qtmp*q[j]);
+        // fprintf(screen,"\n\nr = %16.16f",r);
+        // fprintf(screen,"\ngr = %16.16f",r*g_ewald);
+        // fprintf(screen,"\ncharge_prod = %16.16f",qtmp*q[j]);
         if (!ncoultablebits || rsq <= tabinnersq) {
           grij = g_ewald * r;
           expm2 = exp(-grij*grij);
@@ -160,15 +160,15 @@ void PairCoulLong::compute(int eflag, int vflag)
 
         if (eflag) {
           if (!ncoultablebits || rsq <= tabinnersq){
-            fprintf(screen,"\ndirect approx...");
+            // fprintf(screen,"\ndirect approx...");
             ecoul = prefactor*erfc;
-            fprintf(screen,"\necoul = %16.16f",ecoul);
+            // fprintf(screen,"\necoul = %16.16f",ecoul);
           }
           else {
-            fprintf(screen,"\ntable approx...");
+            // fprintf(screen,"\ntable approx...");
             table = etable[itable] + fraction*detable[itable];
             ecoul = scale[itype][jtype] * qtmp*q[j] * table;
-            fprintf(screen,"\necoul = %16.16f",ecoul);
+            // fprintf(screen,"\necoul = %16.16f",ecoul);
           }
           if (factor_coul < 1.0) ecoul -= (1.0-factor_coul)*prefactor;
         }
@@ -255,13 +255,13 @@ void PairCoulLong::init_style()
  if (force->kspace == NULL)
     error->all(FLERR,"Pair style requires a KSpace style");
   g_ewald = force->kspace->g_ewald;
-  fprintf(screen,"\nin coul/long init_style()...");
+  // fprintf(screen,"\nin coul/long init_style()...");
     
 
   // setup force tables
 
   if (ncoultablebits){
-    fprintf(screen,"\ninitialising coulomb tables...");
+    // fprintf(screen,"\ninitialising coulomb tables...");
     init_tables(cut_coul,NULL);
   }
 }
