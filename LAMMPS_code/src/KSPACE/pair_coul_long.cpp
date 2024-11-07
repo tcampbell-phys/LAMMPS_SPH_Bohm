@@ -75,6 +75,7 @@ void PairCoulLong::compute(int eflag, int vflag)
   double grij,expm2,prefactor,t,erfc;
   int *ilist,*jlist,*numneigh,**firstneigh;
   double rsq;
+  int *tagid = atom->tag;
 
   ecoul = 0.0;
   ev_init(eflag,vflag);
@@ -107,6 +108,13 @@ void PairCoulLong::compute(int eflag, int vflag)
     jlist = firstneigh[i];
     jnum = numneigh[i];
 
+    fprintf(screen,"\n\nCheckpoint B: force computation:");
+    fprintf(screen,"\n\ntype[i] = %d", type[i]);
+    fprintf(screen,"\ntag[i] = %d", tagid[i]);
+    fprintf(screen,"\nxtmp = %16.16f", xtmp);
+    fprintf(screen,"\nytmp = %16.16f", ytmp);
+    fprintf(screen,"\nztmp = %16.16f", ztmp);
+
     for (jj = 0; jj < jnum; jj++) {
       j = jlist[jj];
       factor_coul = special_coul[sbmask(j)];
@@ -117,6 +125,10 @@ void PairCoulLong::compute(int eflag, int vflag)
       delz = ztmp - x[j][2];
       rsq = delx*delx + dely*dely + delz*delz;
       jtype = type[j];
+
+      fprintf(screen,"\ntag[j] = %d", tagid[j]);
+      fprintf(screen,"\ntype[j] = %d", type[j]);
+      fprintf(screen,"\nrsq = %16.16f", rsq);
 
       if (rsq < cut_coulsq) {
         r2inv = 1.0/rsq;
@@ -172,6 +184,8 @@ void PairCoulLong::compute(int eflag, int vflag)
           }
           if (factor_coul < 1.0) ecoul -= (1.0-factor_coul)*prefactor;
         }
+        fprintf(screen,"\ncoul/long ecoul erfc = %16.16f", ecoul);
+        fprintf(screen,"\ncoul/long fpair = %16.16f", fpair);
 
         if (evflag) ev_tally(i,j,nlocal,newton_pair,
                              0.0,ecoul,fpair,delx,dely,delz);

@@ -19,7 +19,7 @@
      in the real space calculations.
 ------------------------------------------------------------------------- */
 
-#include "pair_coul_long_SPH_nopseudo_ph_sub_thetacut.h"
+#include "pair_coul_long_SPH_nopseudo_ph_sub_thetacut_print.h"
 #include <mpi.h>
 #include <cmath>
 #include <cstring>
@@ -46,7 +46,7 @@ using namespace LAMMPS_NS;
 
 /* ---------------------------------------------------------------------- */
 
-PairCoulLongNopseudoSPHphsubthetacut::PairCoulLongNopseudoSPHphsubthetacut(LAMMPS *lmp) : Pair(lmp)
+PairCoulLongNopseudoSPHphsubthetacutprint::PairCoulLongNopseudoSPHphsubthetacutprint(LAMMPS *lmp) : Pair(lmp)
 {
   ewaldflag = pppmflag = 1;
   ftable = NULL;
@@ -67,7 +67,7 @@ PairCoulLongNopseudoSPHphsubthetacut::PairCoulLongNopseudoSPHphsubthetacut(LAMMP
 
 /* ---------------------------------------------------------------------- */
 
-PairCoulLongNopseudoSPHphsubthetacut::~PairCoulLongNopseudoSPHphsubthetacut()
+PairCoulLongNopseudoSPHphsubthetacutprint::~PairCoulLongNopseudoSPHphsubthetacutprint()
 {
   if (copymode) return;
 
@@ -86,7 +86,7 @@ PairCoulLongNopseudoSPHphsubthetacut::~PairCoulLongNopseudoSPHphsubthetacut()
 
 /* ---------------------------------------------------------------------- */
 
-void PairCoulLongNopseudoSPHphsubthetacut::compute(int eflag, int vflag)
+void PairCoulLongNopseudoSPHphsubthetacutprint::compute(int eflag, int vflag)
 {
   int i,j,ii,jj,inum,jnum,itable,itype,jtype;
   double qtmp,xtmp,ytmp,ztmp,delx,dely,delz,ecoul,fpair,ecoul_erfc,ecoul_erf,fpair_erf;
@@ -169,6 +169,10 @@ void PairCoulLongNopseudoSPHphsubthetacut::compute(int eflag, int vflag)
   double pi_fact = 1/(sqrt2*sqrt_pi*sqrt2*sqrt_pi*sqrt2*sqrt_pi);
   // compute communicated properties
 
+  fprintf(screen,"\n\nCheckpoint 0: ion_species = %d",ion_species);
+  fprintf(screen,"\n\nCheckpoint 0: cut_coulsq = %16.16f",cut_coulsq);
+  fprintf(screen,"\n\nCheckpoint 0: cut_thetasq = %16.16f",cut_thetasq);
+
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
     qtmp = q[i];
@@ -180,6 +184,15 @@ void PairCoulLongNopseudoSPHphsubthetacut::compute(int eflag, int vflag)
     jnum = numneigh[i];
 
     imass = mass[itype];
+
+    fprintf(screen,"\n\nCheckpoint A: theta computation:");
+    fprintf(screen,"\n\ntype[i] = %d", type[i]);
+    fprintf(screen,"\ntag[i] = %d", tagid[i]);
+    fprintf(screen,"\nh_i = %16.16f", width_SPH[i]);
+    fprintf(screen,"\nxtmp = %16.16f", xtmp);
+    fprintf(screen,"\nytmp = %16.16f", ytmp);
+    fprintf(screen,"\nztmp = %16.16f", ztmp);
+
     if (itype != ion_species) {
 
       // identify self-interaction particles
@@ -187,10 +200,15 @@ void PairCoulLongNopseudoSPHphsubthetacut::compute(int eflag, int vflag)
       lo_lim_lev = floor((tagid[i]-tag_ele_start)/N_epe)*N_epe + tag_ele_start;
       hi_lim_lev = lo_lim_lev + N_epe;
 
+      fprintf(screen,"\nlo_lim_lev = %d", lo_lim_lev);
+      fprintf(screen,"\nhi_lim_lev = %d", hi_lim_lev);
+
       h_i = width_SPH[i];
       h2_i = h_i*h_i;
 
       fact_i = (theta_const*qtmp)/(rho_SPH[i]*omega_SPH[i]);
+
+      fprintf(screen,"\nfact_i = %16.16f", fact_i);
     }
 
     for (jj = 0; jj < jnum; jj++) {
@@ -199,11 +217,15 @@ void PairCoulLongNopseudoSPHphsubthetacut::compute(int eflag, int vflag)
       
       j &= NEIGHMASK;
 
+      fprintf(screen,"\ntag[j] = %d", tagid[j]);
+
       // skip self-interactions - theta terms only exist for pairs which have a coulomb interaction
 
       if (itype != ion_species) {
         if ( tagid[j] < hi_lim_lev ){
           if ( tagid[j] >= lo_lim_lev ){
+            // fprintf(screen,"\n skipping self-interactions");
+            fprintf(screen,"\nskipping...");
             continue;
           }
         }
@@ -215,7 +237,10 @@ void PairCoulLongNopseudoSPHphsubthetacut::compute(int eflag, int vflag)
       rsq = delx*delx + dely*dely + delz*delz;
       jtype = type[j];
 
-      if (rsq < cut_thetasq) {
+      fprintf(screen,"\ntype[j] = %d", type[j]);
+      fprintf(screen,"\nrsq = %16.16f", rsq);
+
+      if (rsq < cut_coulsq) {
 
         if (itype != ion_species) {
           // electron target
@@ -223,15 +248,19 @@ void PairCoulLongNopseudoSPHphsubthetacut::compute(int eflag, int vflag)
             // electron neighbour
             eff_width = pow((h2_i + width_SPH[j]*width_SPH[j]),0.5);
             theta_coul[i] += h2_i*scale[itype][jtype]*fact_i*q[j]*exp(-rsq/(2*eff_width*eff_width))/(eff_width*eff_width*eff_width);
-          
+            fprintf(screen,"\ntheta_coul[i] += %16.16f", h2_i*scale[itype][jtype]*fact_i*q[j]*exp(-rsq/(2*eff_width*eff_width))/(eff_width*eff_width*eff_width));
             if (newton_pair || j < nlocal) {
               theta_coul[j] += scale[itype][jtype]*theta_const*((qtmp*q[j])/(rho_SPH[j]*omega_SPH[j]))*(width_SPH[j]*width_SPH[j]/(eff_width*eff_width*eff_width))*exp(-rsq/(2*eff_width*eff_width));
+              fprintf(screen,"\ntheta_coul[j] += %16.16f", scale[itype][jtype]*theta_const*((qtmp*q[j])/(rho_SPH[j]*omega_SPH[j]))*(width_SPH[j]*width_SPH[j]/(eff_width*eff_width*eff_width))*exp(-rsq/(2*eff_width*eff_width)));
+            
             }
           }
 
           if (jtype == ion_species){
             // ion neighbour
             theta_coul_ei[i] += scale[itype][jtype]*fact_i*q[j]*exp(-rsq/(2*h2_i))/(h_i);
+            fprintf(screen,"\ntheta_coul_ei[i] += %16.16f", scale[itype][jtype]*fact_i*q[j]*exp(-rsq/(2*h2_i))/(h_i));
+            
           }
         }
 
@@ -241,6 +270,7 @@ void PairCoulLongNopseudoSPHphsubthetacut::compute(int eflag, int vflag)
             // electron neighbour
             if (newton_pair || j < nlocal) {
               theta_coul_ei[j] += scale[itype][jtype]*theta_const*((qtmp*q[j])/(rho_SPH[j]*omega_SPH[j]))*(1/width_SPH[j])*exp(-rsq/(2*width_SPH[j]*width_SPH[j]));
+              fprintf(screen,"\ntheta_coul_ei[j] += %16.16f", scale[itype][jtype]*theta_const*((qtmp*q[j])/(rho_SPH[j]*omega_SPH[j]))*(1/width_SPH[j])*exp(-rsq/(2*width_SPH[j]*width_SPH[j])));
             }
           }
         }
@@ -266,12 +296,23 @@ void PairCoulLongNopseudoSPHphsubthetacut::compute(int eflag, int vflag)
 
     imass = mass[itype];
 
+    fprintf(screen,"\n\nCheckpoint B: force computation:");
+    fprintf(screen,"\n\ntype[i] = %d", type[i]);
+    fprintf(screen,"\ntag[i] = %d", tagid[i]);
+    fprintf(screen,"\nh_i = %16.16f", width_SPH[i]);
+    fprintf(screen,"\nxtmp = %16.16f", xtmp);
+    fprintf(screen,"\nytmp = %16.16f", ytmp);
+    fprintf(screen,"\nztmp = %16.16f", ztmp);
+
     if (itype != ion_species) {
       // electron target
 
       // identify self-interaction particles
       lo_lim_lev = floor((tagid[i]-tag_ele_start)/N_epe)*N_epe + tag_ele_start;
       hi_lim_lev = lo_lim_lev + N_epe;
+
+      fprintf(screen,"\nlo_lim_lev = %d", lo_lim_lev);
+      fprintf(screen,"\nhi_lim_lev = %d", hi_lim_lev);
 
       h_i = width_SPH[i];
       h2_i = h_i*h_i;
@@ -282,7 +323,13 @@ void PairCoulLongNopseudoSPHphsubthetacut::compute(int eflag, int vflag)
       f[i][0] += -(theta_coul[i]+theta_coul_ei[i])*dx_rho_SPH[i];
       f[i][1] += -(theta_coul[i]+theta_coul_ei[i])*dy_rho_SPH[i];
       f[i][2] += -(theta_coul[i]+theta_coul_ei[i])*dz_rho_SPH[i];
-    
+
+      fprintf(screen,"\ntheta_coul[i] = %16.16f", theta_coul[i]);
+      fprintf(screen,"\theta_coul_ei[i] = %16.16f", theta_coul_ei[i]);
+
+      fprintf(screen,"\nf[i][0] theta self += %16.16f", -(theta_coul[i]+theta_coul_ei[i])*dx_rho_SPH[i]);
+      fprintf(screen,"\nf[i][1] theta self += %16.16f", -(theta_coul[i]+theta_coul_ei[i])*dy_rho_SPH[i]);
+      fprintf(screen,"\nf[i][2] theta self += %16.16f", -(theta_coul[i]+theta_coul_ei[i])*dz_rho_SPH[i]);
     }
 
 
@@ -296,6 +343,10 @@ void PairCoulLongNopseudoSPHphsubthetacut::compute(int eflag, int vflag)
       delz = ztmp - x[j][2];
       rsq = delx*delx + dely*dely + delz*delz;
       jtype = type[j];
+
+      fprintf(screen,"\ntag[j] = %d", tagid[j]);
+      fprintf(screen,"\ntype[j] = %d", type[j]);
+      fprintf(screen,"\nrsq = %16.16f", rsq);
 
       if (rsq < cut_coulsq) {
 
@@ -335,6 +386,8 @@ void PairCoulLongNopseudoSPHphsubthetacut::compute(int eflag, int vflag)
 
           h_j = width_SPH[j];
           hm2_j = 1/(h_j*h_j);
+
+          fprintf(screen,"\nwidth_SPH[j] = %16.16f", h_j);
 
           if (itype == ion_species){
 
@@ -379,12 +432,16 @@ void PairCoulLongNopseudoSPHphsubthetacut::compute(int eflag, int vflag)
             // remove kspace contributions
 
             ecoul = -ecoul_erf;
-            
+            fprintf(screen,"\nSPH ecoul erfc = %16.16f", ecoul_erfc);
+            fprintf(screen,"\nSPH fpair = %16.16f", fpair);
+            fprintf(screen,"\nremove erf ewald: ecoul = %16.16f", ecoul);
             // remove erf coul forces
 
             f[i][0] -= (delx)*fpair_erf;
             f[i][1] -= (dely)*fpair_erf;
             f[i][2] -= (delz)*fpair_erf;
+
+            fprintf(screen,"\nremove erf ewald: fpair_erf = %16.16f", fpair_erf);
 
             if (newton_pair || j < nlocal) {
               f[j][0] += delx*fpair_erf;
@@ -392,16 +449,19 @@ void PairCoulLongNopseudoSPHphsubthetacut::compute(int eflag, int vflag)
               f[j][2] += delz*fpair_erf;
             }
 
-            full_factor = - fpair_erf;
-
             // theta forces only apply between SPH particles within an SPH cutoff
 
+            full_factor = - fpair_erf;
+
             if (rsq < cut_thetasq) {
+
               h_j = width_SPH[j];
               hm2_j = 1/(h_j*h_j);
               gauss_pre_j = pi_fact*(1/(h_j*h_j*h_j));
               m_gauss_ji = imass*gauss_pre_j*exp(-(rsq)*hm2_j/2);
               ji_fact = hm2_j*m_gauss_ji*(theta_coul[j]+theta_coul_ei[j]);
+
+              fprintf(screen,"\nji_fact = %16.16f", ji_fact);
 
               // ele-ele and ion-ele SPH dynamic width terms
 
@@ -415,14 +475,15 @@ void PairCoulLongNopseudoSPHphsubthetacut::compute(int eflag, int vflag)
                 m_gauss_ij = jmass*gauss_pre_i*exp(-(rsq)*hm2_i/2);
 
                 ij_fact = hm2_i*m_gauss_ij*(theta_coul[i]+theta_coul_ei[i]);
+
+                fprintf(screen,"\nij_fact = %16.16f", ij_fact);
                 
                 f[j][0] -= (delx)*ij_fact;
                 f[j][1] -= (dely)*ij_fact;
                 f[j][2] -= (delz)*ij_fact;
               }
-              
-              full_factor = - fpair_erf + 0.5*(ij_fact+ji_fact);
             
+              full_factor = - fpair_erf + 0.5*(ij_fact+ji_fact);
             }
 
             // skip self-interactions in d/dr terms
@@ -433,7 +494,11 @@ void PairCoulLongNopseudoSPHphsubthetacut::compute(int eflag, int vflag)
 
               ecoul += coul_prefact*erf(r/(sqrt2*eff_width))/r;
 
+              fprintf(screen,"\necoul += %16.16f", coul_prefact*erf(r/(sqrt2*eff_width))/r);
+
               force_fact = coul_prefact*(erf(r/(sqrt2*eff_width))/(r*r*r) - (sqrt2/sqrt_pi)*(exp(-rsq/(2*eff_width*eff_width))/(eff_width*rsq)));
+
+              fprintf(screen,"\nforce_fact = %16.16f", force_fact);
 
               f[i][0] += delx*force_fact;
               f[i][1] += dely*force_fact;
@@ -453,6 +518,8 @@ void PairCoulLongNopseudoSPHphsubthetacut::compute(int eflag, int vflag)
 
             // dynamic coulomb-SPH force expression is not pairwise symmetric
             // use of ev_tally not accurate for pressure evaluation - edit in future.
+
+            fprintf(screen,"\nfinal e-e ecoul = %16.16f", ecoul);
             
             if (evflag) ev_tally_xyz(i,j,nlocal,newton_pair,0.0,ecoul,
                         full_factor*delx - 0.5*(theta_coul[i]+theta_coul_ei[i])*dx_rho_SPH[i] + 0.5*(theta_coul[j]+theta_coul_ei[j])*dx_rho_SPH[j],full_factor*dely - 0.5*(theta_coul[i]+theta_coul_ei[i])*dy_rho_SPH[i] + 0.5*(theta_coul[j]+theta_coul_ei[j])*dy_rho_SPH[j],full_factor*delz - 0.5*(theta_coul[i]+theta_coul_ei[i])*dz_rho_SPH[i] + 0.5*(theta_coul[j]+theta_coul_ei[j])*dz_rho_SPH[j],delx,dely,delz);
@@ -527,7 +594,7 @@ void PairCoulLongNopseudoSPHphsubthetacut::compute(int eflag, int vflag)
    allocate all arrays
 ------------------------------------------------------------------------- */
 
-void PairCoulLongNopseudoSPHphsubthetacut::allocate()
+void PairCoulLongNopseudoSPHphsubthetacutprint::allocate()
 {
   allocated = 1;
   int n = atom->ntypes;
@@ -547,7 +614,7 @@ void PairCoulLongNopseudoSPHphsubthetacut::allocate()
    global settings
 ------------------------------------------------------------------------- */
 
-void PairCoulLongNopseudoSPHphsubthetacut::settings(int narg, char **arg)
+void PairCoulLongNopseudoSPHphsubthetacutprint::settings(int narg, char **arg)
 {
   if (narg != 7) error->all(FLERR,"Illegal pair_style command, incorrect number of arguments.");
 
@@ -570,7 +637,7 @@ void PairCoulLongNopseudoSPHphsubthetacut::settings(int narg, char **arg)
    set coeffs for one or more type pairs
 ------------------------------------------------------------------------- */
 
-void PairCoulLongNopseudoSPHphsubthetacut::coeff(int narg, char **arg)
+void PairCoulLongNopseudoSPHphsubthetacutprint::coeff(int narg, char **arg)
 {
   if (narg != 2) error->all(FLERR,"Incorrect args for pair coefficients");
   if (!allocated) allocate();
@@ -595,7 +662,7 @@ void PairCoulLongNopseudoSPHphsubthetacut::coeff(int narg, char **arg)
    init specific to this pair style
 ------------------------------------------------------------------------- */
 
-void PairCoulLongNopseudoSPHphsubthetacut::init_style()
+void PairCoulLongNopseudoSPHphsubthetacutprint::init_style()
 {
   if (!atom->q_flag)
     error->all(FLERR,"Pair style lj/cut/coul/long requires atom attribute q");
@@ -621,7 +688,7 @@ void PairCoulLongNopseudoSPHphsubthetacut::init_style()
    init for one type pair i,j and corresponding j,i
 ------------------------------------------------------------------------- */
 
-double PairCoulLongNopseudoSPHphsubthetacut::init_one(int i, int j)
+double PairCoulLongNopseudoSPHphsubthetacutprint::init_one(int i, int j)
 {
   scale[j][i] = scale[i][j];
   return cut_coul+2.0*qdist;
@@ -631,7 +698,7 @@ double PairCoulLongNopseudoSPHphsubthetacut::init_one(int i, int j)
   proc 0 writes to restart file
 ------------------------------------------------------------------------- */
 
-void PairCoulLongNopseudoSPHphsubthetacut::write_restart(FILE *fp)
+void PairCoulLongNopseudoSPHphsubthetacutprint::write_restart(FILE *fp)
 {
   write_restart_settings(fp);
 
@@ -647,7 +714,7 @@ void PairCoulLongNopseudoSPHphsubthetacut::write_restart(FILE *fp)
   proc 0 reads from restart file, bcasts
 ------------------------------------------------------------------------- */
 
-void PairCoulLongNopseudoSPHphsubthetacut::read_restart(FILE *fp)
+void PairCoulLongNopseudoSPHphsubthetacutprint::read_restart(FILE *fp)
 {
   read_restart_settings(fp);
 
@@ -670,7 +737,7 @@ void PairCoulLongNopseudoSPHphsubthetacut::read_restart(FILE *fp)
   proc 0 writes to restart file
 ------------------------------------------------------------------------- */
 
-void PairCoulLongNopseudoSPHphsubthetacut::write_restart_settings(FILE *fp)
+void PairCoulLongNopseudoSPHphsubthetacutprint::write_restart_settings(FILE *fp)
 {
   fwrite(&cut_coul,sizeof(double),1,fp);
   fwrite(&offset_flag,sizeof(int),1,fp);
@@ -683,7 +750,7 @@ void PairCoulLongNopseudoSPHphsubthetacut::write_restart_settings(FILE *fp)
   proc 0 reads from restart file, bcasts
 ------------------------------------------------------------------------- */
 
-void PairCoulLongNopseudoSPHphsubthetacut::read_restart_settings(FILE *fp)
+void PairCoulLongNopseudoSPHphsubthetacutprint::read_restart_settings(FILE *fp)
 {
   if (comm->me == 0) {
     utils::sfread(FLERR,&cut_coul,sizeof(double),1,fp,NULL,error);
@@ -701,7 +768,7 @@ void PairCoulLongNopseudoSPHphsubthetacut::read_restart_settings(FILE *fp)
 
 /* ---------------------------------------------------------------------- */
 
-// double PairCoulLongNopseudoSPHphsubthetacut::single(int i, int j, int /*itype*/, int /*jtype*/,
+// double PairCoulLongNopseudoSPHphsubthetacutprint::single(int i, int j, int /*itype*/, int /*jtype*/,
 //                             double rsq,
 //                             double factor_coul, double /*factor_lj*/,
 //                             double &fforce)
@@ -738,7 +805,7 @@ void PairCoulLongNopseudoSPHphsubthetacut::read_restart_settings(FILE *fp)
 
 /* ---------------------------------------------------------------------- */
 
-void *PairCoulLongNopseudoSPHphsubthetacut::extract(const char *str, int &dim)
+void *PairCoulLongNopseudoSPHphsubthetacutprint::extract(const char *str, int &dim)
 {
   if (strcmp(str,"cut_coul") == 0) {
     dim = 0;
@@ -754,7 +821,7 @@ void *PairCoulLongNopseudoSPHphsubthetacut::extract(const char *str, int &dim)
 /* ---------------------------------------------------------------------- */
 
 
-int PairCoulLongNopseudoSPHphsubthetacut::pack_forward_comm(int n, int *list, double *buf,
+int PairCoulLongNopseudoSPHphsubthetacutprint::pack_forward_comm(int n, int *list, double *buf,
                                int /*pbc_flag*/, int * /*pbc*/)
 {
   int i,j,m;
@@ -771,7 +838,7 @@ int PairCoulLongNopseudoSPHphsubthetacut::pack_forward_comm(int n, int *list, do
 
 /* ---------------------------------------------------------------------- */
 
-void PairCoulLongNopseudoSPHphsubthetacut::unpack_forward_comm(int n, int first, double *buf)
+void PairCoulLongNopseudoSPHphsubthetacutprint::unpack_forward_comm(int n, int first, double *buf)
 {
   int i,m,last;
 
@@ -785,7 +852,7 @@ void PairCoulLongNopseudoSPHphsubthetacut::unpack_forward_comm(int n, int first,
 }
 /* ---------------------------------------------------------------------- */
 
-int PairCoulLongNopseudoSPHphsubthetacut::pack_reverse_comm(int n, int first, double *buf)
+int PairCoulLongNopseudoSPHphsubthetacutprint::pack_reverse_comm(int n, int first, double *buf)
 {
   int i,m,last;
 
@@ -801,7 +868,7 @@ int PairCoulLongNopseudoSPHphsubthetacut::pack_reverse_comm(int n, int first, do
 
 /* ---------------------------------------------------------------------- */
 
-void PairCoulLongNopseudoSPHphsubthetacut::unpack_reverse_comm(int n, int *list, double *buf)
+void PairCoulLongNopseudoSPHphsubthetacutprint::unpack_reverse_comm(int n, int *list, double *buf)
 {
   int i,j,m;
 
