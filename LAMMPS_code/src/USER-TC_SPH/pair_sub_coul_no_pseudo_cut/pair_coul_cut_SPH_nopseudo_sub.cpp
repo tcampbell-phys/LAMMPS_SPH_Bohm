@@ -321,36 +321,40 @@ void PairCoulCutSPHNoPseudoSub::compute(int eflag, int vflag)
 
             // electron target
 
-            h_j = width_SPH[j];
-            hm2_j = 1/(h_j*h_j);
-            gauss_pre_j = pi_fact*(1/(h_j*h_j*h_j));
-            m_gauss_ji = imass*gauss_pre_j*exp(-(rsq)*hm2_j/2);
-            ji_fact = hm2_j*m_gauss_ji*(theta_coul[j]+theta_coul_ei[j]);
+            if (rsq < cut_thetasq) {
 
-            // ele-ele and ion-ele SPH dynamic width terms
+              h_j = width_SPH[j];
+              hm2_j = 1/(h_j*h_j);
+              gauss_pre_j = pi_fact*(1/(h_j*h_j*h_j));
+              m_gauss_ji = imass*gauss_pre_j*exp(-(rsq)*hm2_j/2);
+              ji_fact = hm2_j*m_gauss_ji*(theta_coul[j]+theta_coul_ei[j]);
 
-            f[i][0] += (delx)*ji_fact;
-            f[i][1] += (dely)*ji_fact;
-            f[i][2] += (delz)*ji_fact;
+              // ele-ele and ion-ele SPH dynamic width terms
 
-            
-            if (newton_pair || j < nlocal) {
+              f[i][0] += (delx)*ji_fact;
+              f[i][1] += (dely)*ji_fact;
+              f[i][2] += (delz)*ji_fact;
 
-              jmass = mass[jtype];
-              m_gauss_ij = jmass*gauss_pre_i*exp(-(rsq)*hm2_i/2);
-
-              ij_fact = hm2_i*m_gauss_ij*(theta_coul[i]+theta_coul_ei[i]);
               
-              f[j][0] -= (delx)*ij_fact;
-              f[j][1] -= (dely)*ij_fact;
-              f[j][2] -= (delz)*ij_fact;
+              if (newton_pair || j < nlocal) {
 
+                jmass = mass[jtype];
+                m_gauss_ij = jmass*gauss_pre_i*exp(-(rsq)*hm2_i/2);
+
+                ij_fact = hm2_i*m_gauss_ij*(theta_coul[i]+theta_coul_ei[i]);
+                
+                f[j][0] -= (delx)*ij_fact;
+                f[j][1] -= (dely)*ij_fact;
+                f[j][2] -= (delz)*ij_fact;
+
+              }
+
+              full_factor = 0.5*(ij_fact+ji_fact);
             }
-
-            full_factor = 0.5*(ij_fact+ji_fact);
 
             ecoul = 0.0;
 
+            // skip self-interactions in d/dr terms
 
             if ( tagid[j] >= hi_lim_lev || tagid[j] < lo_lim_lev ){
               eff_width = pow((h2_i + width_SPH[j]*width_SPH[j]),0.5);
@@ -468,15 +472,16 @@ void PairCoulCutSPHNoPseudoSub::allocate()
 
 void PairCoulCutSPHNoPseudoSub::settings(int narg, char **arg)
 {
-  if (narg != 7) error->all(FLERR,"Illegal pair_style command");
+  if (narg != 8) error->all(FLERR,"Illegal pair_style command");
 
   cut_global = force->numeric(FLERR,arg[0]);
-  ke_in = force->numeric(FLERR,arg[1]);
-  ion_species = force->numeric(FLERR,arg[2]);
-  N_epe = force->numeric(FLERR,arg[3]);
-  tag_ele_start = force->numeric(FLERR,arg[4]);
-  assign_ion = force->numeric(FLERR,arg[5]);
-  targ_coord = force->numeric(FLERR,arg[6]);
+  cut_theta = force->numeric(FLERR,arg[1]);
+  ke_in = force->numeric(FLERR,arg[2]);
+  ion_species = force->numeric(FLERR,arg[3]);
+  N_epe = force->numeric(FLERR,arg[4]);
+  tag_ele_start = force->numeric(FLERR,arg[5]);
+  assign_ion = force->numeric(FLERR,arg[6]);
+  targ_coord = force->numeric(FLERR,arg[7]);
   
 
   // reset cutoffs that have been explicitly set
@@ -530,6 +535,8 @@ void PairCoulCutSPHNoPseudoSub::init_style()
     error->all(FLERR,"Pair style coul/cut requires atom attribute q");
 
   neighbor->request(this,instance_me);
+
+  cut_thetasq = cut_theta * cut_theta;
 }
 
 /* ----------------------------------------------------------------------

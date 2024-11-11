@@ -48,6 +48,7 @@ class PairCoulCutSPHNoPseudoSub : public Pair {
  protected:
   int nmax;
   double cut_global;
+  double cut_theta,cut_thetasq;
   double ke_in;
   int ion_species; // label which species are point charges
   int N_epe;

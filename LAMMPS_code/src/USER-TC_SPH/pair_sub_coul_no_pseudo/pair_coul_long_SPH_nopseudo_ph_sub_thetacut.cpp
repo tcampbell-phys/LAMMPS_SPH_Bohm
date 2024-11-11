@@ -215,7 +215,7 @@ void PairCoulLongNopseudoSPHphsubthetacut::compute(int eflag, int vflag)
       rsq = delx*delx + dely*dely + delz*delz;
       jtype = type[j];
 
-      if (rsq < cut_thetasq) {
+      if (rsq < cut_coulsq) {
 
         if (itype != ion_species) {
           // electron target
