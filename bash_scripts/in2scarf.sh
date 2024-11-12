@@ -29,18 +29,18 @@
 # rsync ../input_decks/scarf/H_research/21_54eV_2_rs/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/21_54eV_2_rs/
 # rsync ../input_decks/scarf/H_research/21_54eV_1_75_rs/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/21_54eV_1_75_rs/
 # rsync ../input_decks/scarf/H_research/21_54eV_1_75_rs/scaled/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/21_54eV_1_75_rs/
-rsync ../input_decks/scarf/H_research/21_54eV_1_75_rs/current/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/21_54eV_1_75_rs/
+# rsync ../input_decks/scarf/H_research/21_54eV_1_75_rs/current/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/21_54eV_1_75_rs/
 # rsync ../input_decks/scarf/H_research/21_54eV_1_75_rs/parallel_scaling/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/21_54eV_1_75_rs/
 
 
-# rsync ../input_decks/scarf/H_research/ground_tests/current/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/ground_tests/
+rsync ../input_decks/scarf/H_research/ground_tests/current/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/ground_tests/
 
 
 # rsync ../input_decks/scarf/Electron_therm_research/Al_Z_4_batch1/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/
 # rsync ../input_decks/scarf/Electron_therm_research/Al_Z_4_batch2_extra/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/
 # rsync ../input_decks/scarf/Electron_therm_research/Al_Z_4_constant_KE/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/
 # rsync ../input_decks/scarf/Electron_therm_research/Al_Z_4_constant_temp/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/
-rsync ../input_decks/scarf/Electron_therm_research/Al_Z_4_coupling_scan/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/
+# rsync ../input_decks/scarf/Electron_therm_research/Al_Z_4_coupling_scan/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/
 # rsync ../input_decks/scarf/Electron_therm_research/Al_jellium_point_ele/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/
 # rsync ../input_decks/scarf/Electron_therm_research/Al_Z_4_jellium_batch1/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/
 # rsync ../input_decks/scarf/Electron_therm_research/Al_gamma_0_0683_dens_scan/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/ele_therm_research/
@@ -63,6 +63,9 @@ rsync ../input_decks/scarf/Electron_therm_research/Al_Z_4_coupling_scan/* scarf7
 # scp ../LAMMPS_code/src/USER-TC_SPH/pair_bohm_QHD/* scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 # scp ../LAMMPS_code/src/USER-TC_SPH/pair_sub_coul_no_pseudo/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 # scp ../LAMMPS_code/src/USER-TC_SPH/pair_sub_coul_no_pseudo_cut/* scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
+
+# scp ../LAMMPS_code/src/USER-TC_SPH/fix_BP/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
+scp ../LAMMPS_code/src/USER-TC_SPH/pair_bohm_QHD/bohm_pot_in_pair/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 
 # scp ../LAMMPS_code/src/USER-TC_SPH/pair_sub_coul_pseudo/* scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 

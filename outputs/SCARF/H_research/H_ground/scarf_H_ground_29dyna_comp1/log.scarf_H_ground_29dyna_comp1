@@ -1,0 +1,249 @@
+
+### SYSTEM PARAMETERS:
+
+### physical parameters:
+
+variable temp equal 0.000	         # temperature in eV
+variable num_ions equal 1	                                        # Number of ions
+variable ion_charge equal 1.0			                                # Average charge/ionization
+variable ion_amu equal 1.008	                                # Atomic mass of ion
+variable electron_amu equal 0.00054857991                           # Atomic mass of electrons
+
+variable sigma_start equal 0.9                                         # Start global packet width of electrons in bohr
+
+variable elements_per_electron equal 1237 # must match number of elements generated on lattice
+
+variable element_scaled_mass equal ${electron_amu}/${elements_per_electron}
+variable element_scaled_mass equal 0.00054857991/${elements_per_electron}
+variable element_scaled_mass equal 0.00054857991/1237
+variable element_scaled_charge equal -1/${elements_per_electron}
+variable element_scaled_charge equal -1/1237
+
+variable num_electrons equal ${num_ions}*${ion_charge}
+variable num_electrons equal 1*${ion_charge}
+variable num_electrons equal 1*1
+variable num_electron_elements equal ${num_electrons}*${elements_per_electron}
+variable num_electron_elements equal 1*${elements_per_electron}
+variable num_electron_elements equal 1*1237
+variable temptouse equal 11604.5221*${temp}
+variable temptouse equal 11604.5221*0
+
+### simulation parameters:
+
+variable radius equal 2.5
+variable cutoff equal 5.0  # cutoff for pairwise calculations
+
+variable assign_ion equal 1    # if set to 1, all ions moved to targ coord on first timestep
+variable targ_coord equal 0.0
+
+variable lattice_const equal 0.375 # tune lattice constant so that number of atoms produced equals elements_per_electron (for accurate mass and charge values)
+
+units electron                                                      # use electron units (Hartree)
+newton on
+boundary s s s
+atom_style SPH_CoM
+
+# Pair style string selection
+
+variable pair_name string bohm_SPH_dynamic_rob
+
+variable ion_seed equal 99919
+variable e_up_a_seed equal 25132
+variable e_up_b_seed equal 79840
+variable e_down_a_seed equal 21611
+variable e_down_b_seed equal 99020
+
+# thermostat parameters
+
+variable ion_vel_seed equal 12964
+variable e_down_a_vel_seed equal 85890
+variable e_down_b_vel_seed equal 66097
+variable e_up_a_vel_seed equal 13720
+variable e_up_b_vel_seed equal 31943
+
+variable vel_t equal 1.0*${temptouse}
+variable vel_t equal 1.0*0
+
+# rdf calculation
+
+variable rdf_num_bins equal 150
+variable rdf_num_measurements equal 10
+variable rdf_output_time_step equal 4000
+variable rdf_measurement_time_gap equal 1
+
+### Setup simulation
+
+region bounding_region sphere 0.0 0.0 0.0 ${radius} units box
+region bounding_region sphere 0.0 0.0 0.0 2.5 units box
+
+lattice sc ${lattice_const} origin 0.0 0.0 0.0
+lattice sc 0.375 origin 0.0 0.0 0.0
+Lattice spacing in x,y,z = 0.375 0.375 0.375
+
+create_box 2 bounding_region
+Created orthogonal box = (-2.5 -2.5 -2.5) to (2.5 2.5 2.5)
+  2 by 4 by 4 MPI processor grid
+
+create_atoms 1 random ${num_ions} ${ion_seed} NULL
+create_atoms 1 random 1 ${ion_seed} NULL
+create_atoms 1 random 1 99919 NULL
+Created 1 atoms
+  create_atoms CPU = 0.000444889 secs
+group ion type 1
+1 atoms in group ion
+mass 1 ${ion_amu}
+mass 1 1.008
+set type 1 charge ${ion_charge}
+set type 1 charge 1
+  1 settings made for charge
+
+create_atoms 2 region bounding_region
+Created 1237 atoms
+  create_atoms CPU = 0.000366926 secs
+group electron type 2
+1237 atoms in group electron
+mass 2 ${element_scaled_mass}
+mass 2 4.43476079223929e-07
+set type 2 charge ${element_scaled_charge}
+set type 2 charge -0.000808407437348424
+  1237 settings made for charge
+
+variable tag_ele_start equal ${num_ions}+1
+variable tag_ele_start equal 1+1
+
+# Ensure ghost atom velocities communicated for SPH Bohm Potential:
+
+comm_modify vel yes
+
+### Dynamic Width fix
+variable dens_wid_const equal 1.3
+variable N_iter equal 4
+variable mix_fact equal 1.0
+variable type_avoid equal 1 #ensure ions are not included in SPH loops (must match ion type)
+
+# Call dynamic_widths_com to ensure calculation of electron Centres of Mass
+
+fix ele_dyn_wid electron dynamic_widths ${dens_wid_const} ${N_iter} ${mix_fact} ${sigma_start} ${cutoff} ${type_avoid} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths 1.3 ${N_iter} ${mix_fact} ${sigma_start} ${cutoff} ${type_avoid} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths 1.3 4 ${mix_fact} ${sigma_start} ${cutoff} ${type_avoid} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths 1.3 4 1 ${sigma_start} ${cutoff} ${type_avoid} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths 1.3 4 1 0.9 ${cutoff} ${type_avoid} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths 1.3 4 1 0.9 5 ${type_avoid} ${pair_name}
+fix ele_dyn_wid electron dynamic_widths 1.3 4 1 0.9 5 1 ${pair_name}
+fix ele_dyn_wid electron dynamic_widths 1.3 4 1 0.9 5 1 bohm_SPH_dynamic_rob
+
+# set large 'elements_per_electron' argument to coul/cut/SPH_nopseudo_sub to ensure no electron - electron self interaction
+
+pair_style hybrid/overlay ${pair_name} ${cutoff} ${gamma_factor} coul/cut/SPH_nopseudo_sub ${cutoff} 1.0 1 10000 ${tag_ele_start} ${assign_ion} ${targ_coord}
+pair_style hybrid/overlay bohm_SPH_dynamic_rob ${cutoff} ${gamma_factor} coul/cut/SPH_nopseudo_sub ${cutoff} 1.0 1 10000 ${tag_ele_start} ${assign_ion} ${targ_coord}
+pair_style hybrid/overlay bohm_SPH_dynamic_rob 5 ${gamma_factor} coul/cut/SPH_nopseudo_sub ${cutoff} 1.0 1 10000 ${tag_ele_start} ${assign_ion} ${targ_coord}
+pair_style hybrid/overlay bohm_SPH_dynamic_rob 5 1822.888483 coul/cut/SPH_nopseudo_sub ${cutoff} 1.0 1 10000 ${tag_ele_start} ${assign_ion} ${targ_coord}
+pair_style hybrid/overlay bohm_SPH_dynamic_rob 5 1822.888483 coul/cut/SPH_nopseudo_sub 5 1.0 1 10000 ${tag_ele_start} ${assign_ion} ${targ_coord}
+pair_style hybrid/overlay bohm_SPH_dynamic_rob 5 1822.888483 coul/cut/SPH_nopseudo_sub 5 1.0 1 10000 2 ${assign_ion} ${targ_coord}
+pair_style hybrid/overlay bohm_SPH_dynamic_rob 5 1822.888483 coul/cut/SPH_nopseudo_sub 5 1.0 1 10000 2 1 ${targ_coord}
+pair_style hybrid/overlay bohm_SPH_dynamic_rob 5 1822.888483 coul/cut/SPH_nopseudo_sub 5 1.0 1 10000 2 1 0
+
+# Set up each pair with the correct styles:
+
+pair_coeff * * coul/cut/SPH_nopseudo_sub
+
+pair_coeff 2 2 ${pair_name}
+pair_coeff 2 2 bohm_SPH_dynamic_rob
+
+# increase number of allowed neighbours
+neigh_modify one 10000
+
+velocity all create ${temptouse} ${ion_vel_seed} rot yes dist gaussian
+velocity all create 0 ${ion_vel_seed} rot yes dist gaussian
+velocity all create 0 12964 rot yes dist gaussian
+
+# Randomize the starting positions of all of our particles
+
+displace_atoms all random 0.005 0.005 0.005 42
+
+compute electron_temp electron temp
+
+# Compute pair correlation functions:
+compute ion_electron_rdf all rdf ${rdf_num_bins} 1 2
+compute ion_electron_rdf all rdf 150 1 2
+
+compute electron_electron_rdf all rdf ${rdf_num_bins} 2 2
+compute electron_electron_rdf all rdf 150 2 2
+
+fix write_ion_electron_rdf all ave/time ${rdf_measurement_time_gap} ${rdf_num_measurements} ${rdf_output_time_step} c_ion_electron_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_electron.rdf mode vector
+fix write_ion_electron_rdf all ave/time 1 ${rdf_num_measurements} ${rdf_output_time_step} c_ion_electron_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_electron.rdf mode vector
+fix write_ion_electron_rdf all ave/time 1 10 ${rdf_output_time_step} c_ion_electron_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_electron.rdf mode vector
+fix write_ion_electron_rdf all ave/time 1 10 4000 c_ion_electron_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/ion_electron.rdf mode vector
+fix write_ion_electron_rdf all ave/time 1 10 4000 c_ion_electron_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/scarf_H_ground_29dyna_comp1/ion_electron.rdf mode vector
+
+fix write_electron_electron_rdf all ave/time ${rdf_measurement_time_gap} ${rdf_num_measurements} ${rdf_output_time_step} c_electron_electron_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/electron_electron.rdf mode vector
+fix write_electron_electron_rdf all ave/time 1 ${rdf_num_measurements} ${rdf_output_time_step} c_electron_electron_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/electron_electron.rdf mode vector
+fix write_electron_electron_rdf all ave/time 1 10 ${rdf_output_time_step} c_electron_electron_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/electron_electron.rdf mode vector
+fix write_electron_electron_rdf all ave/time 1 10 4000 c_electron_electron_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/${outputdir}/electron_electron.rdf mode vector
+fix write_electron_electron_rdf all ave/time 1 10 4000 c_electron_electron_rdf[*] file /work4/clf/scarf734/LAMMPS/SPH_Bohm/ground/scarf_H_ground_29dyna_comp1/electron_electron.rdf mode vector
+
+# custom logfile output
+
+thermo_style custom step temp pe ke etotal press
+
+# modify logfile output
+
+thermo_modify lost warn
+thermo 100
+thermo_style custom step temp pe ke etotal press
+WARNING: New thermo_style command, previous thermo_modify settings will be lost (src/output.cpp:708)
+
+variable damping_strength equal 0.0001
+
+fix all_nve all nve
+
+variable equi_time_steps equal 20000.0
+
+variable CoM_check_time_steps equal 25
+
+variable dump_freq equal 1
+
+variable time_step_length equal 1e-06
+
+timestep ${time_step_length}
+timestep 1e-06
+
+fix damp_all all viscous ${damping_strength}
+fix damp_all all viscous 0.0001
+
+### stage 0
+run ${equi_time_steps}
+run 20000
+Neighbor list info ...
+  update every 1 steps, delay 10 steps, check yes
+  max neighbors/atom: 10000, page size: 100000
+  master list distance cutoff = 7
+  ghost atom cutoff = 7
+  binsize = 3.5, bins = 2 2 2
+  4 neighbor lists, perpetual/occasional/extra = 2 2 0
+  (1) pair bohm_SPH_dynamic_rob, perpetual, skip from (2)
+      attributes: half, newton on
+      pair build: skip
+      stencil: none
+      bin: none
+  (2) pair coul/cut/SPH_nopseudo_sub, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d/newton
+      bin: standard
+  (3) compute rdf, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+  (4) compute rdf, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+WARNING: Proc sub-domain size < neighbor skin, could lead to lost atoms (src/domain.cpp:936)
+Per MPI rank memory allocation (min/avg/max) = 5.09 | 5.119 | 5.142 Mbytes
+Step Temp PotEng KinEng TotEng Press 
+       0            0  -0.57772569            0  -0.57772569 -2.0247776e+10 
+ERROR: Lost atoms: original 1238 current 1237 (src/thermo.cpp:438)
+Last command: run ${equi_time_steps}
