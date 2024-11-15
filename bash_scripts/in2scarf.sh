@@ -29,9 +29,10 @@
 # rsync ../input_decks/scarf/H_research/21_54eV_2_rs/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/21_54eV_2_rs/
 # rsync ../input_decks/scarf/H_research/21_54eV_1_75_rs/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/21_54eV_1_75_rs/
 # rsync ../input_decks/scarf/H_research/21_54eV_1_75_rs/scaled/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/21_54eV_1_75_rs/
-# rsync ../input_decks/scarf/H_research/21_54eV_1_75_rs/current/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/21_54eV_1_75_rs/
+rsync ../input_decks/scarf/H_research/21_54eV_1_75_rs/current/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/21_54eV_1_75_rs/
 # rsync ../input_decks/scarf/H_research/21_54eV_1_75_rs/parallel_scaling/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/21_54eV_1_75_rs/
 
+rsync ../input_decks/scarf/bohm_cons_checks/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/bohm_conservation/
 
 rsync ../input_decks/scarf/H_research/ground_tests/current/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/H_research/ground_tests/
 
@@ -61,11 +62,12 @@ rsync ../input_decks/scarf/H_research/ground_tests/current/* scarf734@ui1.scarf.
 # scp ../LAMMPS_code/src/USER-TC_SPH/pair_bohm_MF/* scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 # scp ../LAMMPS_code/src/USER-TC_SPH/pair_bohm_QHD/*fix* scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 # scp ../LAMMPS_code/src/USER-TC_SPH/pair_bohm_QHD/* scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
-# scp ../LAMMPS_code/src/USER-TC_SPH/pair_sub_coul_no_pseudo/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
+scp ../LAMMPS_code/src/USER-TC_SPH/pair_sub_coul_no_pseudo/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 # scp ../LAMMPS_code/src/USER-TC_SPH/pair_sub_coul_no_pseudo_cut/* scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 
 # scp ../LAMMPS_code/src/USER-TC_SPH/fix_BP/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 scp ../LAMMPS_code/src/USER-TC_SPH/pair_bohm_QHD/bohm_pot_in_pair/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
+scp ../LAMMPS_code/src/USER-TC_SPH/pair_bohm_QHD/bohm_pot_in_fix/* scarf734@ui1.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 
 # scp ../LAMMPS_code/src/USER-TC_SPH/pair_sub_coul_pseudo/* scarf734@ui2.scarf.rl.ac.uk:~/mywork/LAMMPS/fresh-lammps-3Mar20/lammps-3Mar20/src/
 

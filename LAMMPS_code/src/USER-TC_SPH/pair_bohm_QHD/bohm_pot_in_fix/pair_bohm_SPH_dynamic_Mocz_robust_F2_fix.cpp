@@ -121,7 +121,7 @@ void PairBohmSPHDynamicMoczRobustFtwoFix::compute(int eflag, int vflag)
   double bohm_pot;
   double u_prefact_i,u_prefact_j;
 
-  // ev_init(eflag,vflag);
+  ev_init(eflag,vflag);
 
   int *ilist,*jlist,*numneigh,**firstneigh;
 

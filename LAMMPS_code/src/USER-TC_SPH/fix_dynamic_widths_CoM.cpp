@@ -528,6 +528,12 @@ void FixDynamicWidthsCoM::CoM_Calculator()
     x_COM[i] = (atan2(-tau_all[ele_ind]/N_elements_per_electron,-mu_all[ele_ind]/N_elements_per_electron) + M_PI)/two_pi_over_len;
     y_COM[i] = (atan2(-tau_all[ele_ind+N_electrons]/N_elements_per_electron,-mu_all[ele_ind+N_electrons]/N_elements_per_electron) + M_PI)/two_pi_over_len;
     z_COM[i] = (atan2(-tau_all[ele_ind+2*N_electrons]/N_elements_per_electron,-mu_all[ele_ind+2*N_electrons]/N_elements_per_electron) + M_PI)/two_pi_over_len;
+    // fprintf(screen,"\nx[i][0] = %16.16f",x[i][0]);
+    // fprintf(screen,"\nx_COM[i] = %16.16f",x_COM[i]);
+    // fprintf(screen,"\nx[i][1] = %16.16f",x[i][1]);
+    // fprintf(screen,"\ny_COM[i] = %16.16f",y_COM[i]);
+    // fprintf(screen,"\nx[i][2] = %16.16f",x[i][2]);
+    // fprintf(screen,"\nz_COM[i] = %16.16f",z_COM[i]);
     // if (tagid[i] == 801){
     //   // fprintf(screen,"\n\ntimestep %d \n\nx_COM = %16.16f \ny_COM = %16.16f \nz_COM = %16.16f",ntimestep,x_COM[i],y_COM[i],z_COM[i]);
     // }
