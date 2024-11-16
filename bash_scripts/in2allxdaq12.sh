@@ -37,7 +37,7 @@
 
 # scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../input_decks/hedp64/coul_conservation_tests/pre311024/in.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/coul_conserve_tests/
 
-scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../input_decks/hedp64/coul_conservation_tests/coul_cut/in.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/coul_conserve_tests/
+# scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../input_decks/hedp64/coul_conservation_tests/coul_cut/in.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/coul_conserve_tests/
 
 scp -r -oProxyCommand="ssh -W %h:%p campbellt@bastion.physics.ox.ac.uk" ../input_decks/hedp64/coul_conservation_tests/coul_long/in.* campbell@allxdaq12.nat.physics.ox.ac.uk:~/fresh_lammps-3Mar20/lammps-3Mar20/coul_conserve_tests/
 

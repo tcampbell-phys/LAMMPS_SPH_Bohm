@@ -1,0 +1,137 @@
+# Set output directory
+
+variable out_number string confine_full_3
+
+### BACKUP SIMULATION FILES
+
+variable gamma_factor equal 1822.888483 #(correct for 241024) must match 1/e_mass
+
+variable outputdir string hedp_SPH_coul_stability_test_${out_number}
+shell mkdir /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/
+shell cp ~/fresh_lammps-3Mar20/lammps-3Mar20/SPH_Bohm/in.hedp_SPH_confine_full_test_${out_number} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/
+shell cp ~/fresh_lammps-3Mar20/lammps-3Mar20/src/pair_bohm_SPH_dynamic.cpp /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/
+shell cp ~/fresh_lammps-3Mar20/lammps-3Mar20/src/pair_bohm_SPH_dynamic.h /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/
+shell cp ~/fresh_lammps-3Mar20/lammps-3Mar20/src/pair_coul_long_SPH_ph.cpp /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/
+shell cp ~/fresh_lammps-3Mar20/lammps-3Mar20/src/pair_coul_long_SPH_ph.h /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/
+log /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/log.${outputdir}  
+
+### SYSTEM PARAMETERS: 
+
+### physical parameters:
+
+variable num_ions equal 82	                                        # Number of ions
+variable ion_charge equal 1.0			                                # Average charge/ionization
+variable ion_amu equal 1.008	                                # Atomic mass of ion
+variable electron_amu equal 0.00054857991                           # Atomic mass of electrons
+
+variable elements_per_electron equal 64
+
+variable element_scaled_mass equal ${electron_amu}/${elements_per_electron}
+variable element_scaled_charge equal -1/${elements_per_electron}
+
+variable num_electrons equal ${num_ions}*${ion_charge}
+variable num_electron_elements equal ${num_electrons}*${elements_per_electron}
+variable half_num_electrons equal ${num_electrons}/2.0
+variable box_len equal 12.261
+variable half_box_len equal ${box_len}/2.0
+
+variable dens_wid_const equal 0.91924
+variable kernel_ave equal ${dens_wid_const}*${box_len}/(${num_electron_elements}^(1/3))
+variable tfwhm equal 4.70964*${kernel_ave}
+variable sigma_start equal ${kernel_ave}    # Start global packet width of electrons in bohr
+
+### simulation parameters:
+
+variable time_step_length equal 0.25e-3
+variable equi_time_steps equal 4e2
+variable dump_freq equal 2
+variable cutoff equal 4.243*${kernel_ave}                                  # cutoff for pairwise calculations
+variable cutoff_coul equal 1.4*${tfwhm}
+
+units electron                                                      # use electron units (Hartree)
+newton on
+boundary p p p
+atom_style SPH_CoM     
+
+# Pair style string selection
+
+variable pair_name string bohm_SPH_dynamic_Mocz_rob_ftwo_fix
+
+variable confine_full_strength equal 0.255
+
+variable ion_seed equal 1
+variable e_up_a_seed equal 2
+variable e_up_b_seed equal 3
+variable e_down_a_seed equal 4 
+variable e_down_b_seed equal 5
+
+# thermostat parameters
+
+variable ion_vel_seed equal 6
+variable e_down_a_vel_seed equal 7
+variable e_down_b_vel_seed equal 8
+variable e_up_a_vel_seed equal 9
+variable e_up_b_vel_seed equal 10
+                                     
+### NOTE - initialising particles from rest
+variable vel_t equal 0.0
+
+### Setup simulation
+
+region bounding_region block 0.0 ${box_len} 0.0 ${box_len} 0.0 ${box_len}
+timestep ${time_step_length}
+
+create_box 1 bounding_region
+
+create_atoms 1 random ${num_electron_elements} ${e_up_a_seed} NULL
+group electron type 1
+mass 1 ${element_scaled_mass}
+set type 1 charge ${element_scaled_charge}
+
+# increase number of allowed neighbours
+neigh_modify one 10000
+
+variable tag_ele_start equal 1
+
+# Ensure ghost atom velocities communicated for SPH Bohm Potential:
+
+comm_modify vel yes
+
+### Dynamic Width fix
+variable N_iter equal 2
+variable mix_fact equal 1.0
+variable type_avoid equal 10 #ensure ions are not included in SPH loops (must match ion type)
+
+fix Bohm_Pot electron dynamic_widths_com ${dens_wid_const} ${N_iter} ${mix_fact} ${sigma_start} ${cutoff} ${box_len} ${type_avoid} ${num_electrons} ${elements_per_electron} ${tag_ele_start} confine_full
+
+pair_style confine_full ${confine_full_strength} ${cutoff} ${box_len} ${elements_per_electron} ${tag_ele_start} ${num_electron_elements}
+
+# Set up each pair with the correct styles:
+
+pair_coeff * *
+
+fix all_nve all nve
+
+velocity electron create ${vel_t} ${e_down_a_vel_seed} &
+rot yes dist gaussian
+
+compute all_momentum all momentum
+
+fix write_all_momentum all ave/time &
+1 1 ${dump_freq} &
+c_all_momentum[*] file &
+/data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/all_momentum.out mode vector
+
+# custom logfile output
+
+thermo_modify lost warn
+thermo ${dump_freq}
+thermo_style custom step temp pe ke etotal press
+
+dump 1 electron custom ${dump_freq} /data/tcampbell/LAMMPS/SPH_Bohm/${outputdir}/SPH_mass_vel.dump id mass vx vy vz
+
+run ${equi_time_steps}
+
+undump 1
+
+quit 0
