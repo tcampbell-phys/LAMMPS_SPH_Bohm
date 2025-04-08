@@ -619,7 +619,7 @@ void PairBohmSPHDynamicMoczRobustFtwoPot::allocate()
 
 void PairBohmSPHDynamicMoczRobustFtwoPot::settings(int narg, char **arg)
 {
-  if (narg != 3) error->all(FLERR,"Illegal pair_style command. Require 2 input arguments.");
+  if (narg != 3) error->all(FLERR,"Illegal pair_style command. Require 3 input arguments.");
 
   if (comm->ghost_velocity != 1) error->all(FLERR,"Illegal pair_style command. Require ghost atom velocity.");
 
