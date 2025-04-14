@@ -31,6 +31,7 @@ PairStyle(hybrid,PairHybrid)
 #include "fix_bohm_pot_calc_Mocz_robust_ftwo.h"
 #include "fix_dynamic_widths_CoM_BP_Mocz_rob_ftwo.h"
 #include "fix_dynamic_widths_CoM_BP_Mocz_rob_ftwo_diag.h"
+#include "fix_dynamic_widths_CoM_BP_Mocz_ftwo_diag.h"
 #include "fix_dynamic_widths_CoM_BP_Mocz_rob.h"
 #include "fix_dynamic_widths_CoM_BP_rob.h"
 #include "fix_dynamic_widths_CoM_BP_rob_ftwo.h"
@@ -60,6 +61,7 @@ class PairHybrid : public Pair {
   friend class FixDynamicWidthsCoMFtwo;
   friend class FixBohmPotCalcMoczRobFtwo;
   friend class FixDynamicWidthsCoMBPMoczRobFtwo;
+  friend class FixDynamicWidthsCoMBPMoczFtwoDiag;
   friend class FixDynamicWidthsCoMBPMoczRobFtwoDiag;
   friend class FixDynamicWidthsCoMBPMoczRob;
   friend class FixDynamicWidthsCoMBPRob;

@@ -3,6 +3,7 @@ Bespoke pair_style to compute the Bohm force using an SPH-style pressure
 tensor, with dynamic per-particle widths.
 
 pair_bohm_SPH_dynamic_Mocz:
+- Electrons as basic fluid element.
 - Dynamic per-particle gaussian widths.
 - Mocz 2015. form for second derivatives.
 - Bohm potential calculated on total density of electron fluid (QHD Bohm Potential).
@@ -11,7 +12,7 @@ pair_bohm_SPH_dynamic_Mocz:
 
 Thomas Campbell
 ------------------------------------------------------------------------- */
-#include "pair_bohm_SPH_dynamic_Mocz_robust_F2_pot_diag.h"
+#include "pair_bohm_SPH_dynamic_Mocz_F2_fix_diag.h"
 #include <mpi.h>
 #include <cmath>
 #include <cstring>
@@ -33,7 +34,7 @@ using namespace LAMMPS_NS;
 
 /* ---------------------------------------------------------------------- */
 
-PairBohmSPHDynamicMoczRobustFtwoPotDiag::PairBohmSPHDynamicMoczRobustFtwoPotDiag(LAMMPS *lmp) : Pair(lmp) {
+PairBohmSPHDynamicMoczFtwoFixDiag::PairBohmSPHDynamicMoczFtwoFixDiag(LAMMPS *lmp) : Pair(lmp) {
   nmax = 0;
 
   manybody_flag = 1;
@@ -67,13 +68,11 @@ PairBohmSPHDynamicMoczRobustFtwoPotDiag::PairBohmSPHDynamicMoczRobustFtwoPotDiag
   f_prefactor = force->hhmrr2e * (hbar*hbar)/(4*e_mass);
 
   pi_fact = 1/pow(2*M_PI,1.5);
-
-  fprintf(screen,"\nCheck new implemented...");
 }
 
 /* ---------------------------------------------------------------------- */
 
-PairBohmSPHDynamicMoczRobustFtwoPotDiag::~PairBohmSPHDynamicMoczRobustFtwoPotDiag()
+PairBohmSPHDynamicMoczFtwoFixDiag::~PairBohmSPHDynamicMoczFtwoFixDiag()
 {
   if (allocated) {
     memory->destroy(setflag);
@@ -101,7 +100,7 @@ PairBohmSPHDynamicMoczRobustFtwoPotDiag::~PairBohmSPHDynamicMoczRobustFtwoPotDia
 
 /* ---------------------------------------------------------------------- */
 
-void PairBohmSPHDynamicMoczRobustFtwoPotDiag::compute(int eflag, int vflag)
+void PairBohmSPHDynamicMoczFtwoFixDiag::compute(int eflag, int vflag)
 {
   int i,j,ii,jj,inum,jnum,itype,jtype;
   double xtmp,ytmp,ztmp,delx,dely,delz;
@@ -217,10 +216,6 @@ void PairBohmSPHDynamicMoczRobustFtwoPotDiag::compute(int eflag, int vflag)
       dy_rho[i] = 0.0;
       dz_rho[i] = 0.0;
 
-      // zero Bohm Potential 
-
-      u_SPH[i] = 0.0;
-
       Pxx[i] = 0.0;
       Pxy[i] = 0.0;
       Pxz[i] = 0.0;
@@ -241,10 +236,6 @@ void PairBohmSPHDynamicMoczRobustFtwoPotDiag::compute(int eflag, int vflag)
       dx_rho[i] = 0.0;
       dy_rho[i] = 0.0;
       dz_rho[i] = 0.0;
-
-      // zero Bohm Potential 
-
-      u_SPH[i] = 0.0;
 
       Pxx[i] = 0.0;
       Pxy[i] = 0.0;
@@ -385,59 +376,10 @@ void PairBohmSPHDynamicMoczRobustFtwoPotDiag::compute(int eflag, int vflag)
 
     SPH_weight_fact_self = (gauss_pre_i*imass)/rho_SPH[i];
 
-    Pxx[i] += SPH_weight_fact_self*gamma_factor*f_prefactor*((dx_rho[i]*dx_rho[i])/rho_SPH[i] - dxx_rho[i]);
-    Pyy[i] += SPH_weight_fact_self*gamma_factor*f_prefactor*((dy_rho[i]*dy_rho[i])/rho_SPH[i] - dyy_rho[i]);
-    Pzz[i] += SPH_weight_fact_self*gamma_factor*f_prefactor*((dz_rho[i]*dz_rho[i])/rho_SPH[i] - dzz_rho[i]);
+    Pxx[i] += gamma_factor*f_prefactor*((dx_rho[i]*dx_rho[i])/rho_SPH[i] - dxx_rho[i]);
+    Pyy[i] += gamma_factor*f_prefactor*((dy_rho[i]*dy_rho[i])/rho_SPH[i] - dyy_rho[i]);
+    Pzz[i] += gamma_factor*f_prefactor*((dz_rho[i]*dz_rho[i])/rho_SPH[i] - dzz_rho[i]);
 
-    u_SPH[i] += -0.5*f_prefactor*SPH_weight_fact_self*(2*(dxx_rho[i] + dyy_rho[i] + dzz_rho[i])/rho_SPH[i] - (dx_rho[i]*dx_rho[i] + dy_rho[i]*dy_rho[i] + dz_rho[i]*dz_rho[i])/(rho_SPH[i]*rho_SPH[i]));
-
-    for (jj = 0; jj < jnum; jj++) {
-      j = jlist[jj];
-      j &= NEIGHMASK;
-
-      delx = xtmp - x[j][0];
-      dely = ytmp - x[j][1];
-      delz = ztmp - x[j][2];
-
-      rsq = delx*delx + dely*dely + delz*delz;
-
-      jtype = type[j];
- 
-      if (rsq < cutsquared) {
-
-        h_j = width_SPH[j];
-        h2_j = h_j*h_j;
-        hm2_j = 1./h2_j;
-
-        jmass = mass[jtype];
-
-        exp_ij = exp(-(rsq)*hm2_i/2.);
-
-        gauss_pre_j = pi_fact*(1./(h_j*h_j*h_j));
-
-        SPH_weight_fact_ij = (gauss_pre_i*jmass)/rho_SPH[j];
-
-        Pxx[i] += exp_ij*SPH_weight_fact_ij*gamma_factor*f_prefactor*((dx_rho[j]*dx_rho[j])/rho_SPH[j] - dxx_rho[j]);
-        Pyy[i] += exp_ij*SPH_weight_fact_ij*gamma_factor*f_prefactor*((dy_rho[j]*dy_rho[j])/rho_SPH[j] - dyy_rho[j]);
-        Pzz[i] += exp_ij*SPH_weight_fact_ij*gamma_factor*f_prefactor*((dz_rho[j]*dz_rho[j])/rho_SPH[j] - dzz_rho[j]);
-
-        u_SPH[i] += -0.5*f_prefactor*exp_ij*SPH_weight_fact_ij*(2*(dxx_rho[j] + dyy_rho[j] + dzz_rho[j])/rho_SPH[j] - (dx_rho[j]*dx_rho[j] + dy_rho[j]*dy_rho[j] + dz_rho[j]*dz_rho[j])/(rho_SPH[j]*rho_SPH[j]));
-
-
-        if (newton_pair || j < nlocal) {
-
-          exp_ji = exp(-(rsq)*hm2_j/2.);
-          SPH_weight_fact_ji = (gauss_pre_j*imass)/rho_SPH[i];
-
-          Pxx[j] += exp_ji*SPH_weight_fact_ji*gamma_factor*f_prefactor*((dx_rho[i]*dx_rho[i])/rho_SPH[i] - dxx_rho[i]);
-          Pyy[j] += exp_ji*SPH_weight_fact_ji*gamma_factor*f_prefactor*((dy_rho[i]*dy_rho[i])/rho_SPH[i] - dyy_rho[i]);
-          Pzz[j] += exp_ji*SPH_weight_fact_ji*gamma_factor*f_prefactor*((dz_rho[i]*dz_rho[i])/rho_SPH[i] - dzz_rho[i]);
-
-          u_SPH[j] += -0.5*f_prefactor*exp_ji*SPH_weight_fact_ji*(2*(dxx_rho[i] + dyy_rho[i] + dzz_rho[i])/rho_SPH[i] - (dx_rho[i]*dx_rho[i] + dy_rho[i]*dy_rho[i] + dz_rho[i]*dz_rho[i])/(rho_SPH[i]*rho_SPH[i]));
-
-        }
-      }
-    }
   }
   comm_forward = 6;
   comm_reverse = 6;
@@ -445,11 +387,7 @@ void PairBohmSPHDynamicMoczRobustFtwoPotDiag::compute(int eflag, int vflag)
   if (newton_pair) comm->reverse_comm_pair(this);
   comm->forward_comm_pair(this);
 
-  comm_forward = 1;
-  comm_reverse = 1;
-  commflag = 1;
-  if (newton_pair) comm->reverse_comm_pair(this);
-  comm->forward_comm_pair(this);
+  int tag_targ = 100;
 
   for (ii = 0; ii < inum; ii++) {
 
@@ -480,6 +418,16 @@ void PairBohmSPHDynamicMoczRobustFtwoPotDiag::compute(int eflag, int vflag)
     gauss_pre_i = pi_fact*(1./(h_i*h_i*h_i));
 
     u_prefact_i = (dt/(rho_i2*omega_i));
+
+    // if (tag[i] == tag_targ) {
+    //   fprintf(screen,"\npair_bohm_SPH_dynamic_Mocz_robust_F2_fix tag_targ = %d",tag_targ);
+    //   fprintf(screen,"\nPxx = %16.16f",Pxx[i]);
+    //   fprintf(screen,"\nPxy = %16.16f",Pxy[i]);
+    //   fprintf(screen,"\nPxz = %16.16f",Pxz[i]);
+    //   fprintf(screen,"\nPyy = %16.16f",Pyy[i]);
+    //   fprintf(screen,"\nPyz = %16.16f",Pyz[i]);
+    //   fprintf(screen,"\nPzz = %16.16f",Pzz[i]);
+    // }
 
     for (jj = 0; jj < jnum; jj++) {
       j = jlist[jj];
@@ -518,14 +466,11 @@ void PairBohmSPHDynamicMoczRobustFtwoPotDiag::compute(int eflag, int vflag)
         dz_Wji = gauss_pre_j*(-delz*hm2_j)*exp_ji;
 
         rho_j2 = rho_SPH[j]*rho_SPH[j];
-
-        u_prefact_j = (dt/(rho_j2*omega_j));
-
         // compute force terms from pressure tensor here
 
-        fx = -ijmass*((Pxx[i]*dx_Wij)/(rho_i2*omega_i) + (Pxx[j]*dx_Wji)/(rho_j2*omega_j));
-        fy = -ijmass*((Pyy[i]*dy_Wij)/(rho_i2*omega_i) + (Pyy[j]*dy_Wji)/(rho_j2*omega_j));
-        fz = -ijmass*((Pzz[i]*dz_Wij)/(rho_i2*omega_i) + (Pzz[j]*dz_Wji)/(rho_j2*omega_j));
+        fx = -ijmass*((Pxx[i]*dx_Wij + Pxy[i]*dy_Wij + Pxz[i]*dz_Wij)/(rho_i2*omega_i) + (Pxx[j]*dx_Wji + Pxy[j]*dy_Wji + Pxz[j]*dz_Wji)/(rho_j2*omega_j));
+        fy = -ijmass*((Pxy[i]*dx_Wij + Pyy[i]*dy_Wij + Pyz[i]*dz_Wij)/(rho_i2*omega_i) + (Pxy[j]*dx_Wji + Pyy[j]*dy_Wji + Pyz[j]*dz_Wji)/(rho_j2*omega_j));
+        fz = -ijmass*((Pxz[i]*dx_Wij + Pyz[i]*dy_Wij + Pzz[i]*dz_Wij)/(rho_i2*omega_i) + (Pxz[j]*dx_Wji + Pyz[j]*dy_Wji + Pzz[j]*dz_Wji)/(rho_j2*omega_j));
         
         // add flags to check if force terms become attractive 
 
@@ -543,6 +488,20 @@ void PairBohmSPHDynamicMoczRobustFtwoPotDiag::compute(int eflag, int vflag)
         //   fprintf(screen,"\n Particle ID %d attractive Bohm z force",tag[i]);
         //   fprintf(screen,"\n i fz = %16.16f",fz);
         //   fprintf(screen,"\n zi - zj = %16.16f",delz);
+        // }
+
+        // if (delx/fx < 0) {
+        //   if (dely/fy < 0) {
+        //     if (delz/fz < 0) {
+        //       fprintf(screen,"\n Particle IDs i %d j %d attractive Bohm force",tag[i],tag[j]);
+        //       fprintf(screen,"\n i fx = %16.16f",fx);
+        //       fprintf(screen,"\n xi - xj = %16.16f",delx);
+        //       fprintf(screen,"\n i fy = %16.16f",fy);
+        //       fprintf(screen,"\n yi - yj = %16.16f",dely);
+        //       fprintf(screen,"\n i fz = %16.16f",fz);
+        //       fprintf(screen,"\n zi - zj = %16.16f",delz);
+        //     }
+        //   }
         // }
 
         f[i][0] += fx;
@@ -564,19 +523,6 @@ void PairBohmSPHDynamicMoczRobustFtwoPotDiag::compute(int eflag, int vflag)
       }
     }
   }
-  // comm_forward = 1;
-  // comm_reverse = 1;
-  // commflag = 1;
-  // if (newton_pair) comm->reverse_comm_pair(this);
-  // comm->forward_comm_pair(this);
-
-  eflag_either = 1;
-
-  for (ii = 0; ii < inum; ii++) {
-    i = ilist[ii];
-    if (eflag_global) eng_vdwl +=  u_SPH[i]/elements_per_electron;
-    if (eflag_atom) eatom[i] += u_SPH[i]/elements_per_electron;
-  }
 
   if (vflag_fdotr) virial_fdotr_compute();
 }
@@ -585,7 +531,7 @@ void PairBohmSPHDynamicMoczRobustFtwoPotDiag::compute(int eflag, int vflag)
    allocate all arrays
 ------------------------------------------------------------------------- */
 
-void PairBohmSPHDynamicMoczRobustFtwoPotDiag::allocate()
+void PairBohmSPHDynamicMoczFtwoFixDiag::allocate()
 {
   allocated = 1;
   int n = atom->ntypes;
@@ -604,15 +550,14 @@ void PairBohmSPHDynamicMoczRobustFtwoPotDiag::allocate()
    global settings
 ------------------------------------------------------------------------- */
 
-void PairBohmSPHDynamicMoczRobustFtwoPotDiag::settings(int narg, char **arg)
+void PairBohmSPHDynamicMoczFtwoFixDiag::settings(int narg, char **arg)
 {
-  if (narg != 3) error->all(FLERR,"Illegal pair_style command. Require 3 input arguments.");
+  if (narg != 2) error->all(FLERR,"Illegal pair_style command. Require 2 input arguments.");
 
   if (comm->ghost_velocity != 1) error->all(FLERR,"Illegal pair_style command. Require ghost atom velocity.");
 
   cut_global = force->numeric(FLERR,arg[0]);
   gamma_factor = force->numeric(FLERR,arg[1]);
-  elements_per_electron = force->numeric(FLERR,arg[2]);
 
   cutsquared = cut_global*cut_global;
 
@@ -630,7 +575,7 @@ void PairBohmSPHDynamicMoczRobustFtwoPotDiag::settings(int narg, char **arg)
    set coeffs for one or more type pairs
 ------------------------------------------------------------------------- */
 
-void PairBohmSPHDynamicMoczRobustFtwoPotDiag::coeff(int narg, char **arg)
+void PairBohmSPHDynamicMoczFtwoFixDiag::coeff(int narg, char **arg)
 {
   if (narg < 2 || narg > 3)
     error->all(FLERR,"Incorrect args for pair coefficients");
@@ -662,7 +607,7 @@ void PairBohmSPHDynamicMoczRobustFtwoPotDiag::coeff(int narg, char **arg)
    init specific to this pair style
 ------------------------------------------------------------------------- */
 
-void PairBohmSPHDynamicMoczRobustFtwoPotDiag::init_style()
+void PairBohmSPHDynamicMoczFtwoFixDiag::init_style()
 {
   neighbor->request(this,instance_me);
 }
@@ -671,7 +616,7 @@ void PairBohmSPHDynamicMoczRobustFtwoPotDiag::init_style()
    init for one type pair i,j and corresponding j,i
 ------------------------------------------------------------------------- */
 
-double PairBohmSPHDynamicMoczRobustFtwoPotDiag::init_one(int i, int j)
+double PairBohmSPHDynamicMoczFtwoFixDiag::init_one(int i, int j)
 {
   if (setflag[i][j] == 0)
     cut[i][j] = mix_distance(cut[i][i],cut[j][j]);
@@ -683,7 +628,7 @@ double PairBohmSPHDynamicMoczRobustFtwoPotDiag::init_one(int i, int j)
   proc 0 writes to restart file
 ------------------------------------------------------------------------- */
 
-void PairBohmSPHDynamicMoczRobustFtwoPotDiag::write_restart(FILE *fp)
+void PairBohmSPHDynamicMoczFtwoFixDiag::write_restart(FILE *fp)
 {
   write_restart_settings(fp);
 
@@ -699,7 +644,7 @@ void PairBohmSPHDynamicMoczRobustFtwoPotDiag::write_restart(FILE *fp)
   proc 0 reads from restart file, bcasts
 ------------------------------------------------------------------------- */
 
-void PairBohmSPHDynamicMoczRobustFtwoPotDiag::read_restart(FILE *fp)
+void PairBohmSPHDynamicMoczFtwoFixDiag::read_restart(FILE *fp)
 {
   read_restart_settings(fp);
   allocate();
@@ -721,7 +666,7 @@ void PairBohmSPHDynamicMoczRobustFtwoPotDiag::read_restart(FILE *fp)
   proc 0 writes to restart file
 ------------------------------------------------------------------------- */
 
-void PairBohmSPHDynamicMoczRobustFtwoPotDiag::write_restart_settings(FILE *fp)
+void PairBohmSPHDynamicMoczFtwoFixDiag::write_restart_settings(FILE *fp)
 {
   fwrite(&cut_global,sizeof(double),1,fp);
   fwrite(&offset_flag,sizeof(int),1,fp);
@@ -732,7 +677,7 @@ void PairBohmSPHDynamicMoczRobustFtwoPotDiag::write_restart_settings(FILE *fp)
   proc 0 reads from restart file, bcasts
 ------------------------------------------------------------------------- */
 
-void PairBohmSPHDynamicMoczRobustFtwoPotDiag::read_restart_settings(FILE *fp)
+void PairBohmSPHDynamicMoczFtwoFixDiag::read_restart_settings(FILE *fp)
 {
   if (comm->me == 0) {
     utils::sfread(FLERR,&cut_global,sizeof(double),1,fp,NULL,error);
@@ -746,7 +691,7 @@ void PairBohmSPHDynamicMoczRobustFtwoPotDiag::read_restart_settings(FILE *fp)
 
 /* ---------------------------------------------------------------------- */
 
-int PairBohmSPHDynamicMoczRobustFtwoPotDiag::pack_forward_comm(int n, int *list, double *buf,
+int PairBohmSPHDynamicMoczFtwoFixDiag::pack_forward_comm(int n, int *list, double *buf,
                                int /*pbc_flag*/, int * /*pbc*/)
 {
   int i,j,m;
@@ -790,7 +735,7 @@ int PairBohmSPHDynamicMoczRobustFtwoPotDiag::pack_forward_comm(int n, int *list,
 
 /* ---------------------------------------------------------------------- */
 
-void PairBohmSPHDynamicMoczRobustFtwoPotDiag::unpack_forward_comm(int n, int first, double *buf)
+void PairBohmSPHDynamicMoczFtwoFixDiag::unpack_forward_comm(int n, int first, double *buf)
 {
   int i,m,last;
 
@@ -831,7 +776,7 @@ void PairBohmSPHDynamicMoczRobustFtwoPotDiag::unpack_forward_comm(int n, int fir
 
 /* ---------------------------------------------------------------------- */
 
-int PairBohmSPHDynamicMoczRobustFtwoPotDiag::pack_reverse_comm(int n, int first, double *buf)
+int PairBohmSPHDynamicMoczFtwoFixDiag::pack_reverse_comm(int n, int first, double *buf)
 {
   int i,m,last;
 
@@ -873,7 +818,7 @@ int PairBohmSPHDynamicMoczRobustFtwoPotDiag::pack_reverse_comm(int n, int first,
 
 /* ---------------------------------------------------------------------- */
 
-void PairBohmSPHDynamicMoczRobustFtwoPotDiag::unpack_reverse_comm(int n, int *list, double *buf)
+void PairBohmSPHDynamicMoczFtwoFixDiag::unpack_reverse_comm(int n, int *list, double *buf)
 {
   int i,j,m;
 
@@ -916,7 +861,7 @@ void PairBohmSPHDynamicMoczRobustFtwoPotDiag::unpack_reverse_comm(int n, int *li
 
 /* ---------------------------------------------------------------------- */
 
-void *PairBohmSPHDynamicMoczRobustFtwoPotDiag::extract(const char *str, int &dim)
+void *PairBohmSPHDynamicMoczFtwoFixDiag::extract(const char *str, int &dim)
 {
   dim = 2;
   return NULL;

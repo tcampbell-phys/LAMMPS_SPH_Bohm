@@ -46,7 +46,11 @@
 
 # rsync -azv --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' campbell@allxdaq12.nat.physics.ox.ac.uk:/data/tcampbell/LAMMPS/SPH_Bohm/hedp_SPH_QHO_stability_test* ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/hedp64/conservation_testing/
 rsync -azv --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' campbell@allxdaq12.nat.physics.ox.ac.uk:/data/tcampbell/LAMMPS/SPH_Bohm/hedp_bohm_only_uB_diag_only_* ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/hedp64/diag_testing_080425/
-rsync -azv --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' campbell@allxdaq12.nat.physics.ox.ac.uk:/data/tcampbell/LAMMPS/SPH_Bohm/hedp_bohm_only_VB_diag_only_* ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/hedp64/diag_testing_080425/
+# rsync -azv --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' campbell@allxdaq12.nat.physics.ox.ac.uk:/data/tcampbell/LAMMPS/SPH_Bohm/hedp_bohm_only_VB_diag_only_* ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/hedp64/diag_testing_080425/
+# rsync -azv --exclude='*.cpp' --exclude='*.h' -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' campbell@allxdaq12.nat.physics.ox.ac.uk:/data/tcampbell/LAMMPS/SPH_Bohm/hedp_bohm_only_VB_diag_only_1b/ ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/hedp64/diag_testing_080425/hedp_bohm_only_VB_diag_only_1b/
+
+rsync -azv --exclude='*.cpp' --exclude='*.h' -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' campbell@allxdaq12.nat.physics.ox.ac.uk:/mnt/ext_drive/data/tcampbell/diag_tests/* ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/hedp64/diag_testing_080425/
+
 
 # rsync -azv --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' campbell@allxdaq12.nat.physics.ox.ac.uk:/data/tcampbell/LAMMPS/SPH_Bohm/hedp_SPH_coul_stability_test* ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/hedp64/conservation_testing/
 # rsync -azv --exclude='*.dump' --exclude='*.cpp' --exclude='*.h' -e 'ssh -o "ProxyCommand ssh -A campbellt@bastion.physics.ox.ac.uk -W %h:%p"' campbell@allxdaq12.nat.physics.ox.ac.uk:/data/tcampbell/LAMMPS/SPH_Bohm/hedp_SPH_minoo_stability_test* ~/Documents/GitHub/LAMMPS_SPH_Bohm/outputs/hedp64/conservation_testing/

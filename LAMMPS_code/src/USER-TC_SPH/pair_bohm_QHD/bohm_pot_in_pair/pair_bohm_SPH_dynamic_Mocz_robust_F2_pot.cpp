@@ -446,7 +446,7 @@ void PairBohmSPHDynamicMoczRobustFtwoPot::compute(int eflag, int vflag)
           Pyz[j] += exp_ji*SPH_weight_fact_ji*gamma_factor*f_prefactor*((dy_rho[i]*dz_rho[i])/rho_SPH[i] - dyz_rho[i]);
           Pzz[j] += exp_ji*SPH_weight_fact_ji*gamma_factor*f_prefactor*((dz_rho[i]*dz_rho[i])/rho_SPH[i] - dzz_rho[i]);
 
-          u_SPH[j] += -0.5*f_prefactor*exp_ij*SPH_weight_fact_ij*(2*(dxx_rho[i] + dyy_rho[i] + dzz_rho[i])/rho_SPH[i] - (dx_rho[i]*dx_rho[i] + dy_rho[i]*dy_rho[i] + dz_rho[i]*dz_rho[i])/(rho_SPH[i]*rho_SPH[i]));
+          u_SPH[j] += -0.5*f_prefactor*exp_ji*SPH_weight_fact_ji*(2*(dxx_rho[i] + dyy_rho[i] + dzz_rho[i])/rho_SPH[i] - (dx_rho[i]*dx_rho[i] + dy_rho[i]*dy_rho[i] + dz_rho[i]*dz_rho[i])/(rho_SPH[i]*rho_SPH[i]));
 
         }
       }
@@ -542,21 +542,21 @@ void PairBohmSPHDynamicMoczRobustFtwoPot::compute(int eflag, int vflag)
         
         // add flags to check if force terms become attractive 
 
-        if (delx/fx < 0) {
-          fprintf(screen,"\n Particle ID %d attractive Bohm x force",tag[i]);
-          fprintf(screen,"\n i fx = %16.16f",fx);
-          fprintf(screen,"\n xi - xj = %16.16f",delx);
-        }
-        if (dely/fy < 0) {
-          fprintf(screen,"\n Particle ID %d attractive Bohm y force",tag[i]);
-          fprintf(screen,"\n i fy = %16.16f",fy);
-          fprintf(screen,"\n yi - yj = %16.16f",dely);
-        }
-        if (delz/fz < 0) {
-          fprintf(screen,"\n Particle ID %d attractive Bohm z force",tag[i]);
-          fprintf(screen,"\n i fz = %16.16f",fz);
-          fprintf(screen,"\n zi - zj = %16.16f",delz);
-        }
+        // if (delx/fx < 0) {
+        //   fprintf(screen,"\n Particle ID %d attractive Bohm x force",tag[i]);
+        //   fprintf(screen,"\n i fx = %16.16f",fx);
+        //   fprintf(screen,"\n xi - xj = %16.16f",delx);
+        // }
+        // if (dely/fy < 0) {
+        //   fprintf(screen,"\n Particle ID %d attractive Bohm y force",tag[i]);
+        //   fprintf(screen,"\n i fy = %16.16f",fy);
+        //   fprintf(screen,"\n yi - yj = %16.16f",dely);
+        // }
+        // if (delz/fz < 0) {
+        //   fprintf(screen,"\n Particle ID %d attractive Bohm z force",tag[i]);
+        //   fprintf(screen,"\n i fz = %16.16f",fz);
+        //   fprintf(screen,"\n zi - zj = %16.16f",delz);
+        // }
 
         f[i][0] += fx;
         f[i][1] += fy;
