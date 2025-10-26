@@ -8,8 +8,11 @@ This repo contains the majority of Bohm SPH work conducted using a modified vers
 Folders:
 - bash_scripts: bash code used to port data between various machines at Oxford (allxfs1, hedp64 (now allxdaq12)), Harwell (SCARF) and my local machine.
 - input_decks: all LAMMPS input scripts used to run simulations on the various machines. The outputs of these scripts, minus the large dump files, can be found in the ./outputs folder. I rarely used allxfs1 so I doubt there is much interesting in here. hedp64 I used a lot for testing new implementations and performing sanity checks, as well as some small scale versions of the full simulations ran on SCARF. SCARF inputs contain the biggest simulations and is where I generated the majority of the published data.
-- LAMMPS_code: the 3Mar20 LAMMPS src code and my additional bespoke folder USER-TC_SPH. Evertyhing required to build Bohm SPH within LAMMPS is in USER-TC_SPH.
-- 
+- LAMMPS_code: the 3Mar20 LAMMPS src code and my additional bespoke folder /USER-TC_SPH. Evertyhing required to build Bohm SPH within LAMMPS is in /USER-TC_SPH.
+- legacy_bash_scripts: old bash scripts for porting data etc.
+- legacy_LAMMPS_code: outdated Bohm code from previous projects that did not implement an SPH approach.
+- outputs: outputs from the input_decks/ scripts. Generally contains processed data and does not include raw dump files which I left on the remote machines.
+- ref_outputs: reference calculations provided by Pontus Svensson (WPMD) and YuanFeng Shi (CCFLY/Fokker-Planck).
 
 
 To start:
@@ -30,15 +33,15 @@ make -j ${cores} install"
 
 Helpful to consult the manual on the inner workings of LAMMPS and tips on its compilation: https://docs.lammps.org/Manual.html
 
-I recommend trying to re-run some of the input scripts used to generate outputs for the paper, these call the most up-to-date Bohm and SPH routines in the code base. In particular:
+I recommend trying to re-run some of the input scripts used to generate outputs for the paper, these should call the most up-to-date Bohm and SPH routines in the code base. In particular:
 - input_decks/hedp64/CoM_thermo_tests/QHO_tests_241024/in.hedp_SPH_QHO_stability_test_20a to input_decks/hedp64/CoM_thermo_tests/QHO_tests_241024/in.hedp_SPH_QHO_stability_test_27a for Bohm conservation checks
 - input_decks/hedp64/coul_conservation_tests/pre311024/in.hedp_SPH_coul_stability_test_2e_base and input_decks/hedp64/coul_conservation_tests/pre311024/in.hedp_SPH_coul_stability_test_2e_thetacut for the coulomb conservation checks
-- 
+- input_decks/scarf/H_research/ground_tests/old/in.scarf_H_ground_23dynf input_decks/scarf/H_research/ground_tests/current/in.scarf_H_ground_29dyna and input_decks/scarf/H_research/ground_tests/old/in.scarf_H_ground_30dyna for the ground state of Hydrogen tests.
+- the contents of input_decks/scarf/H_research/21_54eV_1_75_rs/confine_full/ for the warm dense hydrogen confinement potential scan.
 
-
+LAMMPS has a typical leapfrog timestepping structure which is strictly incompatibale with the definition of the SPH Bohm potential (Eq. 17 of the paper) that requires access to the position and velocity information at the same time. To resolve this, some of the input scripts (notably input_decks/scarf/H_research/21_54eV_1_75_rs/confine_full/in.scarf_H_21_54eV_1_75_rs_min_conf_full_7a_fix) calculate the bohm potential in the fix stage of the LAMMPS timestep structure to overcome the half time step difference between position and velocity coordinates available at the pair stage. This does not affect the calculated dynamics, but does instigate recalculation of various SPH quantities in the fix (resulting in a roughly ~25% increase in wall time duration than the standard Bohm SPH implementation).
 
 I would ignore the Aluminium and Beryllium input scripts, there is an undiagnosed error in the energy conservation of the pseudopotential routine designed for the Gaussian SPH kernels.
-
 
 This repo is not the easiest to navigate, for which I apologise in advance. In particular, there is no real separation of various versions of the code - I improved as I went. My ambitions of tidying the repo and writing an exhaustive guide remain unfulfilled, but I hope there is some value in making it all available. If hopelessly stuck you can email me at thomas_campbell1@protonmail.com and I will reply if I can.
 
