@@ -8,7 +8,7 @@ This repo contains the majority of Bohm SPH work conducted using a modified vers
 Folders:
 - bash_scripts: bash code used to port data between various machines at Oxford (allxfs1, hedp64 (now allxdaq12)), Harwell (SCARF) and my local machine.
 - input_decks: all LAMMPS input scripts used to run simulations on the various machines. The outputs of these scripts, minus the large dump files, can be found in the ./outputs folder. I rarely used allxfs1 so I doubt there is much interesting in here. hedp64 I used a lot for testing new implementations and performing sanity checks, as well as some small scale versions of the full simulations ran on SCARF. SCARF inputs contain the biggest simulations and is where I generated the majority of the published data.
-- LAMMPS_code: the 3Mar20 LAMMPS src code and my additional bespoke folder /USER-TC_SPH. Evertyhing required to build Bohm SPH within LAMMPS is in /USER-TC_SPH.
+- LAMMPS_code: the 3Mar20 LAMMPS src code and my additional bespoke folder /USER-TC_SPH. Everything required to build Bohm SPH within LAMMPS is in /USER-TC_SPH.
 - legacy_bash_scripts: old bash scripts for porting data etc.
 - legacy_LAMMPS_code: outdated Bohm code from previous projects that did not implement an SPH approach.
 - outputs: outputs from the input_decks/ scripts. Generally contains processed data and does not include raw dump files which I left on the remote machines.
@@ -16,7 +16,7 @@ Folders:
 
 
 To start:
-As stated, the Bohm SPH code is contained in the folder LAMMPS_code/src/USER-TC_SPH/. To get this to compile within LAMMPS, the individual files within USER-TC_SPH and it's subfolders need to be placed directly into the /src/ folder of LAMMPS on your target machine. Use the contents of atom_vec_SPH_CoM/ ahead of atom_vec_SPH/; atom_vec_SPH_CoM/ includes the variables required for the centre-of-mass formulation of Bohm SPH. Otherwise place all files (minus those contained in legacy_SPH_code/ and any duplicates of those in atom_vec_SPH_CoM/) into your src file and compile. Then, provided all the required libraries are available on the machine, compile with code such as: (from one of my compilation scripts):
+As stated, the Bohm SPH code is contained in the folder LAMMPS_code/src/USER-TC_SPH/. To get this to compile within LAMMPS, the individual files within USER-TC_SPH and it's subfolders need to be placed directly into the /src/ folder of LAMMPS on your target machine. Use the contents of atom_vec_SPH_CoM/ ahead of atom_vec_SPH/; atom_vec_SPH_CoM/ includes the variables required for the centre-of-mass formulation of Bohm SPH. Otherwise place all files (minus those contained in legacy_SPH_code/ and any duplicates of those in atom_vec_SPH_CoM/) into your src folder and compile. Then, provided all the required libraries are available on the machine, compile with code such as: (from one of my compilation scripts):
 
 "#!/bin/bash
 
